@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState, useEffect } from "react"
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel"
 
@@ -8,6 +9,8 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     const [data, setData] = useState<ICertificateWithEventPopulate | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [isEditing, setIsEditing] = useState<boolean>(false)
+
+    // Estado para os valores dos inputs
     const [formData, setFormData] = useState({
         ownerName: "",
         ownerCpf: "",
@@ -19,6 +22,21 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
         frontBottomText: ""
     })
 
+    // Estado para guardar os valores originais (para comparação)
+    const [originalFormData, setOriginalFormData] = useState(formData)
+
+    // Estado para controlar quais campos foram modificados
+    const [dirtyFields, setDirtyFields] = useState({
+        ownerName: false,
+        ownerCpf: false,
+        eventName: false,
+        ownerEmail: false,
+        certificateHours: false,
+        certificatePath: false,
+        frontTopperText: false,
+        frontBottomText: false,
+    })
+
     useEffect(() => {
         const getData = async () => {
             const slug = (await params)._id
@@ -28,8 +46,8 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
             const dataJson: { data: ICertificateWithEventPopulate } = await response.json()
             setData(dataJson.data)
 
-            // Preenche os campos do formulário com os dados retornados
-            setFormData({
+            // Define os valores iniciais para formData e originalFormData
+            const initialValues = {
                 ownerName: dataJson.data.ownerName,
                 ownerCpf: dataJson.data.ownerCpf || "",
                 eventName: dataJson.data.eventName,
@@ -38,7 +56,9 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                 certificatePath: dataJson.data.certificatePath,
                 frontTopperText: dataJson.data.frontTopperText || "",
                 frontBottomText: dataJson.data.frontBottomText || ""
-            })
+            }
+            setFormData(initialValues)
+            setOriginalFormData(initialValues)
 
             setLoading(false)
         }
@@ -46,34 +66,53 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     }, [params])
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value })
+        const { name, value } = e.target
+        // Atualiza o estado do input
+        setFormData(prev => ({ ...prev, [name]: value }))
+        // Compara com o valor original para definir se o campo está "dirty"
+        setDirtyFields(prev => ({
+            ...prev,
+            [name]: value !== originalFormData[name as keyof typeof originalFormData]
+        }))
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        const res = await fetch('/api/certificate/update', {
+    // Função para atualizar individualmente o campo alterado
+    const updateField = async (fieldName: string) => {
+        // Cria uma instância de FormData e adiciona o ID e o campo alterado
+        const formDataToSend = new FormData();
+        formDataToSend.append('_id', paramsId);
+        formDataToSend.append(fieldName, formData[fieldName as keyof typeof formData]);
+
+        // Envia a requisição usando FormData
+        const res = await fetch('/api/put/updateCertificate/', {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                id: paramsId,
-                ...formData
-            })
-        })
-        const result = await res.json()
+            body: formDataToSend
+        });
+
+        const result = await res.json();
         if (result.success) {
-            alert('Certificado atualizado com sucesso!')
-            setData(result.data)
-            setIsEditing(false)
+            alert(`Campo ${fieldName} atualizado com sucesso!`);
+            // Atualiza o valor original do campo para o novo valor
+            setOriginalFormData(prev => ({
+                ...prev,
+                [fieldName]: formData[fieldName as keyof typeof formData]
+            }));
+            // Marca o campo como não alterado (dirty = false)
+            setDirtyFields(prev => ({
+                ...prev,
+                [fieldName]: false
+            }));
+            // Atualiza o estado global (opcional, se a API retornar o objeto atualizado)
+            setData(result.data);
         } else {
-            alert('Erro ao atualizar o certificado: ' + result.message)
+            alert(`Erro ao atualizar ${fieldName}: ${result.message}`);
         }
     }
 
+
     if (loading) {
         return (
-            <main className="w-full h-svh flex items-center justify-center">
+            <main className="w-full h-screen flex items-center justify-center">
                 <div>
                     <h1>C A R R E G A N D O</h1>
                 </div>
@@ -82,7 +121,17 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     }
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-gray-50">
+        <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50 ">
+            <div className="w-full max-w-md ">
+                <button
+                    type="button"
+                    className="mt-4 py-2 px-4 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg w-full"
+                >
+                    <Link href={`https://www.dadg.com.br/certificados/meuCertificado/${paramsId}`} prefetch={true} target="_blank">
+                        Ver Certificado
+                    </Link>
+                </button>
+            </div>
             <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
                 {!isEditing ? (
                     <>
@@ -105,10 +154,14 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         </button>
                     </>
                 ) : (
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                        <h2 className="text-2xl font-bold mb-4 text-center bg-red-800">Editar Certificado</h2>
-                        <label className="flex flex-col">
-                            Nome do Proprietário:
+                    <form className="flex flex-col gap-4">
+                        <h2 className="text-2xl font-bold mb-4 text-center bg-red-800 text-white p-2 rounded">
+                            Editar Certificado
+                        </h2>
+
+                        {/* Exemplo para o campo "ownerName" */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">Nome do Proprietário:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -116,9 +169,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.ownerName}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            CPF do Proprietário:
+                            {dirtyFields.ownerName && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("ownerName")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: ownerCpf */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">CPF do Proprietário:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -126,9 +190,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.ownerCpf}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            Nome do Evento:
+                            {dirtyFields.ownerCpf && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("ownerCpf")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: eventName */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">Nome do Evento:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -136,9 +211,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.eventName}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            E-mail:
+                            {dirtyFields.eventName && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("eventName")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: ownerEmail */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">E-mail:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="email"
@@ -146,9 +232,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.ownerEmail}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            Horas do Certificado:
+                            {dirtyFields.ownerEmail && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("ownerEmail")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: certificateHours */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">Horas do Certificado:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -156,9 +253,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.certificateHours}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            Caminho do Certificado:
+                            {dirtyFields.certificateHours && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("certificateHours")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: certificatePath */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">Caminho do Certificado:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -166,9 +274,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.certificatePath}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            Texto Superior:
+                            {dirtyFields.certificatePath && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("certificatePath")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: frontTopperText */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">Texto Superior:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -176,9 +295,20 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.frontTopperText}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <label className="flex flex-col">
-                            Texto Inferior:
+                            {dirtyFields.frontTopperText && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("frontTopperText")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Campo: frontBottomText */}
+                        <div className="flex flex-col">
+                            <label className="font-semibold">Texto Inferior:</label>
                             <input
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
@@ -186,26 +316,27 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 value={formData.frontBottomText}
                                 onChange={handleInputChange}
                             />
-                        </label>
-                        <div className="flex gap-4 mt-4">
-                            <button
-                                type="submit"
-                                className="flex-1 py-2 px-4 bg-green-500 hover:bg-green-600 text-white rounded-lg"
-                            >
-                                Salvar Alterações
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setIsEditing(false)}
-                                className="flex-1 py-2 px-4 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg"
-                            >
-                                Cancelar
-                            </button>
+                            {dirtyFields.frontBottomText && (
+                                <button
+                                    type="button"
+                                    onClick={() => updateField("frontBottomText")}
+                                    className="mt-2 py-1 px-2 bg-green-500 hover:bg-green-600 text-white rounded"
+                                >
+                                    Salvar Alterações
+                                </button>
+                            )}
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setIsEditing(false)}
+                            className="mt-4 py-2 px-4 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg"
+                        >
+                            Fechar Edição
+                        </button>
                     </form>
                 )}
             </div>
         </main>
-
     )
 }

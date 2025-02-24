@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel";
+import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
+
 
 export default function Page() {
     const [isLoading, setLoading] = useState<boolean>(true);
@@ -55,9 +57,9 @@ export default function Page() {
 
 
     return (
-        <main className="w-full h-svh flex items-center justify-center flex-col space-y-5">
+        <main className="w-full h-svh flex items-center justify-center flex-col space-y-5" style={PoppinsFontLib.style}>
             <div>
-                <h1>TODOS OS CERTIFICADOS</h1>
+                <h1 className="text-[40px] font-extrabold">TODOS OS CERTIFICADOS</h1>
             </div>
             {/* Campo de busca */}
             <div className="w-full flex items-center justify-center flex flex-col space-y-1">
@@ -96,25 +98,27 @@ const CertificateComponent: React.FC<{ certificate: ICertificateWithEventPopulat
     return (
         <div className="shadow-xl py-5 px-5 space-y-5 border-b-[2px] border-r-[2px] rounded-2xl border-blue-800">
             <div className="">
+
                 <div className="flex flex-col">
-                    <h1 className="text-[10px]">Identificação de Evento</h1>
+                    <h1 className="text-[12px] font-extrabold">Usuário</h1>
+                    <p>{certificate.ownerName}</p>
+                </div>
+
+                <div className="flex flex-col">
+                    <h1 className="text-[12px] font-extrabold">Identificação de Evento</h1>
                     <p>{String(certificate.eventId._id)}</p>
                 </div>
 
                 <div className="flex flex-col">
-                    <h1 className="text-[10px]">Identificação do Certificado</h1>
+                    <h1 className="text-[12px] font-extrabold">Identificação do Certificado</h1>
                     <p>{String(certificate._id)}</p>
                 </div>
 
                 <div className="flex flex-col">
-                    <h1 className="text-[10px]">Nome do Evento</h1>
+                    <h1 className="text-[12px] font-extrabold">Nome do Evento</h1>
                     <p>{certificate.eventName}</p>
                 </div>
 
-                <div className="flex flex-col">
-                    <h1 className="text-[10px]">Usuário</h1>
-                    <p>{certificate.ownerName}</p>
-                </div>
             </div>
             <div className="space-x-1">
                 <Link
@@ -129,7 +133,7 @@ const CertificateComponent: React.FC<{ certificate: ICertificateWithEventPopulat
                 </Link>
                 <Link
                     prefetch={false}
-                    href={`https://www.dadg.com.br/certificados/meuCertificado/${certificate._id}`}
+                    href={`/todosCertificados/modificar/${certificate._id}`}
                     target="_blank"
                     className=""
                 >

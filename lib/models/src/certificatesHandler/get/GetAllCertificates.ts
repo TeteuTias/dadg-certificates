@@ -1,4 +1,3 @@
-import { ICertificate } from "@/lib/models/CertificateModel";
 import CertificateModel from "@/lib/models/CertificateModel";
 import { connectToDatabase } from "@/lib/mongodb";
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel";

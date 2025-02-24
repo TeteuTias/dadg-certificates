@@ -1,6 +1,6 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { IEventCertificate } from './EventCertificateModel';
-import { ObjectId } from 'mongoose';
+import { ObjectId } from 'mongodb';
 
 // Interface para o documento do usuário
 export interface ICertificate {
@@ -29,6 +29,8 @@ const CertificateSchema: Schema<ICertificate> = new Schema(
         ownerEmail: { type: String, required: true },
         certificateHours: { type: String, required: true },
         certificatePath: { type: String, required: true },
+        frontTopperText: { type: String, required: true },
+        frontBottomText: { type: String, required: true },
 
     },
     { timestamps: true, collection: "certificates.datails" }
