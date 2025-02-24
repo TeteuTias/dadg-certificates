@@ -1,14 +1,14 @@
 "use client"
 import Image from "next/image";
 import { useUser } from "@auth0/nextjs-auth0"
-import { getAccessToken } from "@auth0/nextjs-auth0"
+
 
 export default function Home() {
 
-  const { user, isLoading, error } = useUser()
+  const { user, } = useUser()
 
   async function fetchData() {
-    const token = await getAccessToken()
+
 
     // call external API with the token...
   }
