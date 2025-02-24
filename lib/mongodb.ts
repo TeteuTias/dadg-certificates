@@ -1,5 +1,5 @@
 import mongoose, { Mongoose } from 'mongoose';
-
+import "./models"
 const uri: string | undefined = process.env.MONGODB_URI;
 
 if (!uri) {
