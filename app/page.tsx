@@ -1,9 +1,21 @@
+"use client"
 import Image from "next/image";
+import { useUser } from "@auth0/nextjs-auth0"
+import { getAccessToken } from "@auth0/nextjs-auth0"
 
 export default function Home() {
+
+  const { user, isLoading, error } = useUser()
+
+  async function fetchData() {
+    const token = await getAccessToken()
+
+    // call external API with the token...
+  }
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
+      <button onClick={fetchData}>Fetch Data</button>
         <Image
           className="dark:invert"
           src="/next.svg"
@@ -20,7 +32,7 @@ export default function Home() {
             </code>
             .
           </li>
-          <li>Save and see your changes instantly.</li>
+          <li>Save and see your changes instantly. {user?.email}</li>
         </ol>
 
         <div className="flex gap-4 items-center flex-col sm:flex-row">
