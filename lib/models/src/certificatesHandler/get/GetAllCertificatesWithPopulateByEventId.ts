@@ -3,7 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel";
 //
 //
-export default async function GetAllCertificates():Promise<ICertificateWithEventPopulate[]> {
+export default async function GetAllCertificatesWithPopulateByEventId():Promise<ICertificateWithEventPopulate[]> {
     await connectToDatabase()
     const data = await CertificateModel.find({}).populate<{ eventId: ICertificateWithEventPopulate['eventId'] }>("eventId").lean()
     return data

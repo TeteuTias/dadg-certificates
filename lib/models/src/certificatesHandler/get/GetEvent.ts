@@ -1,0 +1,13 @@
+import { ObjectId } from "mongodb"
+import mongoose from "mongoose"
+import EventCertificateModel from "@/lib/models/EventCertificateModel"
+import { IEventCertificate } from "@/lib/models/EventCertificateModel"
+
+export default async function GetEvent(eventId: ObjectId): Promise<IEventCertificate | null> {
+
+    const data = await EventCertificateModel.findOne({
+        _id: eventId
+    })
+
+    return data
+}

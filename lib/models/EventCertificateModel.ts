@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { ObjectId } from 'mongoose';
+import { ObjectId } from 'mongodb';
 
 // Interface para o documento do usuário
 export interface IEventCertificate {

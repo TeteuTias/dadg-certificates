@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import GetCertificate from "@/lib/models/src/certificatesHandler/get/GetCertificate";
 import { ObjectId } from "mongodb";
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request, { params }: { params: Promise<{ certificateId: string }> }) {
 
 
