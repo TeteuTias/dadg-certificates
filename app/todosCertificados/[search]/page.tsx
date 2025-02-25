@@ -13,7 +13,9 @@ export default function Page({ params }: { params: Promise<{ search: string }> }
     useEffect(() => {
         const fetchData = async () => {
             const slug = (await params).search
-            setSearchQuery(slug)
+            if (slug !== "allCertificates") {
+                setSearchQuery(slug)
+            }
             const res = await fetch("/api/get/allCertificates/");
             if (!res.ok) {
                 console.log("Ocorreu algum erro");
