@@ -5,13 +5,15 @@ import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
 
 
-export default function Page() {
+export default function Page({ params }: { params: Promise<{ search: string }> }) {
     const [isLoading, setLoading] = useState<boolean>(true);
     const [data, setData] = useState<ICertificateWithEventPopulate[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>("");
 
     useEffect(() => {
         const fetchData = async () => {
+            const slug = (await params).search
+            setSearchQuery(slug)
             const res = await fetch("/api/get/allCertificates/");
             if (!res.ok) {
                 console.log("Ocorreu algum erro");
@@ -22,7 +24,7 @@ export default function Page() {
             setLoading(false);
         };
         fetchData();
-    }, []);
+    }, [params]);
 
     if (isLoading) {
         return (

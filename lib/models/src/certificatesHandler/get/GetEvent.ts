@@ -1,5 +1,4 @@
 import { ObjectId } from "mongodb"
-import mongoose from "mongoose"
 import EventCertificateModel from "@/lib/models/EventCertificateModel"
 import { IEventCertificate } from "@/lib/models/EventCertificateModel"
 

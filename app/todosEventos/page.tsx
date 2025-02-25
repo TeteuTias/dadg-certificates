@@ -136,6 +136,16 @@ const EventComponent: React.FC<{ event: IEventCertificate }> = ({ event }) => {
                         Editar Grupo
                     </div>
                 </Link>
+                <Link
+                    prefetch={false}
+                    href={`/todosCertificados/${event._id}`}
+                    target="_blank"
+                    className=""
+                >
+                    <div className="p-5 bg-red-900 font-extrabold text-white">
+                        Ver Certificados Do Evento
+                    </div>
+                </Link>
             </div>
         </div>
     );

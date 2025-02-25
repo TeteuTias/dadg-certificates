@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { IEventCertificate } from "@/lib/models/EventCertificateModel"
-import { eventNames } from "process"
 
 export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     const [paramsId, setParamsId] = useState<string>("")
@@ -131,6 +130,16 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                             <p><strong>Evento:</strong> {data?.eventName}</p>
                             <p><strong>Descrição:</strong> {data?.eventDescription}</p>
                         </div>
+                        <Link
+                            prefetch={false}
+                            href={`/todosCertificados/${paramsId}`}
+                            target="_blank"
+                            className=""
+                        >
+                            <div className="mt-4 p-2 bg-red-900 font-extrabold text-white">
+                                Ver Certificados Do Evento
+                            </div>
+                        </Link>
                         <button
                             onClick={() => setIsEditing(true)}
                             className="mt-6 w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
