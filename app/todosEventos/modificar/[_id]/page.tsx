@@ -3,12 +3,58 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { IEventCertificate } from "@/lib/models/EventCertificateModel"
-
+import { IModalProps } from "@/components/ModalActionWithTextVerification"
+import { IModalProps as IModalPropsWithoutPhrase } from "@/components/ModalAction"
+import ModalActionWithTextVerification from "@/components/ModalActionWithTextVerification"
+import ModalAction from "@/components/ModalAction"
+import { ObjectId } from "bson"
+import { useRouter } from "next/navigation"
+import LoadingModal from "@/components/LoadingModal"
+//
+//
 export default function Home({ params }: { params: Promise<{ _id: string }> }) {
+    const router = useRouter()
     const [paramsId, setParamsId] = useState<string>("")
     const [data, setData] = useState<IEventCertificate | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [isEditing, setIsEditing] = useState<boolean>(false)
+    const [isLoading, setIsLoading] = useState<boolean>(false)
+
+    const toggleIsLoading = () => {
+        setIsLoading((prev)=> !prev)
+    }
+
+    const [ModalOpenPropsWithoutPhrase, setModalOpenPropsWithoutPhrase] = useState<IModalPropsWithoutPhrase & { isOpen: boolean }>({
+        title: "Atenção",
+        emoji: "",
+        text: "Você está prestes a criar um Evento. Deseja continuar?",
+        isOpen: false,
+        buttons:
+            [
+                {
+                    label: "", action: () => setModalOpenProps((prev) => ({ ...prev, isOpen: false })),
+                }
+            ]
+    })
+    const [modalOpenProps, setModalOpenProps] = useState<IModalProps & { isOpen: boolean }>({
+        title: "",
+        emoji: "",
+        text: "",
+        expectedPhrase: "", // frase que o usuário deve digitar exatamente
+        onConfirm: () => { },  // função a ser executada se a frase estiver correta
+        onCancel: () => { },  // ação opcional para cancelar
+        isOpen: false
+    })
+
+    const toggleModalOpenPropsWithoutPhrase = (newState: Partial<IModalPropsWithoutPhrase & { isOpen: boolean }>) => {
+        setModalOpenPropsWithoutPhrase((prev) => ({ ...prev, ...newState }))
+    }
+
+    const toggleModalOpenProps = (newState: Partial<IModalProps & { isOpen: boolean }>) => {
+        setModalOpenProps((prev) => ({ ...prev, ...newState }))
+    }
+
+
 
     // Estado para os valores dos inputs
     const [formData, setFormData] = useState({
@@ -103,6 +149,67 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
         }
     }
 
+    const deleteEvent = async (eventId: ObjectId | null | undefined) => {
+        toggleIsLoading()
+        if (!eventId) {
+            toggleModalOpenPropsWithoutPhrase({
+                text: "Ocorreu algum erro. Recarregue a página",
+                title: "ERRO",
+                isOpen: true,
+                buttons: [
+                    {
+                        label: "Fechar",
+                        action: () => window.location.reload()
+                    }
+                ]
+
+            })
+            return
+        }
+
+        const formData = new FormData()
+        formData.append("eventId", String(eventId))
+
+
+        // Aqui você pode fazer a chamada à sua API que insere o documento no MongoDB
+
+        const data = await fetch("/api/delete/eventAndAllCertificates/", {
+            method: "DELETE",
+            body: formData
+        })
+
+        if (!data.ok) {
+            toggleIsLoading()
+            const dataJson: { message: string } = await data.json()
+            toggleModalOpenPropsWithoutPhrase({
+                text: dataJson.message.trim(),
+                title: "ERRO",
+                isOpen: true,
+                buttons: [
+                    {
+                        label: "Fechar",
+                        action: () => toggleModalOpenPropsWithoutPhrase({ isOpen: false })
+                    }
+                ]
+
+            })
+            return;
+        }
+        toggleIsLoading()
+        toggleModalOpenProps({ isOpen: false })
+        const dataJson: { message: string } = await data.json()
+        toggleModalOpenPropsWithoutPhrase({
+            text: dataJson.message,
+            isOpen: true,
+            buttons: [
+                {
+                    label: "Obrigado(a)!",
+                    action: () => router.push("/todosEventos/")
+                }
+            ]
+
+        })
+    }
 
     if (loading) {
         return (
@@ -115,10 +222,33 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     }
 
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center bg-gray-50 ">
-            <div className="w-full max-w-md ">
-            </div>
-            <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
+        <main className="relative min-h-screen flex flex-col items-center justify-center bg-gray-50">
+            {
+                isLoading && 
+                <LoadingModal />
+            }
+            {
+                ModalOpenPropsWithoutPhrase.isOpen &&
+                <ModalAction {...ModalOpenPropsWithoutPhrase} />
+            }
+            {modalOpenProps.isOpen &&
+                <ModalActionWithTextVerification {...modalOpenProps} />
+            }
+            <div className="w-full max-w-md px-2 py-5 bg-white rounded-lg shadow-md space-y-5">
+                <div className="w-full max-w-md ">
+                    <button className="bg-red-800 text-white px-2 py-1 font-extrabold text-[15px] text-white"
+                        onClick={() => toggleModalOpenProps({
+                            title: "ATENÇÃO!",
+                            expectedPhrase: `${data?.eventName}`,
+                            onCancel: () => { toggleModalOpenProps({ isOpen: false }) },
+                            onConfirm: () => { deleteEvent(data?._id) },
+                            isOpen: true,
+                            text: "Você está prestes a APAGAR O EVENTO E TODOS OS CERTIFICADOS ASSOCIADOS PERMANENTEMENTE. Essa ação não tem volta. Você deseja mesmo continuar?"
+                        })}
+                    >
+                        APAGAR
+                    </button>
+                </div>
                 {!isEditing ? (
                     <>
                         <h2 className="text-2xl font-bold mb-6 text-center">Detalhes do Certificado</h2>

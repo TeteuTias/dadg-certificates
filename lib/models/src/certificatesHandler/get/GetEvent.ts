@@ -6,7 +6,7 @@ import { connectToDatabase } from "@/lib/mongodb"
 //
 export default async function GetEvent(eventId: ObjectId): Promise<IEventCertificate | null> {
 
-    await connectToDatabase
+    await connectToDatabase()
     const data = await EventCertificateModel.findOne({
         _id: eventId
     })

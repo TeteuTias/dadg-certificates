@@ -1,5 +1,4 @@
 "use client"
-import { IEventCertificate } from "@/lib/models/EventCertificateModel"
 import React, { useState } from 'react';
 import ModalAction from "@/components/ModalAction";
 import { IModalProps } from "@/components/ModalAction";
@@ -93,6 +92,7 @@ const CreateEventCertificateForm: React.FC = () => {
 
     return (
         <>
+
             {
                 modalOpenProps.isOpen &&
                 <ModalAction {...modalOpenProps} />

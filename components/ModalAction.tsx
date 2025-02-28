@@ -10,7 +10,7 @@ export interface IModalProps {
 
 const ModalAction: React.FC<IModalProps> = ({ title, text, buttons, emoji }) => {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FEFAE0] bg-opacity-75">
+        <div className="fixed inset-0 z-[50000] flex items-center justify-center bg-[#FEFAE0] bg-opacity-75">
             <div className="max-w-[95%] md:max-w-md w-full bg-white">
                 <div className="flex flex-row content-center p-2 border-[2.8px] border-[#283618] ">
                     <div className='ml-2 flex flex-row space-x-1'>
