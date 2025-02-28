@@ -251,7 +251,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                 </div>
                 {!isEditing ? (
                     <>
-                        <h2 className="text-2xl font-bold mb-6 text-center">Detalhes do Certificado</h2>
+                        <h2 className="text-2xl font-bold mb-6 text-center">Detalhes do Evento</h2>
                         <div className="">
                             <p><strong>Identificação Única</strong></p>
                             <p>{String(data?._id)}</p>

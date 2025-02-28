@@ -14,7 +14,10 @@ export default function Home() {
         <h1 className="w-full text-center text-[50px] text-white">Escolha uma Opção</h1>
         <div className="w-full">
           <article className="flex justify-center items-center gap-4">
-            <Card title="Certificados" path="/todosCertificados/allCertificates" />
+            <ExpansiveCard title="Certificados">
+              <Card title="Ver Certificados" path="/todosCertificados/allCertificates" />
+              <Card title="Criar Certificado" path="/createCertificate" />
+            </ExpansiveCard>
             <ExpansiveCard title="Eventos">
               <Card title="Ver Eventos" path="/todosEventos/" />
               <Card title="Criar Eventos" path="/criarEvento/" />
