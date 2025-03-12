@@ -18,6 +18,7 @@ export default function Home() {
               <Card title="Ver Certificados" path="/todosCertificados/allCertificates" />
               <Card title="Criar Certificado" path="/createCertificate" />
             </ExpansiveCard>
+            <Card title="Histórico de Modificações" path="/historicoDeModificacoes" />
             <ExpansiveCard title="Eventos">
               <Card title="Ver Eventos" path="/todosEventos/" />
               <Card title="Criar Eventos" path="/criarEvento/" />
@@ -74,7 +75,7 @@ const ExpansiveCard: React.FC<{ title: string, children: React.ReactNode }> = ({
 const Card: React.FC<{ title: string, path: string }> = ({ title, path }) => {
   return (
     <Link href={path} prefetch={true} className=" w-full">
-      <div className="flex items-center justify-center align-center content-center bg-[#eef4ed] p-10 border-b-[7px] border-r-[7px] border-b-black border-r-black max-h-[60px] min-h-[60px]">
+      <div className="flex items-center justify-center align-center content-center bg-[#eef4ed] p-10 border-b-[7px] border-r-[7px] border-b-black border-r-black max-h-[10px] min-h-[10px]">
         <h1 className="font-extrabold w-full text-center">{title}</h1>
         <div>
         </div>

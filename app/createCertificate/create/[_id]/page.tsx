@@ -7,7 +7,7 @@ import { IModalProps } from "@/components/ModalActionWithTextVerification"
 import { IModalProps as IModalPropsWithoutPhrase } from "@/components/ModalAction"
 import ModalActionWithTextVerification from "@/components/ModalActionWithTextVerification"
 import ModalAction from "@/components/ModalAction"
-import { ObjectId } from "bson"
+
 import { useRouter } from "next/navigation"
 import LoadingModal from "@/components/LoadingModal"
 import { ICertificate } from "@/lib/models/CertificateModel"

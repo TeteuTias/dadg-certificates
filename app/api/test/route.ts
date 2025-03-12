@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 // import EventCertificateModel from "@/lib/models/EventCertificateModel";
 // import { connectToDatabase } from "@/lib/mongodb";
-
-
+import { getUserId } from "@/lib/getUserId";
+import { auth0 } from "@/lib/auth0";
 export async function GET() {
     
+    const a = await auth0.getSession()
+
     // await connectToDatabase()
     /*
     const a = await new EventCertificateModel({
@@ -13,6 +15,6 @@ export async function GET() {
     })
     */
     //await a.save()
-    
-    return NextResponse.json({ "olá": "mundo" })
+    await getUserId()
+    return NextResponse.json({ "olá": a })
 }
