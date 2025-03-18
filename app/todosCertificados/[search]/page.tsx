@@ -110,7 +110,7 @@ const CertificateComponent: React.FC<{ certificate: ICertificateWithEventPopulat
 
                 <div className="flex flex-col">
                     <h1 className="text-[12px] font-extrabold">Identificação de Evento</h1>
-                    <p>{String(certificate.eventId._id)}</p>
+                    <p onClick={() => console.log(certificate)}>{ String(certificate?.eventId?._id) }</p>
                 </div>
 
                 <div className="flex flex-col">

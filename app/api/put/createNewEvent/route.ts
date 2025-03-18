@@ -15,7 +15,15 @@ export async function PUT(request: Request) {
         return NextResponse.json({ message: "Forneça a descrição do evento." }, { status: 500 })
     }
 
-    await CreateNewEvent({ eventDescription: eventDescription, eventName: eventName })
+    await CreateNewEvent({
+        eventDescription: eventDescription,
+        eventName: eventName,
+        styleContainer: {},
+        styleFrontTopperText: {},
+        styleFrontBottomText: {},
+        styleNameText: {},
+        templatePath: "",
+    })
 
     return NextResponse.json({ message: "Evento adicionado com sucesso!" })
 }
