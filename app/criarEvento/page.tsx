@@ -18,7 +18,7 @@ export default function Page() {
 const CreateEventCertificateForm: React.FC = () => {
     const [eventName, setEventName] = useState('');
     const [eventDescription, setEventDescription] = useState('');
-
+    const [templatePath, setTemplatePath] = useState('/certificates/templates/template04.png');
 
     const [modalOpenProps, setModalOpenProps] = useState<IModalProps & { isOpen: boolean }>({
         title: "Atenção",
@@ -46,7 +46,7 @@ const CreateEventCertificateForm: React.FC = () => {
         const formData = new FormData()
         formData.append("eventName", eventName)
         formData.append("eventDescription", eventDescription)
-
+        formData.append("templatePath", templatePath)
 
         // Aqui você pode fazer a chamada à sua API que insere o documento no MongoDB
 
@@ -122,6 +122,18 @@ const CreateEventCertificateForm: React.FC = () => {
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-black"
                             value={eventDescription}
                             onChange={(e) => setEventDescription(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <label htmlFor="templatePath" className="block text-sm font-extrabold text-gray-700">
+                            Path do Template
+                        </label>
+                        <textarea
+                            id="templatePath"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-black"
+                            value={templatePath}
+                            onChange={(e) => setTemplatePath(e.target.value)}
                             required
                         />
                     </div>

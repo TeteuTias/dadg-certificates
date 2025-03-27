@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { IEventCertificate } from "@/lib/models/EventCertificateModel"
 import { IModalProps } from "@/components/ModalActionWithTextVerification"
 import { IModalProps as IModalPropsWithoutPhrase } from "@/components/ModalAction"
@@ -11,7 +11,7 @@ import ModalAction from "@/components/ModalAction"
 import { useRouter } from "next/navigation"
 import LoadingModal from "@/components/LoadingModal"
 import { ICertificate } from "@/lib/models/CertificateModel"
-
+import * as XLSX from 'xlsx';
 //
 //
 export default function Home({ params }: { params: Promise<{ _id: string }> }) {
@@ -20,7 +20,9 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     const [data, setData] = useState<IEventCertificate | null>(null)
     const [loading, setLoading] = useState<boolean>(true)
     const [isEditing, setIsEditing] = useState<boolean>(false)
+    const [isCreatingManyCertificates, setIsCreatingManyCertificates] = useState<boolean>(false)
     const [isLoading, setIsLoading] = useState<boolean>(false)
+
 
     const toggleIsLoading = () => {
         setIsLoading((prev) => !prev)
@@ -174,43 +176,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
         setFormData(prev => ({ ...prev, [name]: value }))
     }
 
-    // Função para atualizar individualmente o campo alterado
-    /*
-    const updateField = async (fieldName: string) => {
-        // Cria uma instância de FormData e adiciona o ID e o campo alterado
-        const formDataToSend = new FormData();
-        formDataToSend.append('_id', paramsId);
-        formDataToSend.append(fieldName, formData[fieldName as keyof typeof formData]);
-
-        // Envia a requisição usando FormData
-        const res = await fetch('/api/put/updateEvent/', {
-            method: 'PUT',
-            body: formDataToSend
-        });
-
-        const result = await res.json();
-        if (result.success) {
-            alert(`Campo ${fieldName} atualizado com sucesso!`);
-            // Atualiza o valor original do campo para o novo valor
-            setOriginalFormData(prev => ({
-                ...prev,
-                [fieldName]: formData[fieldName as keyof typeof formData]
-            }));
-            // Marca o campo como não alterado (dirty = false)
-            setDirtyFields(prev => ({
-                ...prev,
-                [fieldName]: false
-            }));
-            // Atualiza o estado global (opcional, se a API retornar o objeto atualizado)
-            setData(result.data);
-        } else {
-            alert(`Erro ao atualizar ${fieldName}: ${result.message}`);
-        }
-    }
-    */
-
-
-    if (loading) {
+    if (loading || !data) {
         return (
             <main className="w-full h-screen flex items-center justify-center">
                 <div>
@@ -219,7 +185,30 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
             </main>
         )
     }
-
+    if (isCreatingManyCertificates) {
+        return (
+            <main className="relative min-h-screen flex flex-col items-center justify-center justify-center bg-gray-50">
+                <div className="border-blue-800 border-[2px] p-5 my-2 space-y-10">
+                    <div>
+                        <h2 className="text-2xl font-bold mb-6 text-center">Criar Vários Certificados</h2>
+                    </div>
+                    <XLSXReader eventId={paramsId} eventName={data?.eventName} />
+                    <div className="flex flex-col">
+                        <button
+                            onClick={() => {
+                                setIsCreatingManyCertificates(false)
+                                setIsEditing(false)
+                            }
+                            }
+                            className="mt-0 w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                        >
+                            Voltar
+                        </button>
+                    </div>
+                </div>
+            </main>
+        )
+    }
     return (
         <main className="relative min-h-screen flex flex-col items-center justify-center bg-gray-50">
             {
@@ -371,14 +360,278 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 Ver Certificados Do Evento
                             </div>
                         </Link>
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="mt-6 w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
-                        >
-                            Criar Certificado
-                        </button>
+                        <div className="">
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="mt-6 w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                            >
+                                Criar UM Certificado
+                            </button>
+                            <button
+                                onClick={() => setIsCreatingManyCertificates(true)}
+                                className="mt-6 w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                            >
+                                Criar Vários Certificados
+                            </button>
+                        </div>
                     </div>
             }
         </main>
     )
+}
+const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId, eventName }) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [data, setData] = useState<string[][]>([]);
+    const [subStep, setSubStep] = useState<0 | 1>(0)
+    const [input1, setInput1] = useState<string>('');
+    const [input2, setInput2] = useState<string>('');
+    const [input3, setInput3] = useState<string>('');
+    const [input4, setInput4] = useState<string>('/certificates/templates/template04.png');
+
+    const handleInput1Change = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setInput1(event.target.value);
+    };
+
+    const handleInput2Change = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setInput2(event.target.value);
+    };
+    const handleInput3Change = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setInput3(event.target.value);
+    };
+    const handleInput4Change = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setInput4(event.target.value);
+    };
+
+    const processFile = (file: File) => {
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            const arrayBuffer = e.target?.result;
+            if (arrayBuffer && typeof arrayBuffer !== 'string') {
+                // Lê o arquivo e converte para um workbook
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                // Seleciona a primeira aba (pode ser alterado conforme necessário)
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                // Converte a planilha para um array de arrays
+                const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                setData(jsonData);
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    };
+
+    const toggleSubStep = (newState: 0 | 1) => {
+        setSubStep(newState)
+    }
+
+    const handleCellChange = (rowIndex: number, cellIndex: number, value: string) => {
+        const newData = data.map((row, rIdx) => {
+            if (rIdx === rowIndex) {
+                return row.map((cell, cIdx) => {
+                    return cIdx === cellIndex ? value : cell;
+                });
+            }
+            return row;
+        });
+        setData(newData);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            processFile(e.target.files[0]);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            processFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+
+    const pushCertificates = async () => {
+        const fetchData = await fetch("/api/put/createManyCertificates", {
+            method: "POST",
+            body: JSON.stringify({
+                update: data.filter((element) => element.length !== 0).filter((_, index) => index !== 0),
+                frontText: input1,
+                bottomText: input2,
+                eventName: eventName,
+                eventId: eventId,
+                hours: input3,
+                path: input4,
+            })
+        })
+        if (!fetchData.ok) {
+            const dataJson: { message: string } = await fetchData.json()
+            alert(dataJson.message)
+            return;
+        }
+        const dataJson: { message: string } = await fetchData.json()
+        alert(dataJson.message)
+        setSubStep(0)
+        setData([])
+        setInput1("")
+        setInput2("")
+        setInput3("")
+        setInput4("")
+    }
+
+    return (
+        <div className="overflow-auto w-[700px]">
+            {
+                subStep === 0 && (
+                    <>
+                        {
+                            !data.length ? (
+                                <div className="flex flex-col items-center justify-center space-y-5 ">
+                                    <h2 className="w-full text-center">Selecione uma planilha no formato <span className="font-bold">XLSX</span>.</h2>
+                                    <input
+                                        type="file"
+                                        accept=".xlsx, .xls"
+                                        ref={fileInputRef}
+                                        onChange={handleFileChange}
+                                    />
+                                    <div
+                                        onDrop={handleDrop}
+                                        onDragOver={handleDragOver}
+                                        className="flex flex-col w-full bg-yellow-100"
+                                        style={{
+                                            width: '300px',
+                                            height: '200px',
+                                            border: '2px dashed #ccc',
+                                            marginTop: '20px',
+                                            textAlign: 'center',
+                                            lineHeight: '200px'
+                                        }}
+                                    >
+                                        Arraste e solte o arquivo aqui
+                                    </div>
+                                </div>
+                            )
+                                : undefined
+                        }
+
+                        {data.length > 0 && (
+                            <div style={{ marginTop: '20px' }} className="w-full">
+                                <h3 className="w-full text-center font-extrabold underline" onClick={() => console.log(data)}>Conteúdo da Planilha</h3>
+                                <table border={1} className="w-full">
+                                    <tbody>
+                                        {data.map((row, rowIndex) => (
+                                            row.length ? (
+                                                <tr key={rowIndex}
+                                                    className="font-extrabold"
+                                                    style={{
+                                                        backgroundColor: `${rowIndex === 0 ? "brown" : rowIndex % 2 ? "#d9b0ad" : ""}`,
+                                                        color: `${rowIndex === 0 ? "white" : "black"}`
+                                                    }}>
+                                                    {row.map((cell, cellIndex) => (
+                                                        rowIndex === 0 ? (
+                                                            <td key={cellIndex}>{cell || "none"}</td>
+                                                        ) : (
+                                                            <td key={cellIndex}>
+                                                                <input
+                                                                    type="text"
+                                                                    value={cell}
+                                                                    onChange={(e) =>
+                                                                        handleCellChange(
+                                                                            rowIndex,
+                                                                            cellIndex,
+                                                                            e.target.value
+                                                                        )
+                                                                    }
+                                                                    className="p-1"
+                                                                    style={{ backgroundColor: 'transparent' }}
+                                                                />
+                                                            </td>
+                                                        )
+                                                    ))}
+                                                </tr>
+                                            ) : undefined
+                                        ))}
+                                    </tbody>
+                                </table>
+                                <div className="flex flex-col space-y-4">
+                                    <div className="w-full h-[5px] bg-red-800" />
+                                    <div className="flex flex-row space-x-2">
+                                        <button className="bg-red-800 w-fit font-white px-2 font-extrabold text-white" onClick={() => toggleSubStep(1)}>Próximo</button>
+                                        <div>
+                                            <button className="bg-red-800 w-fit font-white px-2 font-extrabold text-white" onClick={() => setData([])}>Fechar Planilha</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )
+            }
+            {
+                subStep === 1 && (
+                    <div>
+                        <div>
+                            <div>
+                                <h1>Forneça o Texto Superior</h1>
+                                <input
+                                    id="input1"
+                                    type="text"
+                                    className="w-full"
+                                    value={input1}
+                                    onChange={handleInput1Change}
+                                    placeholder="Forneça o texto superior."
+                                />
+                            </div>
+                            <div>
+                                <h1>Forneça o Texto Inferior</h1>
+                                <input
+                                    id="input2"
+                                    type="text"
+                                    className="w-full"
+                                    value={input2}
+                                    onChange={handleInput2Change}
+                                    placeholder="Forneça o texto inferior"
+                                />
+                            </div>
+                            <div>
+                                <h1>Forneça a Quantidade de Horas</h1>
+                                <input
+                                    id="input3"
+                                    type="text"
+                                    className="w-full"
+                                    value={input3}
+                                    onChange={handleInput3Change}
+                                    placeholder="Horas"
+                                />
+                            </div>
+                            <div>
+                                <h1>Path do Certificado</h1>
+                                <input
+                                    id="input4"
+                                    type="text"
+                                    className="w-full"
+                                    value={input4}
+                                    onChange={handleInput4Change}
+                                    placeholder="Path"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex flex-col space-y-4">
+                            <div className="w-full h-[5px] bg-red-800" />
+                            <div className="flex flex-row space-x-2">
+                                <button className="bg-red-800 w-fit font-white px-2 font-extrabold text-white" onClick={() => toggleSubStep(0)}>Voltar</button>
+                                <div>
+                                    <button className="bg-red-800 w-fit font-white px-2 font-extrabold text-white" onClick={pushCertificates}>Criar Certificados</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div>
+    );
 }

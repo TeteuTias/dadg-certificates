@@ -6,6 +6,11 @@ export async function PUT(request: Request) {
     const formData = await request.formData();
     const eventName = formData.get("eventName")
     const eventDescription = formData.get("eventDescription")
+    const templatePath = formData.get("templatePath")
+
+    if (!templatePath || templatePath == undefined || typeof templatePath !== "string") {
+        return NextResponse.json({ message: "Forneça o caminho do template." }, { status: 500 })
+    }
 
     if (!eventName || eventName == undefined || typeof eventName !== "string") {
         return NextResponse.json({ message: "Forneça o nome do evento." }, { status: 500 })
@@ -22,7 +27,7 @@ export async function PUT(request: Request) {
         styleFrontTopperText: {},
         styleFrontBottomText: {},
         styleNameText: {},
-        templatePath: "",
+        templatePath: templatePath,
     })
 
     return NextResponse.json({ message: "Evento adicionado com sucesso!" })
