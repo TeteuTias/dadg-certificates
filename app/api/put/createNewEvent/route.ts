@@ -23,10 +23,32 @@ export async function PUT(request: Request) {
     await CreateNewEvent({
         eventDescription: eventDescription,
         eventName: eventName,
-        styleContainer: {},
-        styleFrontTopperText: {},
-        styleFrontBottomText: {},
-        styleNameText: {},
+        styleContainer: {
+            "width": "90%",
+            "top": "-30px",
+            "left": "55px",
+            "textAlign": "center",
+            "color": "02425A"
+        },
+        styleFrontTopperText: {
+            "lineHeight": 1.6,
+            "fontSize": "50.5px",
+            "fontWeight": "400",
+            "color": "#02425A"
+        },
+        styleFrontBottomText: {
+            "lineHeight": 1.6,
+            "fontSize": "50.5px",
+            "fontWeight": "400",
+            "color": "#02325A"
+        },
+        styleNameText: {
+            "fontSize": "55.5px",
+            "fontWeight": "800",
+            "lineHeight": 1.5,
+            "color": "#02425A"
+        },
+
         templatePath: templatePath,
     })
 
