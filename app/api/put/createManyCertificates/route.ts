@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
         const updateData: Omit<ICertificate, "_id">[] = data.update.map((element) => ({
             eventId: new ObjectId(data.eventId),
             ownerName: element[0],
-            ownerCpf: element[1].length !== 0 ? element[1] : "",
-            ownerEmail: element[2].length !== 0 ? element[2] : "",
+            ownerCpf: element[1] ?? "",
+            ownerEmail: element[2] ?? "",
             eventName: data.eventName,
             certificateHours: data.hours,
             certificatePath: data.path,
