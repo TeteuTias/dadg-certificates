@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import CreateNewCertificate from "@/lib/models/src/certificatesHandler/put/CreateNewCertificate";
 import { ObjectId } from "mongodb";
-
+import { connectToDatabase } from "@/lib/mongodb";
 export async function PUT(request: Request) {
 
     const formData = await request.formData();
@@ -52,7 +52,7 @@ export async function PUT(request: Request) {
         return NextResponse.json({ message: "Forneça as horas do certificado." }, { status: 500 });
     }
 
-
+    await connectToDatabase()
     const update = await CreateNewCertificate({
         eventId: new ObjectId(eventId),
         eventName: eventName,

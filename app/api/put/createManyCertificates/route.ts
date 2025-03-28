@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import CertificateModel from "@/lib/models/CertificateModel";
 import { ObjectId } from "mongodb";
 import { ICertificate } from "@/lib/models/CertificateModel";
+import { connectToDatabase } from "@/lib/mongodb";
+
 
 export async function POST(request: NextRequest) {
     /*
@@ -18,7 +20,7 @@ export async function POST(request: NextRequest) {
     } = await request.json()
 
     try {
-
+        await connectToDatabase()
         const updateData: Omit<ICertificate, "_id">[] = data.update.map((element) => ({
             eventId: new ObjectId(data.eventId),
             ownerName: element[0],

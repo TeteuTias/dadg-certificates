@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import CreateNewEvent from "@/lib/models/src/certificatesHandler/put/CreateNewEvent";
-
+import { connectToDatabase } from "@/lib/mongodb";
 export async function PUT(request: Request) {
 
     const formData = await request.formData();
@@ -19,7 +19,7 @@ export async function PUT(request: Request) {
     if (!eventDescription || eventDescription == undefined || typeof eventDescription !== "string") {
         return NextResponse.json({ message: "Forneça a descrição do evento." }, { status: 500 })
     }
-
+    await connectToDatabase()
     await CreateNewEvent({
         eventDescription: eventDescription,
         eventName: eventName,
