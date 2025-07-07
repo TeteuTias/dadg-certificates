@@ -48,7 +48,24 @@ export async function PUT(request: Request) {
             "lineHeight": 1.5,
             "color": "#02425A"
         },
-
+        styleContainerVerse: {
+            containerStyle: {
+                border: "1.5px solid",
+                width: "50%"
+            },
+            rowsStyle: {
+                textAlign: "center",
+                backgroundColor: "",
+                padding: "25px",
+                fontSize: "20px",
+                border: "1.5px solid"
+            },
+            headerStyle: {
+                fontSize: "25px",
+                border: "1.5px solid",
+                padding: "30px"
+            }
+        },
         templatePath: templatePath,
     })
 

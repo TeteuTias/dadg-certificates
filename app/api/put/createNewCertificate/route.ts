@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import CreateNewCertificate from "@/lib/models/src/certificatesHandler/put/CreateNewCertificate";
-import { ObjectId } from "mongodb";
+import { ObjectId } from "bson";
 import { connectToDatabase } from "@/lib/mongodb";
 export async function PUT(request: Request) {
 
@@ -11,6 +11,7 @@ export async function PUT(request: Request) {
     const ownerName = formData.get("ownerName")
     const ownerEmail = formData.get("ownerEmail")
     const ownerCpf = formData.get("ownerCpf")
+    const isReady = formData.get("isReady")
     const frontTopperText = formData.get("frontTopperText")
     const frontBottomText = formData.get("frontBottomText")
     const certificatePath = formData.get("certificatePath")
@@ -20,7 +21,7 @@ export async function PUT(request: Request) {
         return NextResponse.json({ message: "Forneça o ID do evento." }, { status: 500 });
     }
 
-    if (!eventId || eventId === undefined || typeof eventId !== "string") {
+    if (!eventId || eventId === undefined || typeof eventId !== "string" || !ObjectId.isValid(eventId)) {
         return NextResponse.json({ message: "Forneça o ID do evento." }, { status: 500 });
     }
 
@@ -63,7 +64,10 @@ export async function PUT(request: Request) {
         frontBottomText: frontBottomText,
         certificatePath: certificatePath,
         certificateHours: certificateHours,
-
+        isReady: isReady === "true" ? true : false,
+        verse: {
+            showVerse: false,
+        }
     })
 
     return NextResponse.json({ _id: update })

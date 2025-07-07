@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
         eventId: string,
         eventName: string,
         hours: string,
-        path: string
+        path: string,
+        isReady: "true" | "false"
     } = await request.json()
 
     try {
@@ -31,6 +32,10 @@ export async function POST(request: NextRequest) {
             certificatePath: data.path,
             frontTopperText: data.frontText,
             frontBottomText: data.bottomText,
+            isReady: data.isReady === "true",
+            verse: {
+                showVerse: false
+            }
         }))
         await CertificateModel.insertMany(updateData)
 
