@@ -81,6 +81,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                 update.append("frontBottomText", formData.frontBottomText || "")
                 update.append("certificatePath", formData.certificatePath)
                 update.append("certificateHours", formData.certificateHours)
+                update.append("isReady", String(formData?.isReady))
 
                 const fetchData = await fetch("/api/put/createNewCertificate", {
                     method: "PUT",
@@ -127,6 +128,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                     certificatePath: "/certificates/templates/template04.png",
                                     frontTopperText: "",
                                     frontBottomText: "",
+                                    isReady: false
                                 })
                                 toggleModalOpenPropsWithoutPhrase({ isOpen: false })
                             }
@@ -143,7 +145,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
 
 
     // Estado para os valores dos inputs
-    const [formData, setFormData] = useState<Omit<ICertificate, "_id" | "eventId" | "eventName">>({
+    const [formData, setFormData] = useState<Omit<ICertificate, "_id" | "eventId" | "eventName" | "verse">>({
         ownerName: "",
         ownerCpf: "",
         ownerEmail: "",
@@ -151,6 +153,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
         certificatePath: "/certificates/templates/template04.png",
         frontTopperText: "",
         frontBottomText: "",
+        isReady: false
     })
 
     // Estado para guardar os valores originais (para comparação)
@@ -322,6 +325,27 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                 onChange={handleInputChange}
                             />
                         </div>
+                        <div>
+                            <p className="font-bold">Bloquear Certificado ?</p>
+                            <div className="flex w-full justify-around">
+                                <a onClick={() => {
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        isReady: true
+                                    }))
+                                }} className="cursor-pointer px-5 font-extrabold text-white" style={{
+                                    backgroundColor: formData.isReady === true ? "blue" : "gray"
+                                }}>SIM</a>
+                                <a onClick={() => {
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        isReady: false
+                                    }))
+                                }} className="cursor-pointer px-5 font-extrabold text-white" style={{
+                                    backgroundColor: formData.isReady === false ? "blue" : "gray"
+                                }}>NÃO</a>
+                            </div>
+                        </div>
 
                         {/* Botão de envio dentro do <form> */}
                         <button
@@ -387,6 +411,7 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
     const [input2, setInput2] = useState<string>('');
     const [input3, setInput3] = useState<string>('');
     const [input4, setInput4] = useState<string>('/certificates/templates/template04.png');
+    const [isReady, setIsReady] = useState<boolean>(false)
 
     const handleInput1Change = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInput1(event.target.value);
@@ -465,6 +490,7 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
                 eventName: eventName,
                 eventId: eventId,
                 hours: input3,
+                isReady: String(isReady),
                 path: input4,
             })
         })
@@ -618,6 +644,21 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
                                     onChange={handleInput4Change}
                                     placeholder="Path"
                                 />
+                            </div>
+                        </div>
+                        <div>
+                            <p className="">Bloquear Certificado ?</p>
+                            <div className="flex w-full justify-around">
+                                <a onClick={() => {
+                                    setIsReady(true)
+                                }} className="cursor-pointer px-5 font-extrabold text-white" style={{
+                                    backgroundColor: isReady === true ? "blue" : "gray"
+                                }}>SIM</a>
+                                <a onClick={() => {
+                                    setIsReady(false)
+                                }} className="cursor-pointer px-5 font-extrabold text-white" style={{
+                                    backgroundColor: isReady === false ? "blue" : "gray"
+                                }}>NÃO</a>
                             </div>
                         </div>
                         <div className="flex flex-col space-y-4">

@@ -14,6 +14,14 @@ export interface ICertificate {
     frontTopperText?: string;
     frontBottomText?: string;
     eventId: ObjectId;
+    isReady?: boolean;
+    verse: {
+        showVerse: boolean;
+        topperText?: string;
+        bottomText?: string;
+        headers?: string[];
+        rows?: [string[]];
+    };
 }
 export interface ICertificateWithEventPopulate extends Omit<ICertificate, 'eventId'> {
     eventId: IEventCertificate;
@@ -22,15 +30,22 @@ export interface ICertificateWithEventPopulate extends Omit<ICertificate, 'event
 // Definição do schema do usuário
 const CertificateSchema: Schema<ICertificate> = new Schema(
     {
-        eventId: { type: Schema.Types.ObjectId, ref: "EventCertificate" },
         ownerName: { type: String, required: true },
         ownerCpf: { type: String, required: true },
         eventName: { type: String, required: true },
         ownerEmail: { type: String, required: true },
+        frontTopperText: { type: String },
+        frontBottomText: { type: String },
         certificateHours: { type: String, required: true },
-        certificatePath: { type: String, required: true },
-        frontTopperText: { type: String, required: true },
-        frontBottomText: { type: String, required: true },
+        isReady: { type: Boolean, required: false, default: false },
+        eventId: { type: Schema.Types.ObjectId, required: true, ref: "EventCertificate" },
+        verse: {
+            showVerse: { type: Boolean, default: false },
+            topperText: { type: String, required: false },
+            bottomText: { type: String, required: false },
+            headers: { type: [String], required: false },
+            rows: { type: [[String]], required: false }
+        }
 
     },
     { timestamps: true, collection: "certificates.datails" }
