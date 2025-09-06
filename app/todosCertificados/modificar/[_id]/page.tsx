@@ -47,13 +47,22 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
             setData(dataJson.data)
 
             // Define os valores iniciais para formData e originalFormData
-            const initialValues = {
+            const initialValues = dataJson.data.certificatePath ? {
                 ownerName: dataJson.data.ownerName,
                 ownerCpf: dataJson.data.ownerCpf || "",
                 eventName: dataJson.data.eventName,
                 ownerEmail: dataJson.data.ownerEmail || "",
                 certificateHours: dataJson.data.certificateHours,
-                certificatePath: dataJson.data.certificatePath,
+                certificatePath: dataJson.data.certificatePath || "",
+                frontTopperText: dataJson.data.frontTopperText || "",
+                frontBottomText: dataJson.data.frontBottomText || ""
+            }: {
+                ownerName: dataJson.data.ownerName,
+                ownerCpf: dataJson.data.ownerCpf || "",
+                eventName: dataJson.data.eventName,
+                ownerEmail: dataJson.data.ownerEmail || "",
+                certificateHours: dataJson.data.certificateHours,
+                certificatePath: dataJson.data.certificatePath || "",
                 frontTopperText: dataJson.data.frontTopperText || "",
                 frontBottomText: dataJson.data.frontBottomText || ""
             }

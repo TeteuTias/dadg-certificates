@@ -689,7 +689,7 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
 
 
 
-export function FileUploader({ toggleText }: { toggleText: (text: string) => void }) {
+function FileUploader({ toggleText }: { toggleText: (text: string) => void }) {
     // Tipando as referências e estados com TypeScript
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
