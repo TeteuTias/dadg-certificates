@@ -12,8 +12,8 @@ export async function PUT(request: Request) {
     const ownerEmail = formData.get("ownerEmail")
     const ownerCpf = formData.get("ownerCpf")
     const isReady = formData.get("isReady")
-    const frontTopperText = formData.get("frontTopperText")
-    const frontBottomText = formData.get("frontBottomText")
+    let frontTopperText = formData.get("frontTopperText")
+    let frontBottomText = formData.get("frontBottomText")
     const certificatePath = formData.get("certificatePath")
     const certificateHours = formData.get("certificateHours")
 
@@ -40,7 +40,7 @@ export async function PUT(request: Request) {
         if (!frontTopperText || frontTopperText === undefined || typeof frontTopperText !== "string") {
             return NextResponse.json({ message: "Forneça o texto superior do certificado." }, { status: 500 });
         }
-        
+
         if (!frontBottomText || frontBottomText === undefined || typeof frontBottomText !== "string") {
             return NextResponse.json({ message: "Forneça o texto inferior do certificado." }, { status: 500 });
         }
@@ -57,14 +57,16 @@ export async function PUT(request: Request) {
     }
 
     await connectToDatabase()
+    frontTopperText = typeof frontTopperText === "string" ? frontTopperText : "Texto não configurado"
+    frontBottomText = typeof frontBottomText === "string" ? frontBottomText : "Texto não configurado"
     const update = await CreateNewCertificate({
         eventId: new ObjectId(eventId),
         eventName: eventName,
         ownerName: ownerName,
         ownerEmail: ownerEmail,
         ownerCpf: ownerCpf,
-        frontTopperText: frontTopperText ? frontTopperText : "Texto não configurado",
-        frontBottomText: frontBottomText ? frontBottomText : "Texto não configurado",
+        frontTopperText: frontTopperText,
+        frontBottomText: frontBottomText,
         certificatePath: typeof certificatePath === "string" ? certificatePath : undefined,
         certificateHours: certificateHours,
         isReady: isReady === "true" ? true : false,
