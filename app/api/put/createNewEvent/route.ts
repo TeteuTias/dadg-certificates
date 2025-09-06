@@ -7,6 +7,7 @@ export async function PUT(request: Request) {
     const eventName = formData.get("eventName")
     const eventDescription = formData.get("eventDescription")
     const templatePath = formData.get("templatePath")
+    const templateVersePath = formData.get("templateVersePath") as string
 
     if (!templatePath || templatePath == undefined || typeof templatePath !== "string") {
         return NextResponse.json({ message: "Forneça o caminho do template." }, { status: 500 })
@@ -67,6 +68,7 @@ export async function PUT(request: Request) {
             }
         },
         templatePath: templatePath,
+        templateVersePath: templateVersePath || "",
     })
 
     return NextResponse.json({ message: "Evento adicionado com sucesso!" })

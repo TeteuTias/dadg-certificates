@@ -259,6 +259,8 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="space-y-3">
                             <p><strong>Evento:</strong> {data?.eventName}</p>
                             <p><strong>Descrição:</strong> {data?.eventDescription}</p>
+                            <p><strong>Descrição:</strong> {data?.eventDescription}</p>
+                            <p><strong>Descrição:</strong> {data?.eventDescription}</p>
                         </div>
                         <Link
                             prefetch={false}

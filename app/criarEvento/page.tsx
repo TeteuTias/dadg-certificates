@@ -18,7 +18,8 @@ export default function Page() {
 const CreateEventCertificateForm: React.FC = () => {
     const [eventName, setEventName] = useState('');
     const [eventDescription, setEventDescription] = useState('');
-    const [templatePath, setTemplatePath] = useState('/certificates/templates/template04.png');
+    const [templatePath, setTemplatePath] = useState('template04.png');
+    const [templateVersePath, setTemplateVersePath] = useState('');
 
     const [modalOpenProps, setModalOpenProps] = useState<IModalProps & { isOpen: boolean }>({
         title: "Atenção",
@@ -47,6 +48,7 @@ const CreateEventCertificateForm: React.FC = () => {
         formData.append("eventName", eventName)
         formData.append("eventDescription", eventDescription)
         formData.append("templatePath", templatePath)
+        formData.append("templateVersePath", templateVersePath)
 
         // Aqui você pode fazer a chamada à sua API que insere o documento no MongoDB
 
@@ -127,7 +129,7 @@ const CreateEventCertificateForm: React.FC = () => {
                     </div>
                     <div className="mb-4">
                         <label htmlFor="templatePath" className="block text-sm font-extrabold text-gray-700">
-                            Path do Template
+                            Template - Frente
                         </label>
                         <textarea
                             id="templatePath"
@@ -137,11 +139,22 @@ const CreateEventCertificateForm: React.FC = () => {
                             required
                         />
                     </div>
+                    <div className="mb-4">
+                        <label htmlFor="templateVersePath" className="block text-sm font-extrabold text-gray-700">
+                            Template - Verso <p className='text-[10px]'>Deixe em branco se não houver verso</p>
+                        </label>
+                        <textarea
+                            id="templateVersePath"
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-black"
+                            value={templateVersePath}
+                            onChange={(e) => setTemplateVersePath(e.target.value)}
+                        />
+                    </div>
                     <button
                         type="submit"
                         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
-                        Criar Certificado
+                        Criar Evento
                     </button>
                 </form>
             </div>

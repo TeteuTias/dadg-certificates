@@ -133,7 +133,7 @@ const EventComponent: React.FC<{ event: IEventCertificate }> = ({ event }) => {
                     className=""
                 >
                     <div className="p-5 bg-red-900 font-extrabold text-white">
-                        Editar Grupo
+                        Editar Evento
                     </div>
                 </Link>
                 <Link
