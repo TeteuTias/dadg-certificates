@@ -79,7 +79,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                 update.append("ownerCpf", formData.ownerCpf || "")
                 update.append("frontTopperText", formData.frontTopperText || "")
                 update.append("frontBottomText", formData.frontBottomText || "")
-                update.append("certificatePath", formData.certificatePath)
+                update.append("certificatePath", formData.certificatePath || "")
                 update.append("certificateHours", formData.certificateHours)
                 update.append("isReady", String(formData?.isReady))
 
@@ -125,7 +125,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                                     ownerCpf: "",
                                     ownerEmail: "",
                                     certificateHours: "",
-                                    certificatePath: "/certificates/templates/template04.png",
+                                    certificatePath: "",
                                     frontTopperText: "",
                                     frontBottomText: "",
                                     isReady: false
@@ -150,12 +150,17 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
         ownerCpf: "",
         ownerEmail: "",
         certificateHours: "",
-        certificatePath: "/certificates/templates/template04.png",
+        certificatePath: "",
         frontTopperText: "",
         frontBottomText: "",
         isReady: false
     })
-
+    const toggleCertificatePath = (text: string) => {
+        setFormData(prev => ({
+            ...prev,
+            certificatePath: text
+        }))
+    }
     // Estado para guardar os valores originais (para comparação)
 
 
@@ -289,15 +294,17 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
 
                         {/* Path de Template */}
                         <div className="flex flex-col">
-                            <label className="font-semibold">Path de Template</label>
-                            <input
-                                required
-                                className="mt-1 border border-gray-300 rounded p-2"
-                                type="text"
-                                name="certificatePath"
-                                value={formData.certificatePath || ""}
-                                onChange={handleInputChange}
-                            />
+                            <label className="font-semibold">Adicionar Foto/Pdf de Certificado</label>
+                            <div className="flex flex-col space-x-2 items-center justify-center">
+                                <input
+                                    className="w-full mt-1 border border-gray-300 rounded p-2"
+                                    type="text"
+                                    name="certificatePath"
+                                    value={formData.certificatePath || ""}
+                                    onChange={handleInputChange}
+                                />
+                                <FileUploader toggleText={toggleCertificatePath} />
+                            </div>
                         </div>
 
                         {/* Texto Superior */}
@@ -410,7 +417,7 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
     const [input1, setInput1] = useState<string>('');
     const [input2, setInput2] = useState<string>('');
     const [input3, setInput3] = useState<string>('');
-    const [input4, setInput4] = useState<string>('/certificates/templates/template04.png');
+    const [input4, setInput4] = useState<string>('');
     const [isReady, setIsReady] = useState<boolean>(false)
 
     const handleInput1Change = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -673,6 +680,113 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
                     </div>
                 )
             }
+        </div>
+    );
+}
+
+
+
+
+
+
+export function FileUploader({ toggleText }: { toggleText: (text: string) => void }) {
+    // Tipando as referências e estados com TypeScript
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [status, setStatus] = useState<'initial' | 'selecting' | 'selected' | 'uploading' | 'success' | 'error'>('initial');
+    const [feedbackMessage, setFeedbackMessage] = useState('');
+
+    const handleDivClick = () => {
+        setStatus('selecting');
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            setStatus('selected');
+            setFeedbackMessage(`Arquivo selecionado: ${file.name}`);
+        } else {
+            setStatus('initial');
+        }
+        event.target.value = '';
+    };
+
+    // --- Função de Upload ATUALIZADA para usar fetch ---
+    const handleUpload = async () => {
+        if (!selectedFile) {
+            setFeedbackMessage('Nenhum arquivo selecionado.');
+            setStatus('error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        setStatus('uploading');
+        setFeedbackMessage('Enviando...');
+
+        try {
+            const response = await fetch('/api/put/uploadCertificateTemplate', {
+                method: 'POST',
+                body: formData,
+                // NÃO é necessário definir o header 'Content-Type'. 
+                // O navegador faz isso automaticamente para FormData, incluindo o 'boundary' correto.
+            });
+
+            const jsonData: { fileId: string, message: string } = await response.json();
+
+            if (!response.ok) {
+                // Se a resposta não for bem-sucedida (status 4xx ou 5xx), lança um erro
+                throw new Error('Falha no upload do arquivo.');
+            }
+            console.log(jsonData)
+            toggleText(`${jsonData.fileId}`);
+            setStatus('success');
+            setFeedbackMessage(`Selecionado com Sucesso!`);
+            setSelectedFile(null);
+
+        } catch (error) {
+            console.error('Erro no upload:', error);
+            setStatus('error');
+            // Tratamento para exibir a mensagem de erro corretamente
+            const errorMessage = error instanceof Error ? error.message : 'Verifique o console para mais detalhes.';
+            setFeedbackMessage(`Falha no upload. ${errorMessage}`);
+        }
+    };
+
+    return (
+        <div className="max-w-md mx-auto p-4 border rounded-lg shadow-lg">
+            <div
+                className="p-5 bg-red-600 text-white font-bold text-center cursor-pointer rounded-md hover:bg-red-700 transition-colors"
+                onClick={handleDivClick}
+            >
+                Escolher Arquivo
+            </div>
+
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                accept="image/*,.pdf"
+            />
+
+            {status !== 'initial' && status !== 'selecting' && (
+                <div className="mt-4 text-center">
+                    <p className="text-gray-600 truncate">{feedbackMessage}</p>
+                    {status === 'selected' && (
+                        <button
+                            onClick={handleUpload}
+                            className="mt-2 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        >
+                            Enviar Arquivo
+                        </button>
+                    )}
+                    {status === 'uploading' && <p className="text-blue-500">Aguarde...</p>}
+                </div>
+            )}
         </div>
     );
 }

@@ -45,9 +45,11 @@ export async function PUT(request: Request) {
         return NextResponse.json({ message: "Forneça o texto inferior do certificado." }, { status: 500 });
     }
 
+    /*
     if (!certificatePath || certificatePath === undefined || typeof certificatePath !== "string") {
         return NextResponse.json({ message: "Forneça o caminho do template do certificado." }, { status: 500 });
     }
+    */
 
     if (!certificateHours || certificateHours === undefined || typeof certificateHours !== "string") {
         return NextResponse.json({ message: "Forneça as horas do certificado." }, { status: 500 });
@@ -62,7 +64,7 @@ export async function PUT(request: Request) {
         ownerCpf: ownerCpf,
         frontTopperText: frontTopperText,
         frontBottomText: frontBottomText,
-        certificatePath: certificatePath,
+        certificatePath: typeof certificatePath === "string" ? certificatePath : undefined,
         certificateHours: certificateHours,
         isReady: isReady === "true" ? true : false,
         verse: {

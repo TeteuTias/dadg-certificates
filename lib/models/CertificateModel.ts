@@ -10,7 +10,7 @@ export interface ICertificate {
     eventName: string;
     ownerEmail: string | null;
     certificateHours: string;
-    certificatePath: string;
+    certificatePath?: string;
     frontTopperText?: string;
     frontBottomText?: string;
     eventId: ObjectId;
@@ -37,6 +37,7 @@ const CertificateSchema: Schema<ICertificate> = new Schema(
         frontTopperText: { type: String },
         frontBottomText: { type: String },
         certificateHours: { type: String, required: true },
+        certificatePath: { type: String, required: false },
         isReady: { type: Boolean, required: false, default: false },
         eventId: { type: Schema.Types.ObjectId, required: true, ref: "EventCertificate" },
         verse: {
