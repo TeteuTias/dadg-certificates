@@ -36,13 +36,14 @@ export async function PUT(request: Request) {
     if (!ownerCpf || ownerCpf === undefined || typeof ownerCpf !== "string") {
         return NextResponse.json({ message: "Forneça o CPF do usuário." }, { status: 500 });
     }
-
-    if (!frontTopperText || frontTopperText === undefined || typeof frontTopperText !== "string") {
-        return NextResponse.json({ message: "Forneça o texto superior do certificado." }, { status: 500 });
-    }
-
-    if (!frontBottomText || frontBottomText === undefined || typeof frontBottomText !== "string") {
-        return NextResponse.json({ message: "Forneça o texto inferior do certificado." }, { status: 500 });
+    if (!certificatePath) {
+        if (!frontTopperText || frontTopperText === undefined || typeof frontTopperText !== "string") {
+            return NextResponse.json({ message: "Forneça o texto superior do certificado." }, { status: 500 });
+        }
+        
+        if (!frontBottomText || frontBottomText === undefined || typeof frontBottomText !== "string") {
+            return NextResponse.json({ message: "Forneça o texto inferior do certificado." }, { status: 500 });
+        }
     }
 
     /*
@@ -62,8 +63,8 @@ export async function PUT(request: Request) {
         ownerName: ownerName,
         ownerEmail: ownerEmail,
         ownerCpf: ownerCpf,
-        frontTopperText: frontTopperText,
-        frontBottomText: frontBottomText,
+        frontTopperText: frontTopperText ? frontTopperText : "Texto não configurado",
+        frontBottomText: frontBottomText ? frontBottomText : "Texto não configurado",
         certificatePath: typeof certificatePath === "string" ? certificatePath : undefined,
         certificateHours: certificateHours,
         isReady: isReady === "true" ? true : false,

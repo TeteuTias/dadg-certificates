@@ -244,7 +244,6 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="flex flex-col">
                             <label className="font-semibold">Nome do Usuário</label>
                             <input
-                                required
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
                                 name="ownerName"
@@ -257,7 +256,6 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="flex flex-col">
                             <label className="font-semibold">CPF</label>
                             <input
-                                required
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
                                 name="ownerCpf"
@@ -270,7 +268,6 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="flex flex-col">
                             <label className="font-semibold">Email de Usuário</label>
                             <input
-                                required
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="email" // Usa "email" para validação automática
                                 name="ownerEmail"
@@ -283,7 +280,6 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="flex flex-col">
                             <label className="font-semibold">Horas</label>
                             <input
-                                required
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="number" // Garante entrada numérica
                                 name="certificateHours"
@@ -311,7 +307,6 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="flex flex-col">
                             <label className="font-semibold">Texto Superior da Frente do Certificado</label>
                             <input
-                                required
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
                                 name="frontTopperText"
@@ -324,7 +319,6 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                         <div className="flex flex-col">
                             <label className="font-semibold">Texto Inferior da Frente do Certificado</label>
                             <input
-                                required
                                 className="mt-1 border border-gray-300 rounded p-2"
                                 type="text"
                                 name="frontBottomText"
