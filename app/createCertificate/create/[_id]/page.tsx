@@ -648,7 +648,7 @@ const XLSXReader: React.FC<{ eventId: string, eventName: string }> = ({ eventId,
                             </div>
                         </div>
                         <div>
-                            <p className="">Bloquear Certificado ?</p>
+                            <p className="">Liberar Certificado ?</p>
                             <div className="flex w-full justify-around">
                                 <a onClick={() => {
                                     setIsReady(true)
