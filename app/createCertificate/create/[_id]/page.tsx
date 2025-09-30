@@ -327,7 +327,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
                             />
                         </div>
                         <div>
-                            <p className="font-bold">Bloquear Certificado ?</p>
+                            <p className="font-bold">Liberar Certificado ?</p>
                             <div className="flex w-full justify-around">
                                 <a onClick={() => {
                                     setFormData((prev) => ({
