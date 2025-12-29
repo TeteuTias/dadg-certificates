@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel"
+import LoadingPage from "@/components/LoadingPage"
 
 export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     const [paramsId, setParamsId] = useState<string>("")
@@ -120,13 +121,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
 
 
     if (loading) {
-        return (
-            <main className="w-full h-screen flex items-center justify-center">
-                <div>
-                    <h1>C A R R E G A N D O</h1>
-                </div>
-            </main>
-        )
+        return <LoadingPage message="Carregando certificado..." />;
     }
 
     return (

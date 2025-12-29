@@ -2,13 +2,14 @@
 import React, { useState } from 'react';
 import ModalAction from "@/components/ModalAction";
 import { IModalProps } from "@/components/ModalAction";
+import "./page.css";
 
 //
 //
 export default function Page() {
     return (
-        <main className="flex items-center content-center justify-center h-svh bg-[#0B2545]">
-            <div className="w-fit">
+        <main className="create-event-container">
+            <div className="create-event-form-wrapper glass-container">
                 <CreateEventCertificateForm />
             </div>
         </main>
@@ -99,65 +100,66 @@ const CreateEventCertificateForm: React.FC = () => {
                 modalOpenProps.isOpen &&
                 <ModalAction {...modalOpenProps} />
             }
-            <div className="w-full py-[40px] px-[20px] bg-white border-[5px] border-red-900">
-                <h1 className="font-extrabold mb-4 text-center text-[20px] max-w-80 min-w-80 ">CRIAR EVENTO</h1>
+            <>
+                <h1 className="create-event-title">Criar Evento</h1>
                 <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label htmlFor="eventName" className="block text-sm font-extrabold text-gray-700">
+                    <div className="form-group">
+                        <label htmlFor="eventName" className="form-label">
                             Nome do Evento
                         </label>
                         <input
                             type="text"
                             id="eventName"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="glass-input form-input"
                             value={eventName}
                             onChange={(e) => setEventName(e.target.value)}
                             required
                         />
                     </div>
-                    <div className="mb-4">
-                        <label htmlFor="eventDescription" className="block text-sm font-extrabold text-gray-700">
+                    <div className="form-group">
+                        <label htmlFor="eventDescription" className="form-label">
                             Descrição do Evento
                         </label>
                         <textarea
                             id="eventDescription"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-black"
+                            className="glass-input form-textarea"
                             value={eventDescription}
                             onChange={(e) => setEventDescription(e.target.value)}
                             required
                         />
                     </div>
-                    <div className="mb-4">
-                        <label htmlFor="templatePath" className="block text-sm font-extrabold text-gray-700">
+                    <div className="form-group">
+                        <label htmlFor="templatePath" className="form-label">
                             Template - Frente
                         </label>
                         <textarea
                             id="templatePath"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-black"
+                            className="glass-input form-textarea"
                             value={templatePath}
                             onChange={(e) => setTemplatePath(e.target.value)}
                             required
                         />
                     </div>
-                    <div className="mb-4">
-                        <label htmlFor="templateVersePath" className="block text-sm font-extrabold text-gray-700">
-                            Template - Verso <p className='text-[10px]'>Deixe em branco se não houver verso</p>
+                    <div className="form-group">
+                        <label htmlFor="templateVersePath" className="form-label">
+                            Template - Verso
+                            <span className="form-label-hint">Deixe em branco se não houver verso</span>
                         </label>
                         <textarea
                             id="templateVersePath"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border-black"
+                            className="glass-input form-textarea"
                             value={templateVersePath}
                             onChange={(e) => setTemplateVersePath(e.target.value)}
                         />
                     </div>
                     <button
                         type="submit"
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        className="glass-button glass-button-primary form-submit-button"
                     >
                         Criar Evento
                     </button>
                 </form>
-            </div>
+            </>
         </>
     );
 };

@@ -1,37 +1,37 @@
 "use client";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "./LoadingSpinner";
-import "./LoadingModal.css";
+import "./LoadingPage.css";
 
-interface LoadingModalProps {
+interface LoadingPageProps {
   message?: string;
   showPercentage?: boolean;
 }
 
-export default function LoadingModal({ 
-  message = "Processando...",
+export default function LoadingPage({ 
+  message = "Carregando dados...",
   showPercentage = true 
-}: LoadingModalProps) {
+}: LoadingPageProps) {
   const [percentage, setPercentage] = useState(0);
 
   useEffect(() => {
     // Simula progresso de carregamento
     const interval = setInterval(() => {
       setPercentage((prev) => {
-        if (prev >= 95) {
-          return prev;
+        if (prev >= 90) {
+          return prev; // Para em 90% até o carregamento real terminar
         }
-        const increment = Math.random() * 8 + 3;
-        return Math.min(prev + increment, 95);
+        const increment = Math.random() * 10 + 5;
+        return Math.min(prev + increment, 90);
       });
-    }, 250);
+    }, 300);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="loading-modal-overlay">
-      <div className="loading-modal-content glass-container">
+    <div className="loading-page-container">
+      <div className="loading-page-content glass-container">
         <LoadingSpinner 
           size="large" 
           showPercentage={showPercentage}
@@ -42,3 +42,4 @@ export default function LoadingModal({
     </div>
   );
 }
+

@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { IModificationHistory } from "@/lib/models/ModificationHistoryModel";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
+import LoadingPage from "@/components/LoadingPage";
+import "./page.css";
 
 
 export default function Page() {
@@ -24,120 +26,85 @@ export default function Page() {
     }, []);
 
     if (isLoading) {
-        return (
-            <main className="w-full h-svh flex items-center justify-center">
-                <div>
-                    <h1>C A R R E G A N D O</h1>
-                </div>
-            </main>
-        );
+        return <LoadingPage message="Carregando histórico..." />;
     }
 
-    // Filtra os certificados com base no termo de busca (searchQuery)
+    // Filtra o histórico com base no termo de busca (searchQuery)
     const filteredData = data.filter((event) => {
         const query = searchQuery.toLowerCase();
-
 
         return (
             event.description?.toLowerCase().includes(query) ||
             event.modifiedDocumentType?.toLowerCase().includes(query) ||
-            // Busca pelo eventId
-            // Busca pelo ID do evento
             (event._id && String(event._id).toLowerCase().includes(query))
-        )
-        /*
-        return (
-            cert._id.toString().toLowerCase().includes(query) ||
-            cert.ownerName?.toLowerCase().includes(query) ||
-            cert.ownerCpf?.toLowerCase().includes(query) ||
-            cert.eventName?.toLowerCase().includes(query) ||
-            cert.ownerEmail?.toLowerCase().includes(query) ||
-            cert.certificateHours?.toLowerCase().includes(query) ||
-            cert.certificatePath?.toLowerCase().includes(query) ||
-            (cert.frontTopperText && cert.frontTopperText.toLowerCase().includes(query)) ||
-            (cert.frontBottomText && cert.frontBottomText.toLowerCase().includes(query)) ||
-            // Busca pelo nome do evento
-            (cert.eventId && cert.eventId.eventName.toLowerCase().includes(query)) ||
-            // Busca pelo ID do evento
-            (cert.eventId && String(cert.eventId._id).toLowerCase().includes(query))
         );
-        */
     });
 
 
     return (
-        <main className="w-full h-svh flex items-center justify-center flex-col space-y-5" style={PoppinsFontLib.style}>
-            <div>
-                <h1 className="text-[40px] font-extrabold">Histórico de Modificações</h1>
+        <main className="history-container" style={PoppinsFontLib.style}>
+            <h1 className="history-title">Histórico de Modificações</h1>
+            <div className="search-section">
+                <div className="search-input-wrapper">
+                    <input
+                        type="text"
+                        placeholder="Pesquisar..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="glass-input"
+                        style={{ width: "100%" }}
+                    />
+                </div>
+                {filteredData.length !== 0 && (
+                    <h2 className="search-results-count">
+                        Foram encontrados <span>{filteredData.length}</span> resultados
+                    </h2>
+                )}
             </div>
-            {/* Campo de busca */}
-            <div className="w-full flex items-center justify-center flex flex-col space-y-1">
-
-                <input
-
-                    type="text"
-                    placeholder="Pesquisar..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="border p-2 min-w-[400px]"
-                />
-                {
-                    filteredData.length != 0 &&
-                    <h1>
-                        FORAM ENCONTRADOS <span className="font-extrabold text-red-800">{filteredData.length}</span> RESULTADOS
-                    </h1>
-                }
-
-
-            </div>
-            <article className="min-h-96 max-h-96 border-[1px] overflow-auto p-5 space-y-10 w-3/5">
+            <div className="glass-container history-list">
                 {filteredData.length === 0 ? (
-                    <h1 className="full text-center font-bold text-red-700">Nenhum histórico encontrado.</h1>
+                    <div className="empty-state">Nenhum histórico encontrado</div>
                 ) : (
                     filteredData.map((event) => (
                         <ModificationHistoryComponent key={String(event._id)} event={event} />
                     ))
                 )}
-            </article>
+            </div>
         </main>
     );
 }
 
 const ModificationHistoryComponent: React.FC<{ event: IModificationHistory }> = ({ event }) => {
     return (
-        <div className="shadow-xl py-5 px-5 space-y-5 border-b-[2px] border-r-[2px] rounded-2xl border-blue-800">
-            <div className="">
+        <div className="glass-card history-item">
+            <div className="history-field">
+                <span className="history-field-label">Identificação</span>
+                <span className="history-field-value">{String(event._id)}</span>
+            </div>
 
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Identificação</h1>
-                    <p>{String(event._id)}</p>
-                </div>
+            <div className="history-field">
+                <span className="history-field-label">Data Modificação</span>
+                <span className="history-field-value">{event.modificationDate.toString()}</span>
+            </div>
 
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Data Modificação</h1>
-                    <p>{event.modificationDate.toString()}</p>
-                </div>
+            <div className="history-field">
+                <span className="history-field-label">Id do Documento Modificado</span>
+                <span className="history-field-value">{String(event.modifiedElementId)}</span>
+            </div>
 
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Id do Documento Modificado</h1>
-                    <p>{String(event.modifiedElementId)}</p>
-                </div>
+            <div className="history-field">
+                <span className="history-field-label">Usuário</span>
+                <span className="history-field-value">{String(event.userName)}</span>
+            </div>
 
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Usuário</h1>
-                    <p>{String(event.userName)}</p>
-                </div>
+            <div className="history-field">
+                <span className="history-field-label">Descrição</span>
+                <span className="history-field-value">{event.description}</span>
+            </div>
 
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Descrição</h1>
-                    <p style={{ whiteSpace: "pre-line" }}>{event.description}</p>
-                </div>
-
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Tipo de Documento Modificado</h1>
-                    <p>{String(event.modifiedDocumentType)}</p>
-                </div>
-
+            <div className="history-field">
+                <span className="history-field-label">Tipo de Documento Modificado</span>
+                <span className="history-field-value">{String(event.modifiedDocumentType)}</span>
             </div>
         </div>
     );

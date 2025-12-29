@@ -10,6 +10,7 @@ import ModalAction from "@/components/ModalAction"
 import { ObjectId } from "bson"
 import { useRouter } from "next/navigation"
 import LoadingModal from "@/components/LoadingModal"
+import LoadingPage from "@/components/LoadingPage"
 //
 //
 export default function Home({ params }: { params: Promise<{ _id: string }> }) {
@@ -212,13 +213,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     }
 
     if (loading) {
-        return (
-            <main className="w-full h-screen flex items-center justify-center">
-                <div>
-                    <h1>C A R R E G A N D O</h1>
-                </div>
-            </main>
-        )
+        return <LoadingPage message="Carregando evento..." />;
     }
 
     return (

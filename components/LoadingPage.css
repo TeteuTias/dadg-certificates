@@ -1,0 +1,27 @@
+.loading-page-container {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.loading-page-content {
+  padding: 3rem;
+  min-width: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .loading-page-container {
+    padding: 1rem;
+  }
+
+  .loading-page-content {
+    padding: 2rem;
+    min-width: 250px;
+  }
+}
+
