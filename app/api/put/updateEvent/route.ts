@@ -1,51 +1,33 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
-import EventCertificateModel from '@/lib/models/EventCertificateModel';
-
-import { IEventCertificate } from '@/lib/models/EventCertificateModel';
-
-import { ObjectId } from 'mongodb';
-
-
-
-type ICertificateUpdate = Pick<IEventCertificate, '_id'> & Partial<Omit<IEventCertificate, '_id'>>;
-
+import EventCertificateModel, { IEventCertificate } from '@/lib/models/EventCertificateModel';
 
 export async function PUT(request: Request) {
     try {
-        // Conecta ao banco de dados
         await connectToDatabase();
 
-        // Extrai os dados enviados na requisição
-        const formData = await request.formData();
+        // 1. Recebemos o corpo da requisição
+        let rawData = await request.json();
+        // 2. Se o frontend enviou stringificado, forçamos a conversão para objeto
+        if (typeof rawData === 'string') {
+            rawData = JSON.parse(rawData);
+        }
+        // 3. Agora podemos tipar com segurança e desestruturar
+        const formData = rawData as IEventCertificate;
+        const { _id, ...updateData } = formData;
 
-        const tryId = formData.get('_id') // ganbiarra
-
-        if (typeof tryId !== 'string') {
+        if (typeof _id !== 'string') {
             return NextResponse.json(
                 { success: false, message: '_id é inválido ou está ausente' },
-                { status: 500 }
+                { status: 400 }
             );
         }
 
-        // Constrói o objeto extraindo cada campo do FormData
-        const data: ICertificateUpdate = {
-            _id: new ObjectId(tryId), // _id é obrigatório
-
-            eventName: formData.get("eventName") as string || undefined,
-            eventDescription: formData.get("eventDescription") as string || undefined,
-
-        };
-
-        const { _id, ...updateFields } = data;
-
-
-
         const update = await EventCertificateModel.findOneAndUpdate(
-            { _id }, // Usa o _id já convertido
-            { $set: updateFields },
+            { _id },
+            { $set: updateData },
             { new: true }
-        );
+        ).lean();
 
         if (!update) {
             return NextResponse.json(
@@ -54,18 +36,15 @@ export async function PUT(request: Request) {
             );
         }
 
-
-        // Atualiza o certificado e retorna o documento atualizado
-        return NextResponse.json({ success: true, data: data });
-
+        return NextResponse.json({ success: true, data: update });
 
     } catch (error) {
-        let message = 'Erro ao atualizar o certificado.'
+        let message = 'Erro ao atualizar o certificado.';
         if (error instanceof Error) {
-            message = error.message
+            message = error.message;
         }
         return NextResponse.json(
-            { success: false, message: message },
+            { success: false, message },
             { status: 500 }
         );
     }

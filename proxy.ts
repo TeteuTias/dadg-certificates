@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 
 import { auth0 } from "./lib/auth0"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const authRes = auth0.middleware(request)
 
   if (request.nextUrl.pathname.startsWith("/auth")) { // caso ele entre na rota auth.
