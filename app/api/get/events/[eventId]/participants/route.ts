@@ -9,9 +9,9 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
-        const { eventId } = await params;
-        
-        return NextResponse.json({data:[]}, { status: 200 });
+        // const { eventId } = await params;
+
+        return NextResponse.json({ data: [] }, { status: 200 });
 
     } catch (error) {
         return NextResponse.json({ success: false, error: 'Erro ao buscar participantes' }, { status: 500 });
@@ -20,12 +20,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
-
-        const { eventId } = params;
-        const body = await request.json();
-
-
-
         return NextResponse.json({}, { status: 201 });
 
     } catch (error) {
@@ -35,9 +29,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     try {
-        const { eventId } = params;
-        const body = await request.json();
-
         return NextResponse.json({}, { status: 200 });
 
     } catch (error) {
@@ -47,14 +38,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     try {
-        
-        const { eventId } = params;
-
-        
-        const body = await request.json();
-
-        
-
         return NextResponse.json({}, { status: 200 });
 
     } catch (error) {
