@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 
 interface RouteParams {
-    params: {
-        eventId: string;
-    };
+    params: Promise<{ eventId: string; }>
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
