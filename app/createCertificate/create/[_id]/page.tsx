@@ -10,6 +10,8 @@ import ModalAction from "@/components/ModalAction"
 
 import { useRouter } from "next/navigation"
 import LoadingModal from "@/components/LoadingModal"
+import LoadingPage from "@/components/LoadingPage"
+import LoadingSpinner from "@/components/LoadingSpinner"
 import { ICertificate } from "@/lib/models/CertificateModel"
 import * as XLSX from 'xlsx';
 //
@@ -185,13 +187,7 @@ export default function Home({ params }: { params: Promise<{ _id: string }> }) {
     }
 
     if (loading || !data) {
-        return (
-            <main className="w-full h-screen flex items-center justify-center">
-                <div>
-                    <h1>C A R R E G A N D O</h1>
-                </div>
-            </main>
-        )
+        return <LoadingPage message="Carregando dados do evento..." />;
     }
     if (isCreatingManyCertificates) {
         return (
@@ -778,7 +774,11 @@ function FileUploader({ toggleText }: { toggleText: (text: string) => void }) {
                             Enviar Arquivo
                         </button>
                     )}
-                    {status === 'uploading' && <p className="text-blue-500">Aguarde...</p>}
+                    {status === 'uploading' && (
+                        <div className="mt-4">
+                            <LoadingSpinner size="small" showPercentage={true} message="Enviando arquivo..." />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

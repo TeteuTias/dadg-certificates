@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import ModalAction from "@/components/ModalAction";
 import { IModalProps } from "@/components/ModalAction";
+import "./page.css";
 
 export default function Page() {
     return (

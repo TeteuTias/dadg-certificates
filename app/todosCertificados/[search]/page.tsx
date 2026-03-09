@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
+import LoadingPage from "@/components/LoadingPage";
+import "./page.css";
 
 
 export default function Page({ params }: { params: Promise<{ search: string }> }) {
@@ -29,13 +31,7 @@ export default function Page({ params }: { params: Promise<{ search: string }> }
     }, [params]);
 
     if (isLoading) {
-        return (
-            <main className="w-full h-svh flex items-center justify-center">
-                <div>
-                    <h1>C A R R E G A N D O</h1>
-                </div>
-            </main>
-        );
+        return <LoadingPage message="Carregando certificados..." />;
     }
 
     // Filtra os certificados com base no termo de busca (searchQuery)
@@ -61,89 +57,77 @@ export default function Page({ params }: { params: Promise<{ search: string }> }
 
 
     return (
-        <main className="w-full h-svh flex items-center justify-center flex-col space-y-5" style={PoppinsFontLib.style}>
-            <div>
-                <h1 className="text-[40px] font-extrabold">TODOS OS CERTIFICADOS</h1>
+        <main className="certificates-container" style={PoppinsFontLib.style}>
+            <h1 className="certificates-title">Todos os Certificados</h1>
+            <div className="search-section">
+                <div className="search-input-wrapper">
+                    <input
+                        type="text"
+                        placeholder="Pesquisar..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="glass-input"
+                        style={{ width: "100%" }}
+                    />
+                </div>
+                {filteredData.length !== 0 && (
+                    <h2 className="search-results-count">
+                        Foram encontrados <span>{filteredData.length}</span> resultados
+                    </h2>
+                )}
             </div>
-            {/* Campo de busca */}
-            <div className="w-full flex items-center justify-center flex flex-col space-y-1">
-
-                <input
-
-                    type="text"
-                    placeholder="Pesquisar..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="border p-2 min-w-[400px]"
-                />
-                {
-                    filteredData.length != 0 &&
-                    <h1>
-                        FORAM ENCONTRADOS <span className="font-extrabold text-red-800">{filteredData.length}</span> RESULTADOS
-                    </h1>
-                }
-
-
-            </div>
-            <article className="min-h-96 max-h-96 border-[1px] overflow-auto p-5 space-y-10">
+            <div className="glass-container certificates-list">
                 {filteredData.length === 0 ? (
-                    <h1>Nenhum certificado encontrado</h1>
+                    <div className="empty-state">Nenhum certificado encontrado</div>
                 ) : (
                     filteredData.map((certificate) => (
                         <CertificateComponent key={String(certificate._id)} certificate={certificate} />
                     ))
                 )}
-            </article>
+            </div>
         </main>
     );
 }
 
 const CertificateComponent: React.FC<{ certificate: ICertificateWithEventPopulate }> = ({ certificate }) => {
     return (
-        <div className="shadow-xl py-5 px-5 space-y-5 border-b-[2px] border-r-[2px] rounded-2xl border-blue-800">
-            <div className="">
-
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Usuário</h1>
-                    <p>{certificate.ownerName}</p>
-                </div>
-
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Identificação de Evento</h1>
-                    <p onClick={() => console.log(certificate)}>{ String(certificate?.eventId?._id) }</p>
-                </div>
-
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Identificação do Certificado</h1>
-                    <p>{String(certificate._id)}</p>
-                </div>
-
-                <div className="flex flex-col">
-                    <h1 className="text-[12px] font-extrabold">Nome do Evento</h1>
-                    <p>{certificate.eventName}</p>
-                </div>
-
+        <div className="glass-card certificate-item">
+            <div className="certificate-field">
+                <span className="certificate-field-label">Usuário</span>
+                <span className="certificate-field-value">{certificate.ownerName}</span>
             </div>
-            <div className="space-x-1">
+
+            <div className="certificate-field">
+                <span className="certificate-field-label">Identificação de Evento</span>
+                <span className="certificate-field-value">{String(certificate?.eventId?._id)}</span>
+            </div>
+
+            <div className="certificate-field">
+                <span className="certificate-field-label">Identificação do Certificado</span>
+                <span className="certificate-field-value">{String(certificate._id)}</span>
+            </div>
+
+            <div className="certificate-field">
+                <span className="certificate-field-label">Nome do Evento</span>
+                <span className="certificate-field-value">{certificate.eventName}</span>
+            </div>
+
+            <div className="certificate-actions">
                 <Link
                     prefetch={false}
                     href={`https://www.dadg.com.br/certificados/meuCertificado/${certificate._id}`}
                     target="_blank"
-                    className=""
+                    className="certificate-button certificate-button-primary"
                 >
-                    <div className="p-5 bg-red-900 font-extrabold text-white">
-                        Ver Certificado
-                    </div>
+                    Ver Certificado
                 </Link>
                 <Link
                     prefetch={false}
                     href={`/todosCertificados/modificar/${certificate._id}`}
                     target="_blank"
-                    className=""
+                    className="certificate-button certificate-button-primary"
                 >
-                    <div className="p-5 bg-red-900 font-extrabold text-white">
-                        Editar Certificado
-                    </div>
+                    Editar Certificado
                 </Link>
             </div>
         </div>
