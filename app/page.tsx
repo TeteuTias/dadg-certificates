@@ -23,7 +23,7 @@ export default function Home() {
     <div className="home-container" style={PoppinsFontLib.style}>
       <div className="home-hero">
         <div className="hero-content">
-          <h1 className="home-title">Bem-vindo ao Sistema de Certificados</h1>
+          <h1 className="home-title">Bem-vindo  ao Sistema de Certificados</h1>
           <p className="home-subtitle">Gerencie certificados, eventos e histórico de modificações de forma eficiente e profissional</p>
         </div>
       </div>
