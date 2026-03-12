@@ -23,6 +23,13 @@ export async function proxy(request: NextRequest) {
         // Autenticou. Deixa passar
         return authRes
       }
+      // Caso ele não esteja autenticado (nem por Bearer nem por API), ele ainda pode acessar as rotas públicas
+      // Por enquanto, vou configurar apenas uma delas. Não vou generalizar para não termos escape de rotas indesejadas, 
+      // ou que deveriam ser públicas para essa aplicação apenas
+      if (request.nextUrl.pathname.includes("/api/external/dadgsite/public")) {
+        // caso seja pública, pode passar.
+        return authRes
+      }
     }
     return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin))
   }
