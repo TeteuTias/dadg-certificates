@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-
+import { verifyToken } from "./lib/auth-api/verifyToken"
 import { auth0 } from "./lib/auth0"
 
 export async function proxy(request: NextRequest) {
   const authRes = auth0.middleware(request)
-
   if (request.nextUrl.pathname.startsWith("/auth")) { // caso ele entre na rota auth.
     return authRes
   }
@@ -13,10 +12,18 @@ export async function proxy(request: NextRequest) {
   // Pegando sessão
   const session = await auth0.getSession()
 
-
   // Caso não tenha sessão, envie para login.
   if (!session) {
-    // user is not authenticated, redirect to login page
+    // Aqui ele não está autenticado por Cookies!!!
+    // Entretanto, ele pode estar autenticado pelo Bearer vindo de uma API. Para isso vamos verificar se ele existe
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) { // se existir mesmo um Bearer, vamos autentica-lo
+      const verf = await verifyToken(authHeader)
+      if (verf) {
+        // Autenticou. Deixa passar
+        return authRes
+      }
+    }
     return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin))
   }
 
