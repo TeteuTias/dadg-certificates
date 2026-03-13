@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-
+import { verifyToken } from "./lib/auth-api/verifyToken"
 import { auth0 } from "./lib/auth0"
 
 export async function proxy(request: NextRequest) {
   const authRes = auth0.middleware(request)
-
   if (request.nextUrl.pathname.startsWith("/auth")) { // caso ele entre na rota auth.
     return authRes
   }
@@ -13,10 +12,33 @@ export async function proxy(request: NextRequest) {
   // Pegando sessão
   const session = await auth0.getSession()
 
-
   // Caso não tenha sessão, envie para login.
   if (!session) {
-    // user is not authenticated, redirect to login page
+    // Aqui ele não está autenticado por Cookies!!!
+    // Entretanto, ele pode estar autenticado pelo Bearer vindo de uma API. Para isso vamos verificar se ele existe
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) { // se existir mesmo um Bearer, vamos autentica-lo
+      const verf = await verifyToken(authHeader)
+      if (verf) {
+        // Autenticou. Deixa passar
+        return authRes
+      }
+      // Caso haja um authHeader e ele não esteja autenticado, ele vai ele receberá um erro
+      // Não deixei no redirect pois ele retorna a página de login com Status 200 (o que pode dar erro para nossas apis)
+      return NextResponse.json({ "message": "Não autenticado. Token ou Sessão ausente." }, { status: 401 })
+    } else {
+      // Caso ele não esteja autenticado (nem por Bearer nem por API), ele ainda pode acessar as rotas públicas
+      // Por enquanto, vou configurar apenas uma delas. Não vou generalizar para não termos escape de rotas indesejadas, 
+      // ou que deveriam ser públicas para essa aplicação apenas
+      // PARA ISSO, NOTE QUE ELE -> *NÃO* <- DEVE ENVIAR UM BEARER!
+      if (request.nextUrl.pathname.includes("/api/external/dadgsite/public")) {
+        // caso seja pública, pode passar.
+        return authRes
+      }
+      if (request.nextUrl.pathname.startsWith("/api/")) {
+        return NextResponse.json({ message: "Não autenticado. Token ou Sessão ausente." }, { status: 401 })
+      }
+    }
     return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin))
   }
 
