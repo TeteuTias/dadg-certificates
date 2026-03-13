@@ -5,7 +5,9 @@ import CertificateModel from "@/lib/models/CertificateModel";
 
 
 export const dynamic = 'force-dynamic'
-
+/**
+ * Rota teste, criada apenas para testar a parte de autenticação.
+ */
 // export async function GET(req: NextRequest, { params }: { params: { search: string } }) {
 export async function GET(req: NextRequest, {
     params,
