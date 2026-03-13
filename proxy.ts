@@ -23,12 +23,20 @@ export async function proxy(request: NextRequest) {
         // Autenticou. Deixa passar
         return authRes
       }
+      // Caso haja um authHeader e ele não esteja autenticado, ele vai ele receberá um erro
+      // Não deixei no redirect pois ele retorna a página de login com Status 200 (o que pode dar erro para nossas apis)
+      return NextResponse.json({ "message": "Não autenticado. Token ou Sessão ausente." }, { status: 401 })
+    } else {
       // Caso ele não esteja autenticado (nem por Bearer nem por API), ele ainda pode acessar as rotas públicas
       // Por enquanto, vou configurar apenas uma delas. Não vou generalizar para não termos escape de rotas indesejadas, 
       // ou que deveriam ser públicas para essa aplicação apenas
+      // PARA ISSO, NOTE QUE ELE -> *NÃO* <- DEVE ENVIAR UM BEARER!
       if (request.nextUrl.pathname.includes("/api/external/dadgsite/public")) {
         // caso seja pública, pode passar.
         return authRes
+      }
+      if (request.nextUrl.pathname.startsWith("/api/")) {
+        return NextResponse.json({ message: "Não autenticado. Token ou Sessão ausente." }, { status: 401 })
       }
     }
     return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin))
