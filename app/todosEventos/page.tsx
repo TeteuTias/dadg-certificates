@@ -1,116 +1,163 @@
 "use client";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+
+import LoadingPage from "@/components/LoadingPage";
 import { IEventCertificate } from "@/lib/models/EventCertificateModel";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
-import LoadingPage from "@/components/LoadingPage";
+import {
+    CalendarDays,
+    CircleDollarSign,
+    ExternalLink,
+    Search,
+    Settings2,
+    Users,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import "./page.css";
 
-
 export default function Page() {
-    const [isLoading, setLoading] = useState<boolean>(true);
+    const [isLoading, setLoading] = useState(true);
     const [data, setData] = useState<IEventCertificate[]>([]);
-    const [searchQuery, setSearchQuery] = useState<string>("");
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         const fetchData = async () => {
             const res = await fetch("/api/get/allEvents/");
             if (!res.ok) {
-                console.log("Ocorreu algum erro");
+                setLoading(false);
                 return;
             }
+
             const dataJson: { data: IEventCertificate[] } = await res.json();
             setData(dataJson.data);
             setLoading(false);
         };
+
         fetchData();
     }, []);
+
+    const filteredData = useMemo(() => {
+        const query = searchQuery.toLowerCase();
+
+        return data.filter((event) => {
+            return (
+                event.eventName?.toLowerCase().includes(query) ||
+                event.eventDescription?.toLowerCase().includes(query) ||
+                String(event._id).toLowerCase().includes(query)
+            );
+        });
+    }, [data, searchQuery]);
 
     if (isLoading) {
         return <LoadingPage message="Carregando eventos..." />;
     }
 
-    // Filtra os eventos com base no termo de busca (searchQuery)
-    const filteredData = data.filter((event) => {
-        const query = searchQuery.toLowerCase();
-
-        return (
-            event.eventName?.toLowerCase().includes(query) ||
-            event.eventDescription?.toLowerCase().includes(query) ||
-            (event._id && String(event._id).toLowerCase().includes(query))
-        );
-    });
-
-
     return (
-        <main className="events-container" style={PoppinsFontLib.style}>
-            <h1 className="events-title">Todos os Eventos</h1>
-            <div className="search-section">
-                <div className="search-input-wrapper">
-                    <input
-                        type="text"
-                        placeholder="Pesquisar..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="glass-input"
-                        style={{ width: "100%" }}
-                    />
-                </div>
-                {filteredData.length !== 0 && (
-                    <h2 className="search-results-count">
-                        Foram encontrados <span>{filteredData.length}</span> resultados
-                    </h2>
-                )}
-            </div>
-            <div className="glass-container events-list">
-                {filteredData.length === 0 ? (
-                    <div className="empty-state">Nenhum evento encontrado</div>
-                ) : (
-                    filteredData.map((event) => (
-                        <EventComponent key={String(event._id)} event={event} />
-                    ))
-                )}
+        <main className="events-page" style={PoppinsFontLib.style}>
+            <div className="events-shell">
+                <header className="events-header fade-in">
+                    <div className="events-hero">
+                        <span className="events-badge">Gestao de eventos</span>
+                        <h1 className="events-title">Todos os eventos</h1>
+                        <p className="events-subtitle">
+                            Consulte rapidamente cada evento, filtre por nome ou ID e entre direto na configuracao ou nos certificados relacionados.
+                        </p>
+                    </div>
+
+                    <div className="glass-card events-stats-card">
+                        <strong>{data.length}</strong>
+                        <span>eventos cadastrados</span>
+                    </div>
+                </header>
+
+                <section className="events-toolbar fade-in">
+                    <label className="glass-card events-search-card">
+                        <Search size={18} />
+                        <input
+                            type="text"
+                            placeholder="Pesquisar por nome, descricao ou ID..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="glass-input events-search-input"
+                        />
+                    </label>
+
+                    <div className="events-results-pill">
+                        <span>{filteredData.length}</span>
+                        <small>resultados</small>
+                    </div>
+                </section>
+
+                <section className="events-list">
+                    {filteredData.length === 0 ? (
+                        <div className="glass-container events-empty-state">Nenhum evento encontrado.</div>
+                    ) : (
+                        filteredData.map((event) => <EventCard key={String(event._id)} event={event} />)
+                    )}
+                </section>
             </div>
         </main>
     );
 }
 
-const EventComponent: React.FC<{ event: IEventCertificate }> = ({ event }) => {
+function EventCard({ event }: { event: IEventCertificate }) {
     return (
-        <div className="glass-card event-item">
-            <div className="event-field">
-                <span className="event-field-label">Identificação</span>
-                <span className="event-field-value">{String(event._id)}</span>
+        <article className="glass-card event-card fade-in">
+            <div className="event-card-main">
+                <div className="event-card-heading">
+                    <span className="event-card-id">{String(event._id)}</span>
+                    <h2>{event.eventName}</h2>
+                </div>
+
+                <p className="event-card-description">{event.eventDescription}</p>
+
+                <div className="event-card-metrics">
+                    <span className="event-card-chip">
+                        <CalendarDays size={15} />
+                        <span>{event.isOpen ? "Inscricoes abertas" : "Inscricoes fechadas"}</span>
+                    </span>
+                    <span className="event-card-chip">
+                        <Users size={15} />
+                        <span>{event.registrationCount || 0}/{event.maxParticipants || 0} participantes</span>
+                    </span>
+                    <span className="event-card-chip">
+                        <CircleDollarSign size={15} />
+                        <span>{event.isPaid ? formatCurrency(event.price) : "Gratuito"}</span>
+                    </span>
+                </div>
             </div>
 
-            <div className="event-field">
-                <span className="event-field-label">Nome do Evento</span>
-                <span className="event-field-value">{event.eventName}</span>
-            </div>
-
-            <div className="event-field">
-                <span className="event-field-label">Descrição do Evento</span>
-                <span className="event-field-value">{String(event.eventDescription)}</span>
-            </div>
-
-            <div className="event-actions">
+            <div className="event-card-actions">
                 <Link
                     prefetch={false}
                     href={`/todosEventos/modificar/${event._id}`}
                     target="_blank"
-                    className="event-button event-button-primary"
+                    className="glass-button glass-button-primary event-card-button"
                 >
-                    Editar Evento
+                    <Settings2 size={16} />
+                    <span>Editar evento</span>
                 </Link>
                 <Link
                     prefetch={false}
                     href={`/todosCertificados/${event._id}`}
                     target="_blank"
-                    className="event-button event-button-primary"
+                    className="glass-button event-card-button"
                 >
-                    Ver Certificados Do Evento
+                    <ExternalLink size={16} />
+                    <span>Ver certificados</span>
                 </Link>
             </div>
-        </div>
+        </article>
     );
-};
+}
+
+function formatCurrency(value?: number) {
+    if (typeof value !== "number") {
+        return "Valor nao informado";
+    }
+
+    return new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+    }).format(value);
+}

@@ -1,32 +1,76 @@
-"use client"
-import React from 'react';
-// a diferenca e que esse aceita varios parametros, diferente do outro!!
+"use client";
+
+import React from "react";
+import { AlertTriangle, BadgeCheck, Info } from "lucide-react";
+import "./ModalAction.css";
+
 export interface IModalProps {
     title: string;
     emoji: string;
     text: string;
-    buttons: Array<{ label: string, action: () => void, styleButton?: React.CSSProperties }>;
+    buttons: Array<{ label: string; action: () => void; styleButton?: React.CSSProperties }>;
 }
 
+type ModalTone = "success" | "danger" | "info";
+
+const getToneFromContent = (title: string, text: string): ModalTone => {
+    const normalized = `${title} ${text}`.toLowerCase();
+
+    if (normalized.includes("erro") || normalized.includes("falha")) {
+        return "danger";
+    }
+
+    if (
+        normalized.includes("sucesso") ||
+        normalized.includes("criado") ||
+        normalized.includes("adicionado") ||
+        normalized.includes("obrigado")
+    ) {
+        return "success";
+    }
+
+    return "info";
+};
+
+const toneIconMap: Record<ModalTone, React.ReactNode> = {
+    success: <BadgeCheck size={22} />,
+    danger: <AlertTriangle size={22} />,
+    info: <Info size={22} />,
+};
+
+const toneLabelMap: Record<ModalTone, string> = {
+    success: "Tudo certo",
+    danger: "Revisao necessaria",
+    info: "Confirme a acao",
+};
+
 const ModalAction: React.FC<IModalProps> = ({ title, text, buttons, emoji }) => {
+    const tone = getToneFromContent(title, text);
+
     return (
-        <div className="fixed inset-0 z-[50000] flex items-center justify-center bg-[#FEFAE0] bg-opacity-75">
-            <div className="max-w-[95%] md:max-w-md w-full bg-white">
-                <div className="flex flex-row content-center p-2 border-[2.8px] border-[#283618] ">
-                    <div className='ml-2 flex flex-row space-x-1'>
-                        <p className="text-xl font-bold text-black">{emoji}</p>
-                        <p className="text-xl font-bold text-black">{title}</p>
+        <div className="modal-action-overlay">
+            <div className={`modal-action-card tone-${tone}`}>
+                <div className="modal-action-header">
+                    <div className="modal-action-icon-wrap">
+                        {emoji ? <span className="modal-action-emoji">{emoji}</span> : toneIconMap[tone]}
+                    </div>
+
+                    <div className="modal-action-heading">
+                        <span className="modal-action-eyebrow">{toneLabelMap[tone]}</span>
+                        <h2>{title}</h2>
                     </div>
                 </div>
-                <div className=" border-[2.8px] border-[#283618] border-t-[0px]  p-5">
-                    <p className="mb-6 text-left ">{text}</p>
-                    <div className="flex justify-start space-x-4">
+
+                <div className="modal-action-body">
+                    <p className="modal-action-text">{text}</p>
+
+                    <div className="modal-action-buttons">
                         {buttons.map((button, index) => (
                             <button
-                                key={index}
+                                key={`${button.label}-${index}`}
                                 onClick={button.action}
                                 style={button.styleButton}
-                                className="bg-red-500 text-black px-4 py-2 hover:bg-red-600 border-[2.5px] border-black"
+                                className={`modal-action-button ${index === 0 ? "is-primary" : "is-secondary"}`}
                             >
                                 {button.label}
                             </button>

@@ -1,79 +1,88 @@
-"use client"
-import React, { useState } from 'react';
+"use client";
+
+import React, { useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import "./ModalAction.css";
 
 export interface IModalProps {
     title: string;
     emoji: string;
     text: string;
-    expectedPhrase: string; // frase que o usuário deve digitar exatamente
-    onConfirm: () => void;  // função a ser executada se a frase estiver correta
-    onCancel?: () => void;  // ação opcional para cancelar
+    expectedPhrase: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
 }
 
-const ModalActionWithTextVerification
-    : React.FC<IModalProps> = ({
-        title,
-        text,
-        emoji,
-        expectedPhrase,
-        onConfirm,
-        onCancel,
-    }) => {
-        const [inputValue, setInputValue] = useState('');
-        const [error, setError] = useState('');
+const ModalActionWithTextVerification: React.FC<IModalProps> = ({
+    title,
+    text,
+    emoji,
+    expectedPhrase,
+    onConfirm,
+    onCancel,
+}) => {
+    const [inputValue, setInputValue] = useState("");
+    const [error, setError] = useState("");
 
-        const handleConfirm = () => {
-            if (inputValue === expectedPhrase) {
-                onConfirm();
-            } else {
-                setError('Digite a frase exatamente como pedido.');
-            }
-        };
+    const handleConfirm = () => {
+        if (inputValue === expectedPhrase) {
+            onConfirm();
+            return;
+        }
 
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FEFAE0] bg-opacity-75">
-                <div className="max-w-[95%] md:max-w-md w-full bg-white">
-                    <div className="flex flex-row items-center p-2 border-[2.8px] border-[#283618]">
-                        <div className="ml-2 flex flex-row space-x-1">
-                            <p className="text-xl font-bold text-black">{emoji}</p>
-                            <p className="text-xl font-bold text-black">{title}</p>
-                        </div>
+        setError("Digite a frase exatamente como pedido.");
+    };
+
+    return (
+        <div className="modal-action-overlay">
+            <div className="modal-action-card tone-info">
+                <div className="modal-action-header">
+                    <div className="modal-action-icon-wrap">
+                        {emoji ? <span className="modal-action-emoji">{emoji}</span> : <ShieldCheck size={22} />}
                     </div>
-                    <div className="border-[2.8px] border-[#283618] border-t-0 p-5">
-                        <p className="">{text}</p>
-                        <p className="mb-6"><span className='font-extrabold text-gray-700'>Para continuar, digite a seguinte frase: </span>{expectedPhrase}</p>
-                        <input
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => {
-                                setInputValue(e.target.value);
-                                if (error) setError('');
-                            }}
-                            placeholder="Digite a frase exatamente como pedido"
-                            className="w-full p-2 mb-4 border border-gray-300"
-                        />
-                        {error && <p className="text-red-500 mb-4">{error}</p>}
-                        <div className="flex justify-end space-x-4">
-                            {onCancel && (
-                                <button
-                                    onClick={onCancel}
-                                    className="bg-gray-300 text-black px-4 py-2 hover:bg-gray-400 border border-black"
-                                >
-                                    Cancelar
-                                </button>
-                            )}
-                            <button
-                                onClick={handleConfirm}
-                                className="bg-red-500 text-black px-4 py-2 hover:bg-red-600 border border-black"
-                            >
-                                Confirmar
+
+                    <div className="modal-action-heading">
+                        <span className="modal-action-eyebrow">Confirmacao adicional</span>
+                        <h2>{title}</h2>
+                    </div>
+                </div>
+
+                <div className="modal-action-body">
+                    <p className="modal-action-text">{text}</p>
+                    <p className="modal-action-note">
+                        Para continuar, digite exatamente: <strong>{expectedPhrase}</strong>
+                    </p>
+
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => {
+                            setInputValue(e.target.value);
+                            if (error) {
+                                setError("");
+                            }
+                        }}
+                        placeholder="Digite a frase exatamente como pedido"
+                        className="modal-action-input"
+                    />
+
+                    {error && <p className="modal-action-error">{error}</p>}
+
+                    <div className="modal-action-buttons">
+                        {onCancel && (
+                            <button onClick={onCancel} className="modal-action-button is-secondary">
+                                Cancelar
                             </button>
-                        </div>
+                        )}
+
+                        <button onClick={handleConfirm} className="modal-action-button is-primary">
+                            Confirmar
+                        </button>
                     </div>
                 </div>
             </div>
-        );
-    };
+        </div>
+    );
+};
 
-export default ModalActionWithTextVerification
-    ;
+export default ModalActionWithTextVerification;
