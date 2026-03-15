@@ -120,6 +120,16 @@
   padding: 2rem;
 }
 
+.certificates-load-more {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.certificates-load-more-button {
+  min-width: 240px;
+}
+
 .loading-container {
   min-height: calc(100vh - 80px);
   display: flex;
@@ -153,6 +163,10 @@
   }
 
   .certificate-button {
+    width: 100%;
+  }
+
+  .certificates-load-more-button {
     width: 100%;
   }
 }
