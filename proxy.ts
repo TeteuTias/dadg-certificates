@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { verifyToken } from "./lib/auth-api/verifyToken"
+import { verifyToken } from "./lib/security/verifyToken"
 import { auth0 } from "./lib/auth0"
 
 export async function proxy(request: NextRequest) {
