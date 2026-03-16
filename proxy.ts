@@ -2,59 +2,49 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { verifyToken } from "./lib/security/verifyToken"
 import { auth0 } from "./lib/auth0"
+import GateKeeper from "./lib/security/gatekeeper"
+import { API_ROUTE_MAP } from "./lib/security/route-policies"
 
 export async function proxy(request: NextRequest) {
-  const authRes = auth0.middleware(request)
-  if (request.nextUrl.pathname.startsWith("/auth")) { // caso ele entre na rota auth.
-    return authRes
+  const authRes = auth0.middleware(request);
+
+  // 1. A REGRA QUE SALVA O AUTH0 (Copiada do seu código antigo)
+  if (request.nextUrl.pathname.startsWith("/auth")) {
+    return authRes;
   }
 
-  // Pegando sessão
-  const session = await auth0.getSession()
+  // 2. O GateKeeper assume o controle para o resto do sistema
+  const keeper = new GateKeeper(request, API_ROUTE_MAP);
+  const access = keeper.validate();
 
-  // Caso não tenha sessão, envie para login.
-  if (!session) {
-    // Aqui ele não está autenticado por Cookies!!!
-    // Entretanto, ele pode estar autenticado pelo Bearer vindo de uma API. Para isso vamos verificar se ele existe
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) { // se existir mesmo um Bearer, vamos autentica-lo
-      const verf = await verifyToken(authHeader)
-      if (verf) {
-        // Autenticou. Deixa passar
-        return authRes
-      }
-      // Caso haja um authHeader e ele não esteja autenticado, ele vai ele receberá um erro
-      // Não deixei no redirect pois ele retorna a página de login com Status 200 (o que pode dar erro para nossas apis)
-      return NextResponse.json({ "message": "Não autenticado. Token ou Sessão ausente." }, { status: 401 })
-    } else {
-      // Caso ele não esteja autenticado (nem por Bearer nem por API), ele ainda pode acessar as rotas públicas
-      // Por enquanto, vou configurar apenas uma delas. Não vou generalizar para não termos escape de rotas indesejadas, 
-      // ou que deveriam ser públicas para essa aplicação apenas
-      // PARA ISSO, NOTE QUE ELE -> *NÃO* <- DEVE ENVIAR UM BEARER!
-      if (request.nextUrl.pathname.includes("/api/external/dadgsite/public")) {
-        // caso seja pública, pode passar.
-        return authRes
-      }
-      if (request.nextUrl.pathname.startsWith("/api/")) {
-        return NextResponse.json({ message: "Não autenticado. Token ou Sessão ausente." }, { status: 401 })
-      }
+  // 3. Segurança por Padrão (Bloqueia o que não está no mapa)
+  if (!access.authorized) {
+    return NextResponse.json({ message: access.message }, { status: access.status });
+  }
+
+  // 4. Se for pública, libera sem gastar processamento
+  if (!access.requiresAuth) {
+    return authRes;
+  }
+
+  // 5. PROCESSAMENTO PESADO (Só ocorre se a rota exigir auth)
+  const session = await auth0.getSession();
+  const authHeader = request.headers.get('authorization');
+  let isAuthenticated = false;
+
+  if (authHeader && await verifyToken(authHeader)) {
+    isAuthenticated = true;
+  } else if (session) {
+    isAuthenticated = true;
+  }
+
+  // 6. Resposta final se falhar a autenticação
+  if (!isAuthenticated) {
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ message: "Não autenticado." }, { status: 401 });
     }
-    return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin))
+    return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin));
   }
 
-
-
-  return authRes
-}
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     */
-    "/((?!_next/static|_next/image|logoDADG.png|favicon.ico|sitemap.xml|robots.txt).*)",
-  ],
+  return authRes;
 }
