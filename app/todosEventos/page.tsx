@@ -15,38 +15,82 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import "./page.css";
 
+const PAGE_SIZE = 48;
+
+type EventsResponse = {
+    data: IEventCertificate[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+};
+
 export default function Page() {
     const [isLoading, setLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [data, setData] = useState<IEventCertificate[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [activeQuery, setActiveQuery] = useState("");
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            setPage(1);
+            setActiveQuery(searchQuery.trim());
+        }, 300);
+
+        return () => window.clearTimeout(timeout);
+    }, [searchQuery]);
 
     useEffect(() => {
         const fetchData = async () => {
-            const res = await fetch("/api/get/allEvents/");
+            if (page === 1) {
+                setLoading(true);
+            } else {
+                setIsLoadingMore(true);
+            }
+
+            const searchParams = new URLSearchParams({
+                page: String(page),
+                limit: String(PAGE_SIZE),
+            });
+
+            if (activeQuery) {
+                searchParams.set("search", activeQuery);
+            }
+
+            const res = await fetch(`/api/get/allEvents/?${searchParams.toString()}`);
             if (!res.ok) {
                 setLoading(false);
+                setIsLoadingMore(false);
                 return;
             }
 
-            const dataJson: { data: IEventCertificate[] } = await res.json();
-            setData(dataJson.data);
+            const dataJson: EventsResponse = await res.json();
+
+            setData((prev) => (page === 1 ? dataJson.data : [...prev, ...dataJson.data]));
+            setTotal(dataJson.total);
+            setHasMore(dataJson.hasMore);
             setLoading(false);
+            setIsLoadingMore(false);
         };
 
         fetchData();
-    }, []);
+    }, [page, activeQuery]);
 
-    const filteredData = useMemo(() => {
-        const query = searchQuery.toLowerCase();
+    const resultsLabel = useMemo(() => {
+        if (total === 0) {
+            return "Nenhum evento encontrado";
+        }
 
-        return data.filter((event) => {
-            return (
-                event.eventName?.toLowerCase().includes(query) ||
-                event.eventDescription?.toLowerCase().includes(query) ||
-                String(event._id).toLowerCase().includes(query)
-            );
-        });
-    }, [data, searchQuery]);
+        if (!activeQuery) {
+            return `Mostrando ${data.length} de ${total} eventos`;
+        }
+
+        return `${total} resultado${total === 1 ? "" : "s"}`;
+    }, [activeQuery, data.length, total]);
 
     if (isLoading) {
         return <LoadingPage message="Carregando eventos..." />;
@@ -65,7 +109,7 @@ export default function Page() {
                     </div>
 
                     <div className="glass-card events-stats-card">
-                        <strong>{data.length}</strong>
+                        <strong>{total}</strong>
                         <span>eventos cadastrados</span>
                     </div>
                 </header>
@@ -83,18 +127,35 @@ export default function Page() {
                     </label>
 
                     <div className="events-results-pill">
-                        <span>{filteredData.length}</span>
-                        <small>resultados</small>
+                        <span>{activeQuery ? total : data.length}</span>
+                        <small>{activeQuery ? "resultados" : "carregados"}</small>
                     </div>
                 </section>
 
+                <div className="events-results-summary">
+                    <span>{resultsLabel}</span>
+                </div>
+
                 <section className="events-list">
-                    {filteredData.length === 0 ? (
+                    {data.length === 0 ? (
                         <div className="glass-container events-empty-state">Nenhum evento encontrado.</div>
                     ) : (
-                        filteredData.map((event) => <EventCard key={String(event._id)} event={event} />)
+                        data.map((event) => <EventCard key={String(event._id)} event={event} />)
                     )}
                 </section>
+
+                {hasMore && (
+                    <div className="events-load-more">
+                        <button
+                            type="button"
+                            className="glass-button events-load-more-button"
+                            onClick={() => setPage((prev) => prev + 1)}
+                            disabled={isLoadingMore}
+                        >
+                            {isLoadingMore ? "Carregando mais..." : "Carregar mais eventos"}
+                        </button>
+                    </div>
+                )}
             </div>
         </main>
     );

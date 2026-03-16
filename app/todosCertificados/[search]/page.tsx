@@ -1,60 +1,115 @@
 "use client";
+
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ICertificateWithEventPopulate } from "@/lib/models/CertificateModel";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
 import LoadingPage from "@/components/LoadingPage";
 import "./page.css";
 
+const PAGE_SIZE = 60;
+
+type CertificatesResponse = {
+    data: ICertificateWithEventPopulate[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+};
 
 export default function Page({ params }: { params: Promise<{ search: string }> }) {
     const [isLoading, setLoading] = useState<boolean>(true);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [data, setData] = useState<ICertificateWithEventPopulate[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>("");
+    const [activeQuery, setActiveQuery] = useState<string>("");
+    const [page, setPage] = useState<number>(1);
+    const [total, setTotal] = useState<number>(0);
+    const [hasMore, setHasMore] = useState<boolean>(false);
+    const [isReady, setIsReady] = useState<boolean>(false);
 
     useEffect(() => {
+        const resolveInitialQuery = async () => {
+            const slug = (await params).search;
+            const initialQuery = slug !== "allCertificates" ? slug : "";
+
+            setSearchQuery(initialQuery);
+            setActiveQuery(initialQuery);
+            setPage(1);
+            setIsReady(true);
+        };
+
+        resolveInitialQuery();
+    }, [params]);
+
+    useEffect(() => {
+        if (!isReady) {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setPage(1);
+            setActiveQuery(searchQuery.trim());
+        }, 300);
+
+        return () => window.clearTimeout(timeout);
+    }, [searchQuery, isReady]);
+
+    useEffect(() => {
+        if (!isReady) {
+            return;
+        }
+
         const fetchData = async () => {
-            const slug = (await params).search
-            if (slug !== "allCertificates") {
-                setSearchQuery(slug)
+            if (page === 1) {
+                setLoading(true);
+            } else {
+                setIsLoadingMore(true);
             }
-            const res = await fetch("/api/get/allCertificates/");
+
+            const searchParams = new URLSearchParams({
+                page: String(page),
+                limit: String(PAGE_SIZE),
+            });
+
+            if (activeQuery) {
+                searchParams.set("search", activeQuery);
+            }
+
+            const res = await fetch(`/api/get/allCertificates/?${searchParams.toString()}`);
             if (!res.ok) {
-                console.log("Ocorreu algum erro");
+                setLoading(false);
+                setIsLoadingMore(false);
                 return;
             }
-            const dataJson: { data: ICertificateWithEventPopulate[] } = await res.json();
-            setData(dataJson.data);
+
+            const dataJson: CertificatesResponse = await res.json();
+
+            setData((prev) => (page === 1 ? dataJson.data : [...prev, ...dataJson.data]));
+            setTotal(dataJson.total);
+            setHasMore(dataJson.hasMore);
             setLoading(false);
+            setIsLoadingMore(false);
         };
+
         fetchData();
-    }, [params]);
+    }, [page, activeQuery, isReady]);
+
+    const resultsLabel = useMemo(() => {
+        if (total === 0) {
+            return "Nenhum certificado encontrado";
+        }
+
+        if (!activeQuery) {
+            return `Mostrando ${data.length} de ${total} certificados`;
+        }
+
+        return `${total} resultado${total === 1 ? "" : "s"} encontrado${total === 1 ? "" : "s"}`;
+    }, [activeQuery, data.length, total]);
 
     if (isLoading) {
         return <LoadingPage message="Carregando certificados..." />;
     }
-
-    // Filtra os certificados com base no termo de busca (searchQuery)
-    const filteredData = data.filter((cert) => {
-        const query = searchQuery.toLowerCase();
-
-        return (
-            cert._id.toString().toLowerCase().includes(query) ||
-            cert.ownerName?.toLowerCase().includes(query) ||
-            cert.ownerCpf?.toLowerCase().includes(query) ||
-            cert.eventName?.toLowerCase().includes(query) ||
-            cert.ownerEmail?.toLowerCase().includes(query) ||
-            cert.certificateHours?.toLowerCase().includes(query) ||
-            cert.certificatePath?.toLowerCase().includes(query) ||
-            (cert.frontTopperText && cert.frontTopperText.toLowerCase().includes(query)) ||
-            (cert.frontBottomText && cert.frontBottomText.toLowerCase().includes(query)) ||
-            // Busca pelo nome do evento
-            (cert.eventId && cert.eventId.eventName.toLowerCase().includes(query)) ||
-            // Busca pelo ID do evento
-            (cert.eventId && String(cert.eventId._id).toLowerCase().includes(query))
-        );
-    });
-
 
     return (
         <main className="certificates-container" style={PoppinsFontLib.style}>
@@ -70,21 +125,33 @@ export default function Page({ params }: { params: Promise<{ search: string }> }
                         style={{ width: "100%" }}
                     />
                 </div>
-                {filteredData.length !== 0 && (
-                    <h2 className="search-results-count">
-                        Foram encontrados <span>{filteredData.length}</span> resultados
-                    </h2>
-                )}
+                <h2 className="search-results-count">
+                    <span>{resultsLabel}</span>
+                </h2>
             </div>
+
             <div className="glass-container certificates-list">
-                {filteredData.length === 0 ? (
+                {data.length === 0 ? (
                     <div className="empty-state">Nenhum certificado encontrado</div>
                 ) : (
-                    filteredData.map((certificate) => (
+                    data.map((certificate) => (
                         <CertificateComponent key={String(certificate._id)} certificate={certificate} />
                     ))
                 )}
             </div>
+
+            {hasMore && (
+                <div className="certificates-load-more">
+                    <button
+                        type="button"
+                        className="glass-button certificates-load-more-button"
+                        onClick={() => setPage((prev) => prev + 1)}
+                        disabled={isLoadingMore}
+                    >
+                        {isLoadingMore ? "Carregando mais..." : "Carregar mais certificados"}
+                    </button>
+                </div>
+            )}
         </main>
     );
 }
@@ -93,17 +160,17 @@ const CertificateComponent: React.FC<{ certificate: ICertificateWithEventPopulat
     return (
         <div className="glass-card certificate-item">
             <div className="certificate-field">
-                <span className="certificate-field-label">Usuário</span>
+                <span className="certificate-field-label">Usuario</span>
                 <span className="certificate-field-value">{certificate.ownerName}</span>
             </div>
 
             <div className="certificate-field">
-                <span className="certificate-field-label">Identificação de Evento</span>
+                <span className="certificate-field-label">Identificacao de Evento</span>
                 <span className="certificate-field-value">{String(certificate?.eventId?._id)}</span>
             </div>
 
             <div className="certificate-field">
-                <span className="certificate-field-label">Identificação do Certificado</span>
+                <span className="certificate-field-label">Identificacao do Certificado</span>
                 <span className="certificate-field-value">{String(certificate._id)}</span>
             </div>
 

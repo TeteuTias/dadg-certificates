@@ -116,6 +116,11 @@
   letter-spacing: 0.08em;
 }
 
+.events-results-summary {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
 .events-list {
   display: flex;
   flex-direction: column;
@@ -125,6 +130,16 @@
 .events-empty-state {
   padding: 2rem;
   text-align: center;
+}
+
+.events-load-more {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.events-load-more-button {
+  min-width: 220px;
 }
 
 .event-card {
@@ -217,7 +232,8 @@
   }
 
   .events-results-pill,
-  .event-card-button {
+  .event-card-button,
+  .events-load-more-button {
     width: 100%;
   }
 }
