@@ -15,7 +15,7 @@ export default class GateKeeper {
         // O 'origin' é enviado pelo browser em chamadas CORS. 
         // O 'referer' é um fallback caso a chamada venha de um link direto.
         // Já limpamos a barra final aqui para evitar erros de string.
-        this.origin = (request.headers.get('origin') || request.headers.get('referer') || "")
+        this.origin = request.nextUrl.origin
             .replace(/\/$/, "");
 
         this.apiRouteMap = API_ROUTE_MAP;
@@ -31,23 +31,23 @@ export default class GateKeeper {
             return isPathMatch && isMethodMatch;
         });
 
-        // 1. Caso a rota não exista no mapa (Secure by Default)
+        // Caso a rota não exista no mapa (Secure by Default)
         if (!policy) {
+            console.log(">>> Bloqueado: "+this.path)
             return { authorized: false, status: 403, message: "Bloqueio: Rota não mapeada." };
         }
 
-        // 2. Validação de Origem (Somente se a policy exigir)
+        // Validação de Origem (Somente se a policy exigir)
         if (policy.allowedOrigins && policy.allowedOrigins.length > 0) {
             const isAllowed = policy.allowedOrigins.some(allowed =>
                 allowed.replace(/\/$/, "") === this.origin
             );
-
             if (!isAllowed) {
                 return { authorized: false, status: 403, message: "Origem não autorizada." };
             }
         }
 
-        // 3. Se for pública, libera. Caso contrário, sinaliza que precisa de Auth.
+        // Se for pública, libera. Caso contrário, sinaliza que precisa de Auth.
         if (policy.isPublic) {
             return { authorized: true };
         }

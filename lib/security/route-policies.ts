@@ -13,10 +13,39 @@ export type RouteConfig = {
 };
 
 export const API_ROUTE_MAP: RouteConfig[] = [
+  // >>>> ROTAS NÃO API <<<<
   {
-    //
-    // >>>> CERTIFICADOS <<<<
-    //
+    path: '/',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000/", "https://certificados.dadg.com.br/"]
+  },
+  {
+    path: '^/createCertificate(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000/", "https://certificados.dadg.com.br/"]
+  },
+  {
+    path: '^/criarEvento(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000/", "https://certificados.dadg.com.br/"]
+  },
+  {
+    path: '^/historicoDeModificacoes(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000/", "https://certificados.dadg.com.br/"]
+  },
+  {
+    path: '^/todosCertificados(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000/", "https://certificados.dadg.com.br/"]
+  },
+  {
+    path: '^/todosEventos(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000/", "https://certificados.dadg.com.br/"]
+  },
+  // >>>> CERTIFICADOS <<<<
+  {
     // Acesso ao PDF final do certificado
     path: '^/api/v1/certificates/[^/]+/download$',
     isPublic: true,
@@ -52,7 +81,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     path: '^/api/v1/certificates',
     isPublic: false,
     authType: 'both',
-    allowedOrigins:["http://localhost:3000", "https://certificados.dadg.com.br/"]
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br/"]
   },
 
   // ========================================================================
@@ -75,7 +104,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     path: '^/api/v1/leagues',
     isPublic: false,
     authType: 'both',
-    allowedOrigins:["http://localhost:3000", "https://certificados.dadg.com.br/"],
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br/"],
   },
 
   // ========================================================================
@@ -99,6 +128,6 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     path: '^/api/v1/events',
     isPublic: false,
     authType: 'bearer',
-    allowedOrigins:["http://localhost:3000", "https://certificados.dadg.com.br"],
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
   }
 ];
