@@ -1,0 +1,1 @@
+// Útil para mostrar a página do evento antes de buscar o certificado. "Vai virar rota um dia"

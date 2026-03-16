@@ -4,7 +4,7 @@
  * BLOQUEADA por padrão!
  */
 
-type RouteConfig = {
+export type RouteConfig = {
   path: string;          // O caminho da rota (pode ser uma string ou REGEX);
   isPublic: boolean;     // Caso seja true, não é necessário autenticação;
   authType?: 'both' | 'cookie' | 'bearer'; // Tipo de auth exigida
