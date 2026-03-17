@@ -1,3 +1,4 @@
+import { ObjectId } from "bson";
 /**
  * Temos aqui a política de acesso para TODAS as rotas da API, utilizando o sistema Gateway Pattern. Ela utiliza o conceito de:
  * "Secure by Default", isso significa que, caso a rota não esteja especificada aqui, ela será
@@ -6,12 +7,18 @@
 
 export type RouteConfig = {
   path: string;          // O caminho da rota (pode ser uma string ou REGEX);
-  isPublic: boolean;     // Caso seja true, não é necessário autenticação;
   authType?: 'both' | 'cookie' | 'bearer'; // Tipo de auth exigida
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" // Especifica o tipo de método permitido. Caso não especificado, permite acesso a TODOS!
   allowedOrigins?: string[]; // (Opcional) Quem pode acessar. Caso especificado, permite apenas as rotas especificadas. Caso não exista, permite TODAS
-  // allowedUsers: ObjectId[] EM BREVE!!! POR ENQUANTO VAI SER HARD-CODE, RESPEITANDO O MÍNIMO PRODUTO VIÁVEL. POSTERIOMENTE, VAMOS FAZER ISSO DE FORMA REMOTA! OU POR BEARER
-};
+} & (
+    | {
+      isPublic: true;
+    }
+    | {
+      isPublic: false;
+      allowedUsers?: ObjectId[]; // Como o Id do usuário é retirado exclusivamente quando há login, isPublic deve ser obrigatoriamente falso!
+    }
+  )
 
 export const API_ROUTE_MAP: RouteConfig[] = [
   //

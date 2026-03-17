@@ -1,3 +1,4 @@
+import { ObjectId } from "bson";
 import { NextRequest } from "next/server"
 import { RouteConfig } from "./route-policies";
 import { User } from "@auth0/nextjs-auth0/types";
@@ -28,19 +29,52 @@ export default class GateKeeper {
 
     /**
      * Executa a verificação baseada no mapa de rotas injetado.
+     * Ele apenas verifica autenticidade de token se, somente se, isPublic for falso!
      */
-    public validate() {
+    public async validate() {
         const policy = this.apiRouteMap.find(route => {
             const isPathMatch = new RegExp(route.path).test(this.path);
             const isMethodMatch = !route.method || route.method === this.method;
             return isPathMatch && isMethodMatch;
         });
 
+
         // Caso a rota não exista no mapa (Secure by Default)
         if (!policy) {
             return { authorized: false, status: 403, message: "Bloqueio: Rota não mapeada." };
         }
 
+        // Se não for pública, o primeiro passo é verificar a autenticação
+        if (policy?.isPublic === false) {
+            const s = await this.identifySession();
+
+            if (!s) {
+                return { authorized: false, status: 401, message: "Sessão não identificada." };
+            }
+
+            // Validando 'allowedUsers'
+            if (policy.allowedUsers && policy.allowedUsers.length > 0) {
+                // Usamos o 'id' que já vem normalizado (sem prefixos tipo auth0|)
+                const userId = s.id;
+
+                if (!ObjectId.isValid(userId)) {
+                    return { authorized: false, status: 403, message: "O usuário não possui um identificador válido." };
+                }
+
+                // A FORMA CORRETA DE COMPARAR OBJECTIDS EM ARRAYS:
+                const isAllowed = policy.allowedUsers.some(allowedId =>
+                    allowedId.toString() === userId
+                );
+
+                if (!isAllowed) {
+                    return {
+                        authorized: false,
+                        status: 403,
+                        message: "O usuário não tem autorização para acessar essa rota."
+                    };
+                }
+            }
+        }
         // Validação de Origem (Somente se a policy exigir)
         if (policy.allowedOrigins && policy.allowedOrigins.length > 0) {
             const isAllowed = policy.allowedOrigins.some(allowed =>
