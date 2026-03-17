@@ -15,6 +15,14 @@ export type RouteConfig = {
 
 export const API_ROUTE_MAP: RouteConfig[] = [
   //
+  // >>> TESTE NAO DEIXE NADA DE IMPORTANTE AQUI PLMDS !!! ESTA ABERTO PARA TODOS!!!<<< 
+  {
+    path: '^/api/v1/test$',
+    isPublic: false,
+  },
+  //
+  //
+  //
   // >>> SISTEMA PÚBLICO <<<
   //
   {

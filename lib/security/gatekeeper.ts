@@ -1,23 +1,28 @@
 import { NextRequest } from "next/server"
 import { RouteConfig } from "./route-policies";
+import { User } from "@auth0/nextjs-auth0/types";
+import { verifyToken } from "./verifyToken";
+import { JWTPayload } from "jose";
+import { API_ROUTE_MAP } from "./route-policies";
+import { auth0 } from "../auth0";
 
 export default class GateKeeper {
     private origin: string;
     private path: string;
     private method: string;
     private apiRouteMap: RouteConfig[];
-
-    constructor(request: NextRequest, API_ROUTE_MAP: RouteConfig[]) {
-        this.path = request.nextUrl.pathname; //  Não uso o new URL pq o nextUrl é ótimo    
+    private request: NextRequest
+    constructor(request: NextRequest) {
+        this.request = request
+        this.path = this.request.nextUrl.pathname; //  Não uso o new URL pq o nextUrl é ótimo    
         // Extraindo method e padronizando como maiúsuclo
-        this.method = request.method.toUpperCase();
+        this.method = this.request.method.toUpperCase();
 
         // O 'origin' é enviado pelo browser em chamadas CORS. 
         // O 'referer' é um fallback caso a chamada venha de um link direto.
         // Já limpamos a barra final aqui para evitar erros de string.
-        this.origin = request.nextUrl.origin
+        this.origin = this.request.nextUrl.origin
             .replace(/\/$/, "");
-        console.log(this.path)
         this.apiRouteMap = API_ROUTE_MAP;
     }
 
@@ -33,7 +38,6 @@ export default class GateKeeper {
 
         // Caso a rota não exista no mapa (Secure by Default)
         if (!policy) {
-            console.log(">>> Bloqueado: "+this.path)
             return { authorized: false, status: 403, message: "Bloqueio: Rota não mapeada." };
         }
 
@@ -57,5 +61,40 @@ export default class GateKeeper {
             requiresAuth: true,
             authType: policy.authType
         };
+    }
+
+    private normalize(user: JWTPayload): User {
+        /**
+         * Serve apenas para normalizar o Token. É algo simples, mas deve ser centralizado para caso faça algo complexo com ele depois
+         * ele já vai estar centralizado.
+         */
+        const normalUser = user as User
+        return normalUser
+    }
+    /**
+     * Resolve e normaliza a identidade do usuário a partir de múltiplas fontes (Cookie/Bearer).
+     * * @returns {Promise<ApexSession | null>} Objeto de sessão padronizado ou null caso não identificado.
+     * * @important Esta função NÃO realiza verificações de autorização ou política de acesso.
+     */
+    public async identifySession(): Promise<User | null> {
+        // Primeiro, vamos tentar identificar a sessão pelo Bearer.
+        const authHeader = this.request.headers.get("authorization");
+        if (authHeader?.startsWith("Bearer ")) {
+            const payload = await verifyToken(authHeader);
+            if (payload) return this.normalize(payload);
+        }
+        // Tenta identificar via Cookie (Sessão de Navegador)
+        // No App Router, getSession pode ser chamado sem o 'req' para usar o contexto global
+        try {
+            const session = await auth0.getSession();
+
+            if (session?.user) {
+                return this.normalize(session.user);
+            }
+        } catch (e) {
+            console.error(">>> GateKeeper: Erro ao buscar sessão de cookie", e);
+        }
+
+        return null;
     }
 }

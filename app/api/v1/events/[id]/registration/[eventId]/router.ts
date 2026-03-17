@@ -30,139 +30,113 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-    // Iniciando a Sessão para a Transação Atômica
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
-        const resolvedParams = await params;
-        const eventId = resolvedParams.eventId;
+        const { eventId } = await params;
 
         if (!ObjectId.isValid(eventId)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
 
-        // Extraindo dados
-        const body = await request.json();
+        // Autenticação
         const sessionAuth = await auth0.getSession(request);
         if (!sessionAuth || !sessionAuth.user) {
             return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
         }
-        const user = sessionAuth.user;
 
-        const ownerId = new ObjectId(user.sub.split('|')[1]); // Extraindo o ID do usuário (ajuste conforme seu formato de sub)
+        const user = sessionAuth.user;
+        const ownerId = new ObjectId(user.sub.split('|')[1]);
         const ownerName = user.name;
+
         if (!ownerId || !ownerName) {
-            return NextResponse.json({ success: false, error: 'Dados do participante incompletos' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Dados do participante incompletos no perfil' }, { status: 400 });
         }
 
-        // 2. Buscando o evento DENTRO da sessão
+        // Busca o evento para validar regras de negócio iniciais
         const event = await EventCertificateModel.findOne({
             _id: eventId,
-            documentVersion: "2.0" // somente 2.0 pois estes estão no formato correto!
+            documentVersion: "2.0"
         }).session(session).lean();
 
         if (!event) {
             await session.abortTransaction();
             return NextResponse.json({ success: false, error: 'Evento não encontrado' }, { status: 404 });
         }
+
         if (!event.isOpen) {
             await session.abortTransaction();
-            return NextResponse.json({ success: false, error: 'Evento fechado para inscrições' }, { status: 403 });
+            return NextResponse.json({ success: false, error: 'Evento fechado para novas inscrições' }, { status: 403 });
         }
 
-        // Verificando Toggle
+        // Verificação de Duplicidade (Substituindo o Toggle)
         const existingParticipant = await EventParticipant.findOne({
             eventId,
             owner: ownerId
         }).session(session);
 
         if (existingParticipant) {
-            // CAMINHO A: USUÁRIO JÁ INSCRITO -> CANCELAR
-
-            // Remove o participante
-            await EventParticipant.deleteOne({ _id: existingParticipant._id }).session(session);
-
-            // Decrementa a vaga (garantindo que não fique negativo)
-            const updatedEvent = await EventCertificateModel.findOneAndUpdate(
-                { _id: eventId, registrationCount: { $gt: 0 } },
-                { $inc: { registrationCount: -1 } },
-                { session, new: true }
-            );
-
-            if (!updatedEvent) {
-                await session.abortTransaction();
-                return NextResponse.json({ success: false, error: 'Erro ao processar cancelamento de vaga' }, { status: 500 });
-            }
-
-            // Confirma a transação
-            await session.commitTransaction();
-            return NextResponse.json({
-                success: true,
-                message: 'Inscrição cancelada com sucesso.',
-                data: updatedEvent
-            }, { status: 200 });
-
-        } else {
-            // CAMINHO B: USUÁRIO NÃO INSCRITO -> INSCREVER
-
-            if (event.registrationCount >= event.maxParticipants) {
-                await session.abortTransaction();
-                return NextResponse.json({ success: false, error: 'Limite de participantes atingido' }, { status: 403 });
-            }
-
-            // Incremento de vaga
-            const updatedEvent = await EventCertificateModel.findOneAndUpdate(
-                {
-                    _id: eventId,
-                    isOpen: true,
-                    $expr: { $lt: ["$registrationCount", "$maxParticipants"] }
-                },
-                { $inc: { registrationCount: 1 } },
-                {
-                    session,
-                    new: true,
-                    runValidators: true
-                }
-            );
-
-            if (!updatedEvent) {
-                await session.abortTransaction();
-                return NextResponse.json(
-                    { success: false, error: "Inscrições encerradas ou evento não disponível devido à concorrência." },
-                    { status: 422 }
-                );
-            }
-
-            // Escrevendo o nome dele na lista de inscritos
-            await EventParticipant.create(
-                [{
-                    eventId,
-                    owner: ownerId,
-                    ownerName
-                }],
-                { session }
-            );
-
-            // Confirma a transação
-            await session.commitTransaction();
-            return NextResponse.json({
-                success: true,
-                message: 'Inscrição realizada com sucesso.',
-                data: updatedEvent
-            }, { status: 201 });
+            await session.abortTransaction();
+            return NextResponse.json({ success: false, error: 'Você já está inscrito neste evento.' }, { status: 409 });
         }
 
+        // Verificação de Vagas Disponíveis
+        if (event.registrationCount >= event.maxParticipants) {
+            await session.abortTransaction();
+            return NextResponse.json({ success: false, error: 'Limite de participantes atingido' }, { status: 403 });
+        }
+
+        // Incremento de vaga ATÔMICO (Proteção contra Race Condition)
+        const updatedEvent = await EventCertificateModel.findOneAndUpdate(
+            {
+                _id: eventId,
+                isOpen: true,
+                $expr: { $lt: ["$registrationCount", "$maxParticipants"] }
+            },
+            { $inc: { registrationCount: 1 } },
+            { session, new: true, runValidators: true }
+        );
+
+        if (!updatedEvent) {
+            await session.abortTransaction();
+            return NextResponse.json(
+                { success: false, error: "Inscrições encerradas ou sem vagas disponíveis no momento." },
+                { status: 422 }
+            );
+        }
+
+        // Criação do registro do participante
+        await EventParticipant.create(
+            [{
+                eventId,
+                owner: ownerId,
+                ownerName
+            }],
+            { session }
+        );
+
+        // Confirma tudo no banco
+        await session.commitTransaction();
+        
+        return NextResponse.json({
+            success: true,
+            message: 'Inscrição realizada com sucesso!',
+            data: updatedEvent
+        }, { status: 201 });
+
     } catch (error: any) {
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
         console.error("Erro na transação de inscrição:", error);
-        return NextResponse.json({ success: false, error: 'Erro interno no servidor ao processar inscrição' }, { status: 500 });
+        return NextResponse.json({ success: false, error: 'Erro interno ao processar inscrição' }, { status: 500 });
 
     } finally {
-        // Sempre encerra a sessão, dando erro ou sucesso, caso contrário vai travar tudo ...
         await session.endSession();
     }
 }
+
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const session = await mongoose.startSession();
     session.startTransaction();

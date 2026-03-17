@@ -45,7 +45,6 @@ export async function proxy(request: NextRequest) {
     }
     return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin));
   }
-  console.log(`pode pssar! - ${request.nextUrl.pathname}`)
 
   return authRes;
 }
