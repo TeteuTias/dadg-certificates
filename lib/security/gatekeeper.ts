@@ -55,7 +55,7 @@ export default class GateKeeper {
             // Validando 'allowedUsers'
             if (policy.allowedUsers && policy.allowedUsers.length > 0) {
                 // Usamos o 'id' que já vem normalizado (sem prefixos tipo auth0|)
-                const userId = s.id;
+                const userId = s.sub.replace("auth0|", "");
 
                 if (!ObjectId.isValid(userId)) {
                     return { authorized: false, status: 403, message: "O usuário não possui um identificador válido." };
