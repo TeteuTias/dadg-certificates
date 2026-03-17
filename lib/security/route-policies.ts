@@ -116,6 +116,11 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
   {
+    path: "^/api/v1/certificates/[^/]+/delete$",
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  {
     path: "^/api/put/updateCertificate$",
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
