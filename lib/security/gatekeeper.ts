@@ -17,7 +17,7 @@ export default class GateKeeper {
         // Já limpamos a barra final aqui para evitar erros de string.
         this.origin = request.nextUrl.origin
             .replace(/\/$/, "");
-
+        console.log(this.path)
         this.apiRouteMap = API_ROUTE_MAP;
     }
 
