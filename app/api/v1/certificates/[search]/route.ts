@@ -23,12 +23,12 @@ export async function GET(req: NextRequest, {
     }
 
 
-    const owners = await CertificateModel.findOne({
+    const certificates = await CertificateModel.findOne({
         _id: search,
         isReady: true, // Certificados prontos,
     }).populate<{ eventId: IEventCertificate }>("eventId");
-    if (!owners) {
+    if (!certificates) {
         return Response.json({ message: "Seu Certificado não foi encontrado. Entre em contato com o Suporte." }, { status: 500 });
     }
-    return NextResponse.json({ "data": owners, })
+    return NextResponse.json({ "data": certificates, })
 }
