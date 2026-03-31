@@ -168,6 +168,11 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
+  {
+    path: '^/Silvio(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
   // >>>> CERTIFICADOS <<<<
   {
     // Acesso ao PDF final do certificado
