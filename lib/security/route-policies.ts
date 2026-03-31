@@ -135,6 +135,13 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
+  {
+    path: "^/api/avisos$",
+    isPublic: false,
+    authType: 'both',
+    method: "POST",
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
   //
   // >>>> ROTAS NÃO API <<<<
   //
@@ -156,6 +163,12 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   {
     path: '^/historicoDeModificacoes(/.*)?$',
     isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  {
+    path: '^/Avisos$',
+    isPublic: false,
+    authType: 'cookie',
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
   {
