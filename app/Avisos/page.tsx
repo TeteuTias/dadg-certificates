@@ -17,6 +17,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  LoaderCircle,
   Mail,
   MessageSquare,
   Send,
@@ -41,6 +42,25 @@ type FeedbackState =
       title: string;
       message: string;
     };
+
+const SUBMISSION_STEPS = [
+  {
+    title: "Preparando envio",
+    description: "Conferindo os dados do formulario e montando o payload final.",
+  },
+  {
+    title: "Ativando script",
+    description: "Encaminhando a requisicao para o Google Apps Script configurado.",
+  },
+  {
+    title: "Processando destinatarios",
+    description: "Validando os destinatarios e aplicando o modelo de aviso escolhido.",
+  },
+  {
+    title: "Aguardando confirmacao",
+    description: "Esperando a resposta final do servico antes de liberar a confirmacao.",
+  },
+] as const;
 
 const TYPE_OPTIONS: {
   value: AvisoTipo;
@@ -72,6 +92,7 @@ export default function AvisosPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>({ tone: "idle" });
   const [toastKey, setToastKey] = useState(0);
+  const [submissionStepIndex, setSubmissionStepIndex] = useState(0);
 
   const avisoOptions = AVISO_GROUPS[tipo];
   const avisoSelecionado =
@@ -124,6 +145,25 @@ export default function AvisosPage() {
       window.clearTimeout(timeoutId);
     };
   }, [feedback, toastKey]);
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      setSubmissionStepIndex(0);
+      return;
+    }
+
+    setSubmissionStepIndex(0);
+
+    const intervalId = window.setInterval(() => {
+      setSubmissionStepIndex((current) =>
+        current < SUBMISSION_STEPS.length - 1 ? current + 1 : current,
+      );
+    }, 1400);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isSubmitting]);
 
   const handleTipoChange = (nextTipo: AvisoTipo) => {
     if (nextTipo === tipo) {
@@ -505,6 +545,48 @@ export default function AvisosPage() {
               )}
             </section>
 
+            {isSubmitting && (
+              <section className="glass-card avisos-processing-card" aria-live="polite">
+                <div className="avisos-processing-header">
+                  <div className="avisos-processing-icon">
+                    <LoaderCircle size={18} className="avisos-processing-spinner" />
+                  </div>
+                  <div>
+                    <h3>{SUBMISSION_STEPS[submissionStepIndex].title}</h3>
+                    <p>{SUBMISSION_STEPS[submissionStepIndex].description}</p>
+                  </div>
+                </div>
+
+                <div className="avisos-processing-timeline">
+                  {SUBMISSION_STEPS.map((step, index) => {
+                    const isDone = index < submissionStepIndex;
+                    const isCurrent = index === submissionStepIndex;
+
+                    return (
+                      <div
+                        key={step.title}
+                        className={`avisos-processing-step ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`}
+                      >
+                        <span className="avisos-processing-step-badge">
+                          {isDone ? (
+                            <Check size={14} />
+                          ) : isCurrent ? (
+                            <LoaderCircle size={14} className="avisos-processing-spinner" />
+                          ) : (
+                            index + 1
+                          )}
+                        </span>
+                        <div className="avisos-processing-step-copy">
+                          <strong>{step.title}</strong>
+                          <p>{step.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             <div className="avisos-actions">
               <p className="avisos-submit-note">{helperMessage}</p>
               <button
@@ -515,7 +597,7 @@ export default function AvisosPage() {
                 {isSubmitting ? (
                   <>
                     <span className="avisos-button-spinner" aria-hidden="true" />
-                    Enviando aviso...
+                    Enviando e aguardando confirmacao...
                   </>
                 ) : (
                   <>

@@ -416,6 +416,113 @@
     rgba(15, 23, 42, 0.52);
 }
 
+.avisos-processing-card {
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background:
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 46%),
+    rgba(15, 23, 42, 0.56);
+}
+
+.avisos-processing-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.avisos-processing-header h3,
+.avisos-processing-step-copy strong {
+  color: #e0e7ff;
+}
+
+.avisos-processing-header p,
+.avisos-processing-step-copy p {
+  color: #bfdbfe;
+  line-height: 1.55;
+}
+
+.avisos-processing-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  color: #bfdbfe;
+  flex-shrink: 0;
+}
+
+.avisos-processing-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.avisos-processing-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.34);
+  opacity: 0.75;
+  transition: all 0.25s ease;
+}
+
+.avisos-processing-step.is-current {
+  opacity: 1;
+  border-color: rgba(96, 165, 250, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 40%),
+    rgba(15, 23, 42, 0.44);
+  box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.08);
+}
+
+.avisos-processing-step.is-done {
+  opacity: 0.96;
+  border-color: rgba(74, 222, 128, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 42%),
+    rgba(8, 59, 33, 0.28);
+}
+
+.avisos-processing-step-badge {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.avisos-processing-step.is-current .avisos-processing-step-badge {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(96, 165, 250, 0.34);
+  color: #dbeafe;
+}
+
+.avisos-processing-step.is-done .avisos-processing-step-badge {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(74, 222, 128, 0.34);
+  color: #dcfce7;
+}
+
+.avisos-processing-step-copy {
+  min-width: 0;
+}
+
 .avisos-summary-header h3 {
   margin-bottom: 0.35rem;
 }
@@ -535,6 +642,10 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.avisos-processing-spinner {
+  animation: avisos-spin 0.9s linear infinite;
 }
 
 @media (max-width: 1024px) {

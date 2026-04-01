@@ -154,6 +154,19 @@ export function getAppsScriptTipo(tipo: AvisoTipo, aviso: AvisoCode): AvisoTipo 
   return tipo;
 }
 
+export function resolveAvisoTargetEmails({
+  aviso,
+  destinatarios,
+}: Pick<ValidatedAvisosPayload, "aviso" | "destinatarios">): string[] {
+  if (aviso === "teste") {
+    return [EMAIL_TESTE];
+  }
+
+  return destinatarios
+    .map((sigla) => COORDENADORIA_EMAILS[sigla])
+    .filter(Boolean);
+}
+
 function isAvisoTipo(value: string): value is AvisoTipo {
   return value === "pre" || value === "pos";
 }
