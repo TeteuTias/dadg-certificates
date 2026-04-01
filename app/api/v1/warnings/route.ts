@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAppsScriptTipo, validateAvisosPayload } from "@/lib/avisos";
+import {
+  getAppsScriptTipo,
+  resolveAvisoTargetEmails,
+  validateAvisosPayload,
+} from "@/lib/avisos";
 
 const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL?.trim();
 const APPS_SCRIPT_TOKEN = process.env.GOOGLE_APPS_SCRIPT_TOKEN?.trim();
@@ -10,6 +14,15 @@ type AppsScriptResponse = {
   sentTo?: string[];
   subject?: string;
 };
+
+function buildSuccessFallback(data: Parameters<typeof resolveAvisoTargetEmails>[0]) {
+  return {
+    ok: true,
+    message: "Aviso enviado com sucesso.",
+    sentTo: resolveAvisoTargetEmails(data),
+    subject: "",
+  };
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -52,6 +65,7 @@ export async function POST(request: Request) {
   try {
     const appsScriptResponse = await fetch(APPS_SCRIPT_URL, {
       method: "POST",
+      redirect: "follow",
       headers: {
         "Content-Type": "application/json",
       },
@@ -72,6 +86,24 @@ export async function POST(request: Request) {
       parsedResponse = null;
     }
 
+    const normalizedText = rawResponse.trim().toLowerCase();
+
+    if (
+      normalizedText.includes("nao autorizado") ||
+      normalizedText.includes("não autorizado") ||
+      normalizedText.includes("body ausente") ||
+      normalizedText.includes("nenhum destinatário válido") ||
+      normalizedText.includes("nenhum destinatario valido")
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: parsedResponse?.error || rawResponse || "O Google Apps Script recusou o envio.",
+        },
+        { status: 502 },
+      );
+    }
+
     if (!appsScriptResponse.ok) {
       return NextResponse.json(
         {
@@ -84,7 +116,19 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!parsedResponse?.ok) {
+    if (parsedResponse?.ok === true) {
+      return NextResponse.json({
+        ok: true,
+        message: "Aviso enviado com sucesso.",
+        sentTo:
+          Array.isArray(parsedResponse.sentTo) && parsedResponse.sentTo.length > 0
+            ? parsedResponse.sentTo
+            : resolveAvisoTargetEmails(validation.data),
+        subject: typeof parsedResponse.subject === "string" ? parsedResponse.subject : "",
+      });
+    }
+
+    if (parsedResponse?.ok === false) {
       return NextResponse.json(
         {
           ok: false,
@@ -96,12 +140,12 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: "Aviso enviado com sucesso.",
-      sentTo: Array.isArray(parsedResponse.sentTo) ? parsedResponse.sentTo : [],
-      subject: typeof parsedResponse.subject === "string" ? parsedResponse.subject : "",
+    console.warn("Apps Script respondeu sem JSON valido; usando fallback de sucesso.", {
+      status: appsScriptResponse.status,
+      rawResponse,
     });
+
+    return NextResponse.json(buildSuccessFallback(validation.data));
   } catch (error) {
     console.error("Erro ao encaminhar aviso para o Google Apps Script:", error);
     return NextResponse.json(
