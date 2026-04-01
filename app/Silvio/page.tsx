@@ -117,7 +117,7 @@ export default function SilvioPage() {
               <div className="silvio-star silvio-star-c">&#9733;</div>
               <div className="silvio-photo-wrap">
                 <img
-                  src="/Silvio.png"
+                  src="Silvio.png"
                   alt="Silvio"
                   className="silvio-photo"
                   loading="eager"

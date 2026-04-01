@@ -187,7 +187,7 @@ export default function AvisosPage() {
     setFeedback({ tone: "idle" });
 
     try {
-      const response = await fetch("/api/avisos", {
+      const response = await fetch("/api/v1/warnings", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
