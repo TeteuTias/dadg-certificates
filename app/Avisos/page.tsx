@@ -24,7 +24,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./style.css";
 
 type FeedbackState =
@@ -71,6 +71,7 @@ export default function AvisosPage() {
   const [mensagemCustomizada, setMensagemCustomizada] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>({ tone: "idle" });
+  const [toastKey, setToastKey] = useState(0);
 
   const avisoOptions = AVISO_GROUPS[tipo];
   const avisoSelecionado =
@@ -105,6 +106,25 @@ export default function AvisosPage() {
     }
   };
 
+  const showFeedback = (nextFeedback: Exclude<FeedbackState, { tone: "idle" }>) => {
+    setFeedback(nextFeedback);
+    setToastKey((current) => current + 1);
+  };
+
+  useEffect(() => {
+    if (feedback.tone === "idle") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFeedback({ tone: "idle" });
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [feedback, toastKey]);
+
   const handleTipoChange = (nextTipo: AvisoTipo) => {
     if (nextTipo === tipo) {
       return;
@@ -137,7 +157,7 @@ export default function AvisosPage() {
     event.preventDefault();
 
     if (!isTeste && destinatarios.length === 0) {
-      setFeedback({
+      showFeedback({
         tone: "error",
         title: "Selecione destinatarios",
         message: "Escolha ao menos uma coordenadoria antes de disparar o aviso.",
@@ -146,7 +166,7 @@ export default function AvisosPage() {
     }
 
     if (isCustomizado && !assuntoCustomizado.trim()) {
-      setFeedback({
+      showFeedback({
         tone: "error",
         title: "Assunto obrigatorio",
         message: "O assunto customizado precisa ser preenchido para concluir o envio.",
@@ -155,7 +175,7 @@ export default function AvisosPage() {
     }
 
     if (isCustomizado && !mensagemCustomizada.trim()) {
-      setFeedback({
+      showFeedback({
         tone: "error",
         title: "Mensagem obrigatoria",
         message: "A mensagem customizada precisa ser preenchida para concluir o envio.",
@@ -198,7 +218,7 @@ export default function AvisosPage() {
         );
       }
 
-      setFeedback({
+      showFeedback({
         tone: "success",
         title: "Aviso enviado com sucesso",
         message: isTeste
@@ -208,7 +228,7 @@ export default function AvisosPage() {
         subject: data.subject,
       });
     } catch (error) {
-      setFeedback({
+      showFeedback({
         tone: "error",
         title: "Falha no envio",
         message:
@@ -284,8 +304,6 @@ export default function AvisosPage() {
               </div>
             </div>
           </div>
-
-          {feedback.tone !== "idle" && <FeedbackBanner feedback={feedback} />}
 
           <form className="avisos-form" onSubmit={handleSubmit}>
             <FormSection
@@ -510,6 +528,14 @@ export default function AvisosPage() {
           </form>
         </section>
       </div>
+
+      {feedback.tone !== "idle" && (
+        <FeedbackToast
+          key={toastKey}
+          feedback={feedback}
+          onClose={() => setFeedback({ tone: "idle" })}
+        />
+      )}
     </main>
   );
 }
@@ -596,32 +622,44 @@ const SummaryItem: React.FC<{ label: string; value: string }> = ({ label, value 
   );
 };
 
-const FeedbackBanner: React.FC<{
+const FeedbackToast: React.FC<{
   feedback: Exclude<FeedbackState, { tone: "idle" }>;
-}> = ({ feedback }) => {
+  onClose: () => void;
+}> = ({ feedback, onClose }) => {
   return (
-    <div className={`avisos-feedback ${feedback.tone}`}>
-      <div className="avisos-feedback-icon">
-        {feedback.tone === "success" ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
-      </div>
-      <div className="avisos-feedback-content">
-        <strong>{feedback.title}</strong>
-        <p>{feedback.message}</p>
+    <div className={`avisos-feedback avisos-feedback-toast ${feedback.tone}`} role="status">
+      <div className="avisos-feedback-main">
+        <div className="avisos-feedback-icon">
+          {feedback.tone === "success" ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+        </div>
+        <div className="avisos-feedback-content">
+          <strong>{feedback.title}</strong>
+          <p>{feedback.message}</p>
 
-        {feedback.tone === "success" && feedback.subject ? (
-          <span className="avisos-feedback-meta">Assunto enviado: {feedback.subject}</span>
-        ) : null}
+          {feedback.tone === "success" && feedback.subject ? (
+            <span className="avisos-feedback-meta">Assunto enviado: {feedback.subject}</span>
+          ) : null}
 
-        {feedback.tone === "success" && feedback.sentTo.length > 0 ? (
-          <div className="avisos-feedback-emails">
-            {feedback.sentTo.map((email) => (
-              <span key={email} className="avisos-email-pill">
-                {email}
-              </span>
-            ))}
-          </div>
-        ) : null}
+          {feedback.tone === "success" && feedback.sentTo.length > 0 ? (
+            <div className="avisos-feedback-emails">
+              {feedback.sentTo.map((email) => (
+                <span key={email} className="avisos-email-pill">
+                  {email}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="avisos-feedback-close"
+          onClick={onClose}
+          aria-label="Fechar aviso"
+        >
+          <X size={16} />
+        </button>
       </div>
+      <div className="avisos-feedback-progress" aria-hidden="true" />
     </div>
   );
 };
