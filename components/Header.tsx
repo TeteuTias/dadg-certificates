@@ -211,6 +211,10 @@ export default function Header() {
               )}
             </div>
 
+            <Link href="/Avisos" className="header-link">
+              Avisos
+            </Link>
+
             <Link href="/historicoDeModificacoes" className="header-link">
               Historico
             </Link>

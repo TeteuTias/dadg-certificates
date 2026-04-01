@@ -135,6 +135,13 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
+  {
+    path: "^/api/v1/warnings$",
+    isPublic: false,
+    authType: 'both',
+    method: "POST",
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
   //
   // >>>> ROTAS NÃO API <<<<
   //
@@ -159,12 +166,23 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
   {
+    path: '^/Avisos$',
+    isPublic: false,
+    authType: 'cookie',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  {
     path: '^/todosCertificados(/.*)?$',
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
   {
     path: '^/todosEventos(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  {
+    path: '^/Silvio(/.*)?$',
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
@@ -252,6 +270,14 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     path: '^/api/v1/events',
     isPublic: false,
     authType: 'bearer',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  //
+  // PUBLIC
+  {
+    path: '^/Silvio.png$',
+    isPublic: false,
+    authType: 'both',
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
   }
 ];
