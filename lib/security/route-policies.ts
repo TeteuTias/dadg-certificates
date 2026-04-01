@@ -136,7 +136,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
   {
-    path: "^/api/avisos$",
+    path: "^/api/v1/warnings$",
     isPublic: false,
     authType: 'both',
     method: "POST",
@@ -270,6 +270,14 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     path: '^/api/v1/events',
     isPublic: false,
     authType: 'bearer',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  //
+  // PUBLIC
+  {
+    path: '^/Silvio.png$',
+    isPublic: false,
+    authType: 'both',
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
   }
 ];
