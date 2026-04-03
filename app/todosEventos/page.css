@@ -226,6 +226,11 @@
     padding: 1.75rem 1rem 3rem;
   }
 
+  .events-search-card {
+    min-width: 0;
+    width: 100%;
+  }
+
   .events-toolbar,
   .event-card-actions {
     width: 100%;

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronDown, Eye, FolderOpen, Plus, Sparkles } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, Eye, FolderOpen, Menu, Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import "./Header.css";
 
@@ -10,48 +10,56 @@ type HeaderMenu = "certificates" | "events" | null;
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showSecretPrompt, setShowSecretPrompt] = useState(false);
   const [secretInput, setSecretInput] = useState("");
   const [secretError, setSecretError] = useState("");
-  const headerMenusRef = useRef<HTMLDivElement>(null);
+  const headerNavRef = useRef<HTMLElement>(null);
   const secretInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+    const mobileBreakpoint = 768;
 
-      if (window.innerWidth <= 768) {
-        setIsScrolled(currentScrollY > 100);
-      } else {
-        setIsScrolled(false);
-      }
-
-      setLastScrollY(currentScrollY);
+    const syncHeaderState = () => {
+      const isMobileViewport = window.innerWidth <= mobileBreakpoint;
+      setIsScrolled(isMobileViewport && window.scrollY > 24);
     };
 
     const handleResize = () => {
-      if (window.innerWidth > 768) {
+      if (window.innerWidth > mobileBreakpoint) {
         setIsScrolled(false);
+        setIsMobileMenuOpen(false);
+        setOpenMenu(null);
       }
+
+      syncHeaderState();
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    syncHeaderState();
+
+    window.addEventListener("scroll", syncHeaderState, { passive: true });
     window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", syncHeaderState);
       window.removeEventListener("resize", handleResize);
     };
-  }, [lastScrollY]);
+  }, []);
+
+  useEffect(() => {
+    setOpenMenu(null);
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (!headerMenusRef.current?.contains(event.target as Node)) {
+      if (!headerNavRef.current?.contains(event.target as Node)) {
         setOpenMenu(null);
+        setIsMobileMenuOpen(false);
       }
     };
 
@@ -80,6 +88,19 @@ export default function Header() {
     setOpenMenu((prev) => (prev === menu ? null : menu));
   };
 
+  const toggleMobileMenu = () => {
+    if (isMobileMenuOpen) {
+      setOpenMenu(null);
+    }
+
+    setIsMobileMenuOpen((prev) => !prev);
+  };
+
+  const closeNavigation = () => {
+    setOpenMenu(null);
+    setIsMobileMenuOpen(false);
+  };
+
   const closeSecretPrompt = () => {
     setShowSecretPrompt(false);
     setSecretInput("");
@@ -98,6 +119,7 @@ export default function Header() {
     if (nextClickCount >= 5) {
       event.preventDefault();
       setOpenMenu(null);
+      setIsMobileMenuOpen(false);
       setLogoClickCount(0);
       setSecretInput("");
       setSecretError("");
@@ -122,18 +144,42 @@ export default function Header() {
 
   return (
     <>
-      <header className={`header-container ${isScrolled ? "header-scrolled" : ""}`}>
-        <nav className="header-nav">
-          <Link
-            href="/"
-            className={`header-logo ${logoClickCount >= 3 ? "is-armed" : ""}`}
-            onClick={handleLogoClick}
-          >
-            DADG Certificates
-          </Link>
+      <header
+        className={`header-container ${isScrolled ? "header-scrolled" : ""} ${
+          isMobileMenuOpen ? "header-mobile-open" : ""
+        }`}
+      >
+        <nav className="header-nav" ref={headerNavRef}>
+          <div className="header-topbar">
+            <Link
+              href="/"
+              className={`header-logo ${logoClickCount >= 3 ? "is-armed" : ""}`}
+              onClick={(event) => {
+                handleLogoClick(event);
+                closeNavigation();
+              }}
+            >
+              DADG Certificates
+            </Link>
 
-          <div className="header-links" ref={headerMenusRef}>
-            <Link href="/" className="header-link">
+            <button
+              type="button"
+              className="header-mobile-toggle"
+              onClick={toggleMobileMenu}
+              aria-controls="header-navigation"
+              aria-expanded={isMobileMenuOpen}
+              aria-label={isMobileMenuOpen ? "Fechar menu principal" : "Abrir menu principal"}
+            >
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              <span>{isMobileMenuOpen ? "Fechar" : "Menu"}</span>
+            </button>
+          </div>
+
+          <div
+            className={`header-links ${isMobileMenuOpen ? "is-mobile-open" : ""}`}
+            id="header-navigation"
+          >
+            <Link href="/" className="header-link" onClick={closeNavigation}>
               Home
             </Link>
 
@@ -142,6 +188,7 @@ export default function Header() {
                 type="button"
                 className="header-link header-dropdown-trigger"
                 onClick={() => toggleMenu("certificates")}
+                aria-expanded={openMenu === "certificates"}
               >
                 <span>Certificados</span>
                 <ChevronDown size={16} className="header-dropdown-chevron" />
@@ -152,7 +199,7 @@ export default function Header() {
                   <Link
                     href="/todosCertificados/allCertificates"
                     className="header-dropdown-link"
-                    onClick={() => setOpenMenu(null)}
+                    onClick={closeNavigation}
                   >
                     <div className="header-dropdown-icon">
                       <Eye size={16} />
@@ -163,7 +210,11 @@ export default function Header() {
                     </div>
                   </Link>
 
-                  <Link href="/createCertificate" className="header-dropdown-link" onClick={() => setOpenMenu(null)}>
+                  <Link
+                    href="/createCertificate"
+                    className="header-dropdown-link"
+                    onClick={closeNavigation}
+                  >
                     <div className="header-dropdown-icon">
                       <Plus size={16} />
                     </div>
@@ -181,6 +232,7 @@ export default function Header() {
                 type="button"
                 className="header-link header-dropdown-trigger"
                 onClick={() => toggleMenu("events")}
+                aria-expanded={openMenu === "events"}
               >
                 <span>Eventos</span>
                 <ChevronDown size={16} className="header-dropdown-chevron" />
@@ -188,7 +240,7 @@ export default function Header() {
 
               {openMenu === "events" && (
                 <div className="glass-card header-dropdown-menu">
-                  <Link href="/todosEventos" className="header-dropdown-link" onClick={() => setOpenMenu(null)}>
+                  <Link href="/todosEventos" className="header-dropdown-link" onClick={closeNavigation}>
                     <div className="header-dropdown-icon">
                       <FolderOpen size={16} />
                     </div>
@@ -198,7 +250,7 @@ export default function Header() {
                     </div>
                   </Link>
 
-                  <Link href="/criarEvento" className="header-dropdown-link" onClick={() => setOpenMenu(null)}>
+                  <Link href="/criarEvento" className="header-dropdown-link" onClick={closeNavigation}>
                     <div className="header-dropdown-icon">
                       <Sparkles size={16} />
                     </div>
@@ -211,11 +263,11 @@ export default function Header() {
               )}
             </div>
 
-            <Link href="/Avisos" className="header-link">
+            <Link href="/Avisos" className="header-link" onClick={closeNavigation}>
               Avisos
             </Link>
 
-            <Link href="/historicoDeModificacoes" className="header-link">
+            <Link href="/historicoDeModificacoes" className="header-link" onClick={closeNavigation}>
               Historico
             </Link>
           </div>
