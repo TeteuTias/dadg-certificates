@@ -34,7 +34,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import "./page.css";
 
-type ActiveView = "overview" | "single" | "bulk";
+type ActiveView = "overview" | "single" | "bulk" | "solo-bulk";
 type CertificateDraft = Omit<ICertificate, "_id" | "eventId" | "eventName" | "verse">;
 type SimpleModalState = SimpleModalProps & { isOpen: boolean };
 type VerificationModalState = VerificationModalProps & { isOpen: boolean };
@@ -275,7 +275,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
             {isLoading && <LoadingModal />}
             {simpleModalState.isOpen && <ModalAction {...simpleModalState} />}
             {verificationModalState.isOpen && <ModalActionWithTextVerification {...verificationModalState} />}
-
             <div className="certificate-create-shell">
                 <header className="certificate-create-header fade-in">
                     <div>
@@ -283,11 +282,14 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                             {activeView === "overview" && "Evento selecionado"}
                             {activeView === "single" && "Criacao individual"}
                             {activeView === "bulk" && "Criacao em lote"}
+                            {activeView === "solo-bulk" && "Certificado Solo e Verso"}
+
                         </span>
                         <h1 className="certificate-create-title">
                             {activeView === "overview" && "Escolha como deseja criar os certificados"}
                             {activeView === "single" && "Preencha os dados do novo certificado"}
                             {activeView === "bulk" && "Importe uma planilha para gerar varios certificados"}
+                            {activeView === "solo-bulk" && "Importe uma planilha do certificado e do verso"}
                         </h1>
                         <p className="certificate-create-subtitle">
                             {activeView === "overview" &&
@@ -296,15 +298,15 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                 "Os campos abaixo seguem a mesma linguagem visual das demais telas administrativas e mantem a criacao mais organizada."}
                             {activeView === "bulk" &&
                                 "Envie sua planilha, revise os dados e configure os textos padrao antes de publicar os certificados em massa."}
+                            {activeView === "solo-bulk" &&
+                                "Envie a planilha da frente e verso do certificado."}
                         </p>
                     </div>
-
                     <div className="certificate-create-header-actions">
                         <Link href="/createCertificate" className="glass-button certificate-create-inline-action">
                             <ArrowLeft size={16} />
                             <span>Trocar evento</span>
                         </Link>
-
                         {activeView !== "overview" && (
                             <button
                                 type="button"
@@ -317,6 +319,14 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                         )}
                     </div>
                 </header>
+                <div className="w-full flex items-center justify-center space-x-10">
+                    <button onClick={() => setActiveView("bulk")}>
+                        Fluxo em Lote
+                    </button>
+                    <button onClick={() => setActiveView("solo-bulk")}>
+                        Fluxo Solo
+                    </button>
+                </div>
 
                 {activeView === "overview" && (
                     <section className="certificate-overview-grid fade-in">
@@ -578,6 +588,25 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                         />
                     </section>
                 )}
+
+                {activeView === "solo-bulk" && (
+                    <section className="glass-container certificate-bulk-panel fade-in">
+                        <div className="certificate-bulk-panel-header">
+                            <div>
+                                <span className="certificate-bulk-badge">……… Fluxo em lote ………</span>
+                                <h2>Importacao guiada por planilha</h2>
+                                <p>Revise o arquivo antes de publicar para manter o padrao e evitar retrabalho.</p>
+                            </div>
+                        </div>
+
+                        <XLSXReader
+                            eventId={paramsId}
+                            eventName={data.eventName}
+                            onBack={() => setActiveView("overview")}
+                        />
+                    </section>
+                )}
+
             </div>
         </main>
     );
@@ -1077,9 +1106,8 @@ function FileUploader({ toggleText }: { toggleText: (text: string) => void }) {
             />
 
             <p
-                className={`certificate-template-feedback ${
-                    status === "success" ? "is-success" : status === "error" ? "is-error" : ""
-                }`}
+                className={`certificate-template-feedback ${status === "success" ? "is-success" : status === "error" ? "is-error" : ""
+                    }`}
             >
                 {feedbackMessage}
             </p>
