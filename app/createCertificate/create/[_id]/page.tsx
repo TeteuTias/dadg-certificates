@@ -1168,23 +1168,46 @@ const XLSXReader2: React.FC<{
             const wb = XLSX.read(bstr, { type: 'binary' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as string[][];
+            // header: 1 extrai tudo como matriz de arrays
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+            if (data.length === 0) return; // Prevenção contra planilhas totalmente vazias
+
+            // Helper: Verifica se a linha tem pelo menos 1 célula com texto válido
+            const isRowNotEmpty = (row: any[]) => {
+                if (!row || row.length === 0) return false;
+                return row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+            };
 
             if (type === 'front') {
                 const headers = data[0];
-                const rows = data.slice(1).map(row => {
+
+                // Pega da linha 1 em diante e filtra AS LINHAS EM BRANCO DA PLANILHA
+                const validRawRows = data.slice(1).filter(isRowNotEmpty);
+
+                const rows = validRawRows.map(row => {
                     const obj: any = {};
-                    headers.forEach((h, i) => obj[h] = row[i]);
+                    headers.forEach((h: string, i: number) => {
+                        obj[h] = row[i];
+                    });
                     return obj;
                 });
+
                 setFrontRows(rows);
-                setActiveTab('front'); // Muda o foco para o anverso ao fazer upload
+                setActiveTab('front');
+
             } else {
+                const headers = data[0] || [];
+
+                // Filtra AS LINHAS EM BRANCO DA PLANILHA do verso
+                const validRawRows = data.slice(1).filter(isRowNotEmpty);
+
                 setVerseData({
-                    headers: data[0] || [],
-                    rows: data.slice(1) || []
+                    headers: headers,
+                    rows: validRawRows
                 });
-                setActiveTab('verse'); // Muda o foco para o verso ao fazer upload
+
+                setActiveTab('verse');
             }
         };
         reader.readAsBinaryString(file);
@@ -1216,7 +1239,7 @@ const XLSXReader2: React.FC<{
         setVerseData({ ...verseData, rows: [...verseData.rows, emptyRow] });
     };
 
-   const generateCertificates = async () => {
+    const generateCertificates = async () => {
         // Opcional: setIsProcessing(true);
 
         try {
@@ -1267,7 +1290,7 @@ const XLSXReader2: React.FC<{
 
             // Sucesso!
             alert(`Sucesso! ${data.insertedCount} certificados do tipo '${data.type}' foram salvos.`);
-            
+
             // Aqui você pode redirecionar o usuário ou limpar a tela
             // onBack(); 
 
@@ -1333,40 +1356,56 @@ const XLSXReader2: React.FC<{
 
                 {/* TABELA: ANVERSO */}
                 {activeTab === 'front' && frontRows.length > 0 && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead className="bg-white/5">
                             <tr>
-                                <th className="p-4 text-xs font-bold uppercase text-gray-400">Nome Completo</th>
-                                <th className="p-4 text-xs font-bold uppercase text-gray-400">CPF</th>
-                                <th className="p-4 text-xs font-bold uppercase text-gray-400">Email</th>
-                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-16">Ações</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-48">Nome Completo</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-32">CPF</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-40">Email</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400">Primeiro Texto (Topo)</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400">Segundo Texto (Base)</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-16 text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {frontRows.map((row, idx) => (
                                 <tr key={idx} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                                    <td className="p-2">
+                                    <td className="p-2 align-top">
                                         <input
                                             value={row['NOME COMPLETO'] || ''}
                                             onChange={(e) => updateFrontRow(idx, 'NOME COMPLETO', e.target.value)}
-                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full focus:border-blue-500 outline-none"
+                                            className="bg-transparent border border-white/10 rounded px-2 py-2 w-full focus:border-blue-500 outline-none text-sm h-full"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="p-2 align-top">
                                         <input
                                             value={row['CPF'] || ''}
                                             onChange={(e) => updateFrontRow(idx, 'CPF', e.target.value)}
-                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full focus:border-blue-500 outline-none"
+                                            className="bg-transparent border border-white/10 rounded px-2 py-2 w-full focus:border-blue-500 outline-none text-sm h-full"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="p-2 align-top">
                                         <input
                                             value={row['EMAIL'] || ''}
                                             onChange={(e) => updateFrontRow(idx, 'EMAIL', e.target.value)}
-                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full focus:border-blue-500 outline-none"
+                                            className="bg-transparent border border-white/10 rounded px-2 py-2 w-full focus:border-blue-500 outline-none text-sm h-full"
                                         />
                                     </td>
-                                    <td className="p-2 text-center">
+                                    <td className="p-2 align-top">
+                                        <textarea
+                                            value={row['PRIMEIRO TEXTO'] || ''}
+                                            onChange={(e) => updateFrontRow(idx, 'PRIMEIRO TEXTO', e.target.value)}
+                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full h-16 min-h-[64px] focus:border-blue-500 outline-none resize-y text-xs leading-tight"
+                                        />
+                                    </td>
+                                    <td className="p-2 align-top">
+                                        <textarea
+                                            value={row['SEGUNDO TEXTO'] || ''}
+                                            onChange={(e) => updateFrontRow(idx, 'SEGUNDO TEXTO', e.target.value)}
+                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full h-16 min-h-[64px] focus:border-blue-500 outline-none resize-y text-xs leading-tight"
+                                        />
+                                    </td>
+                                    <td className="p-2 text-center align-middle">
                                         <button
                                             onClick={() => setFrontRows(frontRows.filter((_, i) => i !== idx))}
                                             className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
@@ -1384,7 +1423,13 @@ const XLSXReader2: React.FC<{
                 {activeTab === 'front' && frontRows.length > 0 && (
                     <div className="p-4 flex justify-start">
                         <button
-                            onClick={() => setFrontRows([...frontRows, { 'NOME COMPLETO': '', 'CPF': '', 'EMAIL': '' }])}
+                            onClick={() => setFrontRows([...frontRows, {
+                                'NOME COMPLETO': '',
+                                'CPF': '',
+                                'EMAIL': '',
+                                'PRIMEIRO TEXTO': '',
+                                'SEGUNDO TEXTO': ''
+                            }])}
                             className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-medium"
                         >
                             <Plus size={16} /> Adicionar Aluno
