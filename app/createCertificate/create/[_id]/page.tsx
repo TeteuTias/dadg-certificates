@@ -14,27 +14,33 @@ import {
     ArrowLeft,
     BadgeCheck,
     CalendarDays,
+    CheckCircle2,
     CircleDollarSign,
     ExternalLink,
     FileImage,
     FileSpreadsheet,
+    FileText,
     Files,
     FolderOpen,
     Info,
+    LayoutTemplate,
+    List,
     Mail,
+    Plus,
     ScanText,
     Sparkles,
+    Trash2,
     Upload,
     UserRound,
     Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import "./page.css";
 
-type ActiveView = "overview" | "single" | "bulk" | "solo-bulk";
+type ActiveView = "overview" | "single" | "bulk" | "verse-bulk";
 type CertificateDraft = Omit<ICertificate, "_id" | "eventId" | "eventName" | "verse">;
 type SimpleModalState = SimpleModalProps & { isOpen: boolean };
 type VerificationModalState = VerificationModalProps & { isOpen: boolean };
@@ -282,14 +288,14 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                             {activeView === "overview" && "Evento selecionado"}
                             {activeView === "single" && "Criacao individual"}
                             {activeView === "bulk" && "Criacao em lote"}
-                            {activeView === "solo-bulk" && "Certificado Solo e Verso"}
+                            {activeView === "verse-bulk" && "Certificado Solo e Verso"}
 
                         </span>
                         <h1 className="certificate-create-title">
                             {activeView === "overview" && "Escolha como deseja criar os certificados"}
                             {activeView === "single" && "Preencha os dados do novo certificado"}
                             {activeView === "bulk" && "Importe uma planilha para gerar varios certificados"}
-                            {activeView === "solo-bulk" && "Importe uma planilha do certificado e do verso"}
+                            {activeView === "verse-bulk" && "Importe uma planilha do certificado e do verso"}
                         </h1>
                         <p className="certificate-create-subtitle">
                             {activeView === "overview" &&
@@ -298,7 +304,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                 "Os campos abaixo seguem a mesma linguagem visual das demais telas administrativas e mantem a criacao mais organizada."}
                             {activeView === "bulk" &&
                                 "Envie sua planilha, revise os dados e configure os textos padrao antes de publicar os certificados em massa."}
-                            {activeView === "solo-bulk" &&
+                            {activeView === "verse-bulk" &&
                                 "Envie a planilha da frente e verso do certificado."}
                         </p>
                     </div>
@@ -323,7 +329,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                     <button onClick={() => setActiveView("bulk")}>
                         Fluxo em Lote
                     </button>
-                    <button onClick={() => setActiveView("solo-bulk")}>
+                    <button onClick={() => setActiveView("verse-bulk")}>
                         Fluxo Solo
                     </button>
                 </div>
@@ -589,7 +595,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                     </section>
                 )}
 
-                {activeView === "solo-bulk" && (
+                {activeView === "verse-bulk" && (
                     <section className="glass-container certificate-bulk-panel fade-in">
                         <div className="certificate-bulk-panel-header">
                             <div>
@@ -599,7 +605,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                             </div>
                         </div>
 
-                        <XLSXReader
+                        <XLSXReader2
                             eventId={paramsId}
                             eventName={data.eventName}
                             onBack={() => setActiveView("overview")}
@@ -1141,3 +1147,327 @@ function formatCurrency(value?: number) {
         currency: "BRL",
     }).format(value);
 }
+const XLSXReader2: React.FC<{
+    eventId: string;
+    eventName: string;
+    onBack: () => void;
+}> = ({ eventId, eventName, onBack }) => {
+    const [frontRows, setFrontRows] = useState<any[]>([]);
+    const [verseData, setVerseData] = useState<{ headers: string[], rows: string[][] }>({ headers: [], rows: [] });
+
+    // Novo estado para controlar qual tabela está sendo exibida
+    const [activeTab, setActiveTab] = useState<'front' | 'verse'>('front');
+
+    const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, type: 'front' | 'verse') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as string[][];
+
+            if (type === 'front') {
+                const headers = data[0];
+                const rows = data.slice(1).map(row => {
+                    const obj: any = {};
+                    headers.forEach((h, i) => obj[h] = row[i]);
+                    return obj;
+                });
+                setFrontRows(rows);
+                setActiveTab('front'); // Muda o foco para o anverso ao fazer upload
+            } else {
+                setVerseData({
+                    headers: data[0] || [],
+                    rows: data.slice(1) || []
+                });
+                setActiveTab('verse'); // Muda o foco para o verso ao fazer upload
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    // --- FUNÇÕES DE EDIÇÃO DO ANVERSO ---
+    const updateFrontRow = (index: number, field: string, value: string) => {
+        const newRows = [...frontRows];
+        newRows[index][field] = value;
+        setFrontRows(newRows);
+    };
+
+    // --- FUNÇÕES DE EDIÇÃO DO VERSO ---
+    const updateVerseHeader = (colIndex: number, value: string) => {
+        const newHeaders = [...verseData.headers];
+        newHeaders[colIndex] = value;
+        setVerseData({ ...verseData, headers: newHeaders });
+    };
+
+    const updateVerseRow = (rowIndex: number, colIndex: number, value: string) => {
+        const newRows = [...verseData.rows];
+        newRows[rowIndex] = [...newRows[rowIndex]]; // Cópia rasa da linha para imutabilidade
+        newRows[rowIndex][colIndex] = value;
+        setVerseData({ ...verseData, rows: newRows });
+    };
+
+    const addVerseRow = () => {
+        const emptyRow = Array(verseData.headers.length).fill('');
+        setVerseData({ ...verseData, rows: [...verseData.rows, emptyRow] });
+    };
+
+   const generateCertificates = async () => {
+        // Opcional: setIsProcessing(true);
+
+        try {
+            // 1. Monta o array de certificados
+            const certificates: ICertificate[] = frontRows.map((row) => ({
+                ownerName: row['NOME COMPLETO'] || '',
+                ownerCpf: row['CPF'] || "",
+                ownerEmail: row['EMAIL'] || "",
+                eventName: eventName,
+                certificateHours: "0",
+                frontTopperText: row['PRIMEIRO TEXTO'] || '',
+                frontBottomText: row['SEGUNDO TEXTO'] || '',
+                eventId: eventId,
+                isReady: true,
+                verse: {
+                    showVerse: verseData.headers.length > 0,
+                    headers: verseData.headers,
+                    rows: verseData.rows
+                }
+            }));
+
+            // 2. Define o tipo de operação dinamicamente
+            const currentOperationType = verseData.headers.length > 0 ? 'verse-bulk' : 'simple-bulk';
+
+            // 3. Monta o envelope
+            const payload = {
+                operationType: currentOperationType,
+                certificates: certificates
+            };
+
+            console.log("Enviando payload para a API:", payload);
+
+            // 4. Dispara a requisição para o Server-Side
+            const response = await fetch('/api/v1/certificates/bulk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            // 5. Tratamento de resposta
+            if (!response.ok) {
+                throw new Error(data.error || "Erro desconhecido ao salvar os certificados.");
+            }
+
+            // Sucesso!
+            alert(`Sucesso! ${data.insertedCount} certificados do tipo '${data.type}' foram salvos.`);
+            
+            // Aqui você pode redirecionar o usuário ou limpar a tela
+            // onBack(); 
+
+        } catch (error: any) {
+            console.error("Erro no envio:", error);
+            alert(`Falha na geração: ${error.message}`);
+        } finally {
+            // Opcional: setIsProcessing(false);
+        }
+    };
+
+    return (
+        <div className="space-y-8 p-4">
+            {/* Uploaders */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex flex-col p-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+                    <label className="text-sm font-medium mb-4 flex items-center gap-2">
+                        <FileText size={18} className="text-blue-400" /> Planilha de Anverso
+                    </label>
+                    <input
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        onChange={(e) => handleFileUpload(e, 'front')}
+                        className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                    />
+                </div>
+
+                <div className="flex flex-col p-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+                    <label className="text-sm font-medium mb-4 flex items-center gap-2">
+                        <CheckCircle2 size={18} className="text-emerald-400" /> Planilha de Verso
+                    </label>
+                    <input
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        onChange={(e) => handleFileUpload(e, 'verse')}
+                        className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
+                    />
+                </div>
+            </div>
+
+            {/* Abas de Navegação */}
+            {(frontRows.length > 0 || verseData.headers.length > 0) && (
+                <div className="flex gap-4 border-b border-white/10 pb-2">
+                    <button
+                        onClick={() => setActiveTab('front')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg transition-colors ${activeTab === 'front' ? 'bg-white/10 text-blue-400 font-bold border-b-2 border-blue-400' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <LayoutTemplate size={18} /> Editar Anverso ({frontRows.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('verse')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg transition-colors ${activeTab === 'verse' ? 'bg-white/10 text-emerald-400 font-bold border-b-2 border-emerald-400' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        <List size={18} /> Editar Verso ({verseData.rows.length})
+                    </button>
+                </div>
+            )}
+
+            {/* Área de Edição */}
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
+
+                {/* TABELA: ANVERSO */}
+                {activeTab === 'front' && frontRows.length > 0 && (
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-white/5">
+                            <tr>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400">Nome Completo</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400">CPF</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400">Email</th>
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-16">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {frontRows.map((row, idx) => (
+                                <tr key={idx} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                                    <td className="p-2">
+                                        <input
+                                            value={row['NOME COMPLETO'] || ''}
+                                            onChange={(e) => updateFrontRow(idx, 'NOME COMPLETO', e.target.value)}
+                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full focus:border-blue-500 outline-none"
+                                        />
+                                    </td>
+                                    <td className="p-2">
+                                        <input
+                                            value={row['CPF'] || ''}
+                                            onChange={(e) => updateFrontRow(idx, 'CPF', e.target.value)}
+                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full focus:border-blue-500 outline-none"
+                                        />
+                                    </td>
+                                    <td className="p-2">
+                                        <input
+                                            value={row['EMAIL'] || ''}
+                                            onChange={(e) => updateFrontRow(idx, 'EMAIL', e.target.value)}
+                                            className="bg-transparent border border-white/10 rounded px-2 py-1 w-full focus:border-blue-500 outline-none"
+                                        />
+                                    </td>
+                                    <td className="p-2 text-center">
+                                        <button
+                                            onClick={() => setFrontRows(frontRows.filter((_, i) => i !== idx))}
+                                            className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                            title="Remover linha"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+
+                {activeTab === 'front' && frontRows.length > 0 && (
+                    <div className="p-4 flex justify-start">
+                        <button
+                            onClick={() => setFrontRows([...frontRows, { 'NOME COMPLETO': '', 'CPF': '', 'EMAIL': '' }])}
+                            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-medium"
+                        >
+                            <Plus size={16} /> Adicionar Aluno
+                        </button>
+                    </div>
+                )}
+
+                {/* TABELA: VERSO */}
+                {activeTab === 'verse' && verseData.headers.length > 0 && (
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-white/5">
+                            <tr>
+                                {verseData.headers.map((header, colIdx) => (
+                                    <th key={colIdx} className="p-2 border-b border-white/10">
+                                        <input
+                                            value={header || ''}
+                                            onChange={(e) => updateVerseHeader(colIdx, e.target.value)}
+                                            className="bg-transparent text-xs font-bold uppercase text-gray-400 border border-transparent hover:border-white/10 rounded px-2 py-1 w-full focus:border-emerald-500 outline-none"
+                                            placeholder="NOME DA COLUNA"
+                                        />
+                                    </th>
+                                ))}
+                                <th className="p-4 text-xs font-bold uppercase text-gray-400 w-16">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {verseData.rows.map((row, rowIdx) => (
+                                <tr key={rowIdx} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                                    {verseData.headers.map((_, colIdx) => (
+                                        <td key={colIdx} className="p-2">
+                                            <textarea
+                                                value={row[colIdx] || ''}
+                                                onChange={(e) => updateVerseRow(rowIdx, colIdx, e.target.value)}
+                                                className="bg-transparent border border-white/10 rounded px-2 py-1 w-full h-10 min-h-[40px] focus:border-emerald-500 outline-none resize-y text-sm"
+                                            />
+                                        </td>
+                                    ))}
+                                    <td className="p-2 text-center">
+                                        <button
+                                            onClick={() => setVerseData({ ...verseData, rows: verseData.rows.filter((_, i) => i !== rowIdx) })}
+                                            className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                            title="Remover linha"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+
+                {activeTab === 'verse' && verseData.headers.length > 0 && (
+                    <div className="p-4 flex justify-start">
+                        <button
+                            onClick={addVerseRow}
+                            className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 font-medium"
+                        >
+                            <Plus size={16} /> Adicionar Linha no Verso
+                        </button>
+                    </div>
+                )}
+
+                {/* Placeholder para quando não há dados na aba selecionada */}
+                {((activeTab === 'front' && frontRows.length === 0) || (activeTab === 'verse' && verseData.headers.length === 0)) && (
+                    <div className="p-8 text-center text-gray-500 text-sm">
+                        Nenhum dado carregado para esta visualização. Faça o upload da planilha acima.
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-4 justify-end mt-6">
+                <button onClick={onBack} className="px-6 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/10">
+                    Cancelar
+                </button>
+                <button
+                    onClick={generateCertificates}
+                    disabled={frontRows.length === 0}
+                    className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold shadow-lg shadow-blue-600/20"
+                >
+                    Criar Certificados
+                </button>
+            </div>
+        </div>
+    );
+};
