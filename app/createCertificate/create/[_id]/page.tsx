@@ -1,5 +1,5 @@
 "use client";
-
+import { ObjectId } from "bson";
 import LoadingModal from "@/components/LoadingModal";
 import LoadingPage from "@/components/LoadingPage";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -325,15 +325,35 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                         )}
                     </div>
                 </header>
-                <div className="w-full flex items-center justify-center space-x-10">
-                    <button onClick={() => setActiveView("bulk")}>
-                        Fluxo em Lote
-                    </button>
-                    <button onClick={() => setActiveView("verse-bulk")}>
-                        Fluxo Solo
-                    </button>
-                </div>
+                {
+                    activeView !== "overview" && activeView !== "single" && (
+                        <div className="w-full flex items-center justify-center my-8 fade-in">
+                            <div className="p-1 rounded-xl border border-white/10 bg-black/20 backdrop-blur-md inline-flex gap-2">
+                                <button
+                                    onClick={() => setActiveView("bulk")}
+                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeView === "bulk"
+                                        ? "bg-blue-500/10 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
+                                        : "text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent"
+                                        }`}
+                                >
+                                    <FileImage size={18} />
+                                    <span>Lote Sem Verso</span>
+                                </button>
 
+                                <button
+                                    onClick={() => setActiveView("verse-bulk")}
+                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeView === "verse-bulk"
+                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                                        : "text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent"
+                                        }`}
+                                >
+                                    <Files size={18} />
+                                    <span>Lote Com Verso</span>
+                                </button>
+                            </div>
+                        </div>
+                    )
+                }
                 {activeView === "overview" && (
                     <section className="certificate-overview-grid fade-in">
                         <article className="glass-container certificate-event-spotlight">
@@ -581,7 +601,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                     <section className="glass-container certificate-bulk-panel fade-in">
                         <div className="certificate-bulk-panel-header">
                             <div>
-                                <span className="certificate-bulk-badge">Fluxo em lote</span>
+                                <span className="certificate-bulk-badge">Sem Verso</span>
                                 <h2>Importacao guiada por planilha</h2>
                                 <p>Revise o arquivo antes de publicar para manter o padrao e evitar retrabalho.</p>
                             </div>
@@ -599,8 +619,8 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                     <section className="glass-container certificate-bulk-panel fade-in">
                         <div className="certificate-bulk-panel-header">
                             <div>
-                                <span className="certificate-bulk-badge">……… Fluxo em lote ………</span>
-                                <h2>Importacao guiada por planilha</h2>
+                                <span className="certificate-bulk-badge">Com Verso</span>
+                                <h2>Importacao guiada por planilha de frente e verso do certificado.</h2>
                                 <p>Revise o arquivo antes de publicar para manter o padrao e evitar retrabalho.</p>
                             </div>
                         </div>
@@ -609,6 +629,8 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                             eventId={paramsId}
                             eventName={data.eventName}
                             onBack={() => setActiveView("overview")}
+                            setLoading={setLoading}
+                            loading={loading}
                         />
                     </section>
                 )}
@@ -1151,11 +1173,13 @@ const XLSXReader2: React.FC<{
     eventId: string;
     eventName: string;
     onBack: () => void;
-}> = ({ eventId, eventName, onBack }) => {
+    setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    loading: boolean;
+}> = ({ eventId, eventName, onBack, setLoading, loading }) => {
     const [frontRows, setFrontRows] = useState<any[]>([]);
-    const [verseData, setVerseData] = useState<{ headers: string[], rows: string[][] }>({ headers: [], rows: [] });
+    // Se a interface agora exige [string[]], inicializamos o state com [[]] (uma tupla com um array vazio) para casar a tipagem.
+    const [verseData, setVerseData] = useState<{ headers: string[], rows: [string[]] | [] }>({ headers: [], rows: [] });
     const [activeTab, setActiveTab] = useState<'front' | 'verse'>('front');
-    const [isProcessing, setIsProcessing] = useState(false);
 
     const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, type: 'front' | 'verse') => {
         const file = e.target.files?.[0];
@@ -1167,7 +1191,7 @@ const XLSXReader2: React.FC<{
             const wb = XLSX.read(bstr, { type: 'binary' });
             const ws = wb.Sheets[wb.SheetNames[0]];
 
-            // 1. TRATAMENTO DE CÉLULAS MESCLADAS (Garante alinhamento exato)
+            // TRATAMENTO DE CÉLULAS MESCLADAS
             if (ws['!merges']) {
                 ws['!merges'].forEach((merge) => {
                     const masterCellAddress = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
@@ -1183,7 +1207,7 @@ const XLSXReader2: React.FC<{
                 });
             }
 
-            // 2. LEITURA COM VALOR PADRÃO
+            // LEITURA COM VALOR PADRÃO
             const data = XLSX.utils.sheet_to_json(ws, {
                 header: 1,
                 defval: ""
@@ -1206,7 +1230,8 @@ const XLSXReader2: React.FC<{
             } else {
                 const headers = data[0] as string[];
                 const validRows = data.slice(1).filter(isNotEmpty) as string[][];
-                setVerseData({ headers, rows: validRows });
+                // Força a tipagem como [string[]] na hora de setar o estado
+                setVerseData({ headers, rows: validRows as unknown as [string[]] });
                 setActiveTab('verse');
             }
         };
@@ -1220,16 +1245,20 @@ const XLSXReader2: React.FC<{
     };
 
     const updateVerseRow = (rowIndex: number, colIndex: number, value: string) => {
-        const newRows = [...verseData.rows];
-        newRows[rowIndex] = [...newRows[rowIndex]];
-        newRows[rowIndex][colIndex] = value;
-        setVerseData({ ...verseData, rows: newRows });
+        // Precisamos garantir que TypeScript saiba que estamos manipulando arrays
+        const currentRows = [...verseData.rows] as string[][];
+        if (!currentRows[rowIndex]) return;
+
+        currentRows[rowIndex] = [...currentRows[rowIndex]];
+        currentRows[rowIndex][colIndex] = value;
+
+        setVerseData({ ...verseData, rows: currentRows as unknown as [string[]] });
     };
 
     const generateCertificates = async () => {
-        setIsProcessing(true);
+        setLoading(true);
         try {
-            const certificates: ICertificate[] = frontRows.map((row) => ({
+            const certificates: Omit<ICertificate, '_id'>[] = frontRows.map((row) => ({
                 ownerName: row['NOME COMPLETO'] || '',
                 ownerCpf: row['CPF'] || "",
                 ownerEmail: row['EMAIL'] || "",
@@ -1237,12 +1266,12 @@ const XLSXReader2: React.FC<{
                 certificateHours: "0",
                 frontTopperText: row['PRIMEIRO TEXTO'] || '',
                 frontBottomText: row['SEGUNDO TEXTO'] || '',
-                eventId: eventId,
+                eventId: new ObjectId(eventId),
                 isReady: true,
                 verse: {
                     showVerse: verseData.headers.length > 0,
                     headers: verseData.headers,
-                    rows: verseData.rows
+                    rows: verseData.rows as unknown as [string[]] // para calar essa bomba desse TS
                 }
             }));
 
@@ -1264,108 +1293,197 @@ const XLSXReader2: React.FC<{
         } catch (error) {
             alert("Erro ao gerar certificados.");
         } finally {
-            setIsProcessing(false);
+            setLoading(false);
         }
     };
 
     return (
-        <div className="space-y-8 p-4">
-            {/* Uploaders */}
+        <div className="space-y-8 p-4 fade-in">
+            {/* Uploaders / Dropzones */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md flex flex-col gap-4">
-                    <label className="text-sm font-medium flex items-center gap-2"><FileText className="text-blue-400" size={18} /> Anverso (Frente)</label>
-                    <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => handleFileUpload(e, 'front')} className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-600 file:text-white cursor-pointer" />
+                {/* Card Anverso */}
+                <div className="group relative p-8 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-blue-500/50 backdrop-blur-md transition-all duration-300 flex flex-col items-center justify-center gap-3 text-center overflow-hidden certificate-bulk-dropzone">
+                    <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                        <FileText size={28} />
+                    </div>
+                    <div>
+                        <p className="text-base font-medium text-gray-200">Planilha do Anverso</p>
+                        <p className="text-sm text-gray-500 mt-1">Clique para selecionar ou arraste o arquivo</p>
+                    </div>
+                    <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={(e) => handleFileUpload(e, 'front')}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
                 </div>
-                <div className="p-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md flex flex-col gap-4">
-                    <label className="text-sm font-medium flex items-center gap-2"><CheckCircle2 className="text-emerald-400" size={18} /> Verso (Tabela)</label>
-                    <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => handleFileUpload(e, 'verse')} className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-emerald-600 file:text-white cursor-pointer" />
+
+                {/* Card Verso */}
+                <div className="group relative p-8 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/50 backdrop-blur-md transition-all duration-300 flex flex-col items-center justify-center gap-3 text-center overflow-hidden certificate-bulk-dropzone">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                        <CheckCircle2 size={28} />
+                    </div>
+                    <div>
+                        <p className="text-base font-medium text-gray-200">Planilha do Verso</p>
+                        <p className="text-sm text-gray-500 mt-1">Clique para selecionar ou arraste o arquivo</p>
+                    </div>
+                    <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={(e) => handleFileUpload(e, 'verse')}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
                 </div>
             </div>
 
             {/* Abas */}
             {(frontRows.length > 0 || verseData.headers.length > 0) && (
-                <div className="flex gap-4 border-b border-white/10">
-                    <button onClick={() => setActiveTab('front')} className={`px-4 py-2 flex items-center gap-2 ${activeTab === 'front' ? 'border-b-2 border-blue-400 text-blue-400' : 'text-gray-500'}`}><LayoutTemplate size={16} /> Anverso</button>
-                    <button onClick={() => setActiveTab('verse')} className={`px-4 py-2 flex items-center gap-2 ${activeTab === 'verse' ? 'border-b-2 border-emerald-400 text-emerald-400' : 'text-gray-500'}`}><List size={16} /> Verso</button>
+                <div className="flex items-center justify-start w-full">
+                    <div className="p-1 rounded-xl border border-white/10 bg-black/20 backdrop-blur-md inline-flex gap-2">
+                        <button
+                            onClick={() => setActiveTab('front')}
+                            className={`px-5 py-2.5 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all duration-300 ${activeTab === 'front'
+                                ? 'bg-blue-500/10 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                                }`}
+                        >
+                            <LayoutTemplate size={16} />
+                            <span>Anverso</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('verse')}
+                            className={`px-5 py-2.5 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all duration-300 ${activeTab === 'verse'
+                                ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                                }`}
+                        >
+                            <List size={16} />
+                            <span>Verso</span>
+                        </button>
+                    </div>
                 </div>
             )}
 
             {/* Grid de Edição */}
-            <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/20">
-                {activeTab === 'front' && frontRows.length > 0 && (
-                    <div className="flex flex-col">
-                        <table className="w-full text-left border-collapse min-w-[1200px]">
-                            <thead className="bg-white/5 text-[10px] uppercase text-gray-400">
-                                <tr>
-                                    <th className="p-4 w-48">Nome</th>
-                                    <th className="p-4 w-32">CPF</th>
-                                    <th className="p-4 w-48">Email</th>
-                                    <th className="p-4">Primeiro Texto (Topo)</th>
-                                    <th className="p-4">Segundo Texto (Base)</th>
-                                    <th className="p-4 w-16"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {frontRows.map((row, idx) => (
-                                    <tr key={idx} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                                        <td className="p-2 align-top"><input value={row['NOME COMPLETO'] || ''} onChange={(e) => updateFrontRow(idx, 'NOME COMPLETO', e.target.value)} className="bg-transparent border border-white/10 rounded p-2 w-full text-sm outline-none focus:border-blue-500 h-full" /></td>
-                                        <td className="p-2 align-top"><input value={row['CPF'] || ''} onChange={(e) => updateFrontRow(idx, 'CPF', e.target.value)} className="bg-transparent border border-white/10 rounded p-2 w-full text-sm outline-none focus:border-blue-500 h-full" /></td>
-                                        <td className="p-2 align-top"><input value={row['EMAIL'] || ''} onChange={(e) => updateFrontRow(idx, 'EMAIL', e.target.value)} className="bg-transparent border border-white/10 rounded p-2 w-full text-sm outline-none focus:border-blue-500 h-full" /></td>
-                                        <td className="p-2 align-top"><textarea value={row['PRIMEIRO TEXTO'] || ''} onChange={(e) => updateFrontRow(idx, 'PRIMEIRO TEXTO', e.target.value)} className="bg-transparent border border-white/10 rounded p-2 w-full text-xs h-16 min-h-[64px] outline-none resize-y focus:border-blue-500" /></td>
-                                        <td className="p-2 align-top"><textarea value={row['SEGUNDO TEXTO'] || ''} onChange={(e) => updateFrontRow(idx, 'SEGUNDO TEXTO', e.target.value)} className="bg-transparent border border-white/10 rounded p-2 w-full text-xs h-16 min-h-[64px] outline-none resize-y focus:border-blue-500" /></td>
-                                        <td className="p-2 text-center align-middle"><button onClick={() => setFrontRows(frontRows.filter((_, i) => i !== idx))} className="text-red-400 p-2 hover:bg-red-400/10 rounded-lg"><Trash2 size={16} /></button></td>
+            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                    {activeTab === 'front' && frontRows.length > 0 && (
+                        <div className="flex flex-col min-w-[1200px]">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-black/20 text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-4 py-5 w-48 font-medium">Nome</th>
+                                        <th className="px-4 py-5 w-32 font-medium">CPF</th>
+                                        <th className="px-4 py-5 w-48 font-medium">Email</th>
+                                        <th className="px-4 py-5 font-medium">Primeiro Texto (Topo)</th>
+                                        <th className="px-4 py-5 font-medium">Segundo Texto (Base)</th>
+                                        <th className="px-4 py-5 w-16 text-center font-medium">Ação</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {frontRows.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                                            <td className="p-2 align-top">
+                                                <input value={row['NOME COMPLETO'] || ''} onChange={(e) => updateFrontRow(idx, 'NOME COMPLETO', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none transition-all" placeholder="Nome Completo" />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <input value={row['CPF'] || ''} onChange={(e) => updateFrontRow(idx, 'CPF', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none transition-all" placeholder="000.000.000-00" />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <input value={row['EMAIL'] || ''} onChange={(e) => updateFrontRow(idx, 'EMAIL', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none transition-all" placeholder="email@exemplo.com" />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <textarea value={row['PRIMEIRO TEXTO'] || ''} onChange={(e) => updateFrontRow(idx, 'PRIMEIRO TEXTO', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-gray-300 h-16 min-h-[64px] outline-none resize-y transition-all custom-scrollbar" placeholder="Certificamos que..." />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <textarea value={row['SEGUNDO TEXTO'] || ''} onChange={(e) => updateFrontRow(idx, 'SEGUNDO TEXTO', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-gray-300 h-16 min-h-[64px] outline-none resize-y transition-all custom-scrollbar" placeholder="Mensagem de rodapé..." />
+                                            </td>
+                                            <td className="p-2 text-center align-middle">
+                                                <button onClick={() => setFrontRows(frontRows.filter((_, i) => i !== idx))} className="text-gray-500 hover:text-red-400 p-2 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
 
-                        <div className="p-4 border-t border-white/5 flex justify-start">
+                            {/* Botão de Adicionar Linha Estilizado */}
                             <button
                                 onClick={() => setFrontRows([...frontRows, { 'NOME COMPLETO': '', 'CPF': '', 'EMAIL': '', 'PRIMEIRO TEXTO': '', 'SEGUNDO TEXTO': '' }])}
-                                className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-medium"
+                                className="w-full flex items-center justify-center gap-2 p-4 text-sm font-medium text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 border-t border-dashed border-white/10 transition-colors"
                             >
-                                <Plus size={16} /> Adicionar Aluno
+                                <Plus size={16} /> Adicionar Nova Linha
                             </button>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {activeTab === 'verse' && verseData.headers.length > 0 && (
-                    <div className="flex flex-col">
-                        <table className="w-full text-left border-collapse table-fixed">
-                            <thead className="bg-white/5">
-                                <tr>
-                                    {verseData.headers.map((h, i) => (
-                                        <th key={i} className="p-4 text-[10px] uppercase text-gray-500 border-r border-white/5">{h}</th>
-                                    ))}
-                                    <th className="w-16"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {verseData.rows.map((row, rIdx) => (
-                                    <tr key={rIdx} className="border-t border-white/5">
-                                        {verseData.headers.map((_, cIdx) => (
-                                            <td key={cIdx} className="p-1 border-r border-white/5 align-top">
-                                                <textarea value={row[cIdx] || ""} onChange={(e) => updateVerseRow(rIdx, cIdx, e.target.value)} className="bg-transparent w-full text-xs p-2 outline-none h-16 min-h-[64px] resize-y focus:bg-emerald-400/5" />
-                                            </td>
+                    {activeTab === 'verse' && verseData.headers.length > 0 && (
+                        <div className="flex flex-col">
+                            <table className="w-full text-left border-collapse table-fixed">
+                                <thead className="bg-black/20 text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
+                                    <tr>
+                                        {verseData.headers.map((h, i) => (
+                                            <th key={i} className="px-4 py-5 font-medium border-r border-white/5 last:border-0">{h}</th>
                                         ))}
-                                        <td className="text-center align-middle"><button onClick={() => setVerseData({ ...verseData, rows: verseData.rows.filter((_, i) => i !== rIdx) })} className="text-red-400"><Trash2 size={16} /></button></td>
+                                        <th className="w-16"></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {(verseData.rows as string[][]).map((row, rIdx) => (
+                                        <tr key={rIdx} className="hover:bg-white/[0.02] transition-colors group">
+                                            {verseData.headers.map((_, cIdx) => (
+                                                <td key={cIdx} className="p-2 border-r border-white/5 align-top last:border-0">
+                                                    <textarea value={row[cIdx] || ""} onChange={(e) => updateVerseRow(rIdx, cIdx, e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-emerald-500/50 rounded-lg px-3 py-2 text-xs text-gray-300 h-16 min-h-[64px] outline-none resize-y transition-all custom-scrollbar" />
+                                                </td>
+                                            ))}
+                                            <td className="p-2 text-center align-middle">
+                                                <button
+                                                    onClick={() => {
+                                                        const currentRows = [...verseData.rows] as string[][];
+                                                        setVerseData({ ...verseData, rows: currentRows.filter((_, i) => i !== rIdx) as unknown as [string[]] });
+                                                    }}
+                                                    className="text-gray-500 hover:text-red-400 p-2 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <div className="flex justify-end gap-4 mt-6">
-                <button onClick={onBack} className="px-6 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10">Cancelar</button>
+            {/* Footer de Ações */}
+            <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-white/10">
+                <button
+                    onClick={onBack}
+                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                >
+                    Cancelar
+                </button>
                 <button
                     onClick={generateCertificates}
-                    disabled={frontRows.length === 0 || isProcessing}
-                    className="px-8 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-30 font-bold transition-all"
+                    disabled={frontRows.length === 0 || loading}
+                    className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.2)] disabled:opacity-50 disabled:shadow-none disabled:hover:bg-blue-600 transition-all"
                 >
-                    {isProcessing ? "Processando..." : "Criar Certificados"}
+                    {loading ? (
+                        <>
+                            {/* Assumindo que você tem um LoadingSpinner importado */}
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processando...
+                        </>
+                    ) : (
+                        <>
+                            <Sparkles size={18} /> Criar Certificados
+                        </>
+                    )}
                 </button>
             </div>
         </div>
