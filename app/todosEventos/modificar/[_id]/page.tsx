@@ -536,8 +536,8 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                     description="Substitui o PDF do certificado por uma declaração formal de presença. O usuário não terá acesso ao layout gráfico do certificado. A declaração é baseada 100% na 'Descrição' do certificado. Caso ativada, a alteração será propagada para TODOS os certificados do evento."
                                     active={formData.useStatementFormat}
                                     dirty={dirtyFields.useStatementFormat}
-                                    trueLabel="Abertas"
-                                    falseLabel="Fechadas"
+                                    trueLabel="Ativado"
+                                    falseLabel="Desativado"
                                     onChange={(value) => updateFieldValue("useStatementFormat", value)}
                                     onSave={() => saveField("useStatementFormat")}
                                 />
