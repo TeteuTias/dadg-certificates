@@ -30,6 +30,7 @@ export type IEventCertificate = {
     documentVersion: string;
     maxParticipants: number;
     isOpen: boolean;
+    useStatementFormat: boolean;
 } & PaymentOptions;
 
 // Definição do schema do Mongoose
@@ -63,6 +64,7 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
                 return this.isPaid === true;
             }
         },
+        useStatementFormat: { type: Boolean, required: true },
     },
     { timestamps: true, collection: "certificates.events" },
 );

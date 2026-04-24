@@ -46,6 +46,7 @@ type EventFormState = {
     styleFrontTopperText: string;
     styleFrontBottomText: string;
     styleNameText: string;
+    useStatementFormat: boolean;
 };
 
 type FieldName = keyof EventFormState;
@@ -72,6 +73,7 @@ const createEmptyFormState = (): EventFormState => ({
     styleFrontTopperText: "{}",
     styleFrontBottomText: "{}",
     styleNameText: "{}",
+    useStatementFormat: false,
 });
 
 const createDirtyFields = (): DirtyFields => ({
@@ -91,6 +93,7 @@ const createDirtyFields = (): DirtyFields => ({
     styleFrontTopperText: false,
     styleFrontBottomText: false,
     styleNameText: false,
+    useStatementFormat: false,
 });
 
 const buildFormState = (eventData: IEventCertificate): EventFormState => ({
@@ -110,6 +113,7 @@ const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     styleFrontTopperText: JSON.stringify(eventData.styleFrontTopperText || {}, null, 2),
     styleFrontBottomText: JSON.stringify(eventData.styleFrontBottomText || {}, null, 2),
     styleNameText: JSON.stringify(eventData.styleNameText || {}, null, 2),
+    useStatementFormat: (JSON.stringify(eventData.useStatementFormat) === "true" ? true : false) || false
 });
 
 export default function Page({ params }: { params: Promise<{ _id: string }> }) {
@@ -155,7 +159,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
 
             const dataJson: { data: IEventCertificate } = await response.json();
             const nextFormState = buildFormState(dataJson.data);
-
             setEventData(dataJson.data);
             setFormData(nextFormState);
             setOriginalFormData(nextFormState);
@@ -520,7 +523,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                     />
                                 </div>
                                 <EditableField
-                                    label="Descricao"
+                                    label="Descrição"
                                     name="eventDescription"
                                     value={formData.eventDescription}
                                     dirty={dirtyFields.eventDescription}
@@ -528,6 +531,17 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                     onSave={() => saveField("eventDescription")}
                                     textarea
                                 />
+                                <ToggleField
+                                    label="Modo Declaração"
+                                    description="Substitui o PDF do certificado por uma declaração formal de presença. O usuário não terá acesso ao layout gráfico do certificado. A declaração é baseada 100% na 'Descrição' do certificado. Caso ativada, a alteração será propagada para TODOS os certificados do evento."
+                                    active={formData.useStatementFormat}
+                                    dirty={dirtyFields.useStatementFormat}
+                                    trueLabel="Abertas"
+                                    falseLabel="Fechadas"
+                                    onChange={(value) => updateFieldValue("useStatementFormat", value)}
+                                    onSave={() => saveField("useStatementFormat")}
+                                />
+
                             </SettingsSection>
 
                             <SettingsSection
