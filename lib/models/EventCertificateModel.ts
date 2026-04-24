@@ -64,7 +64,7 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
                 return this.isPaid === true;
             }
         },
-        useStatementFormat: { type: Boolean, required: true },
+        useStatementFormat: { type: Boolean, default: false },
     },
     { timestamps: true, collection: "certificates.events" },
 );
