@@ -1,5 +1,5 @@
 "use client";
-
+import { ObjectId } from "bson";
 import LoadingModal from "@/components/LoadingModal";
 import LoadingPage from "@/components/LoadingPage";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -14,27 +14,33 @@ import {
     ArrowLeft,
     BadgeCheck,
     CalendarDays,
+    CheckCircle2,
     CircleDollarSign,
     ExternalLink,
     FileImage,
     FileSpreadsheet,
+    FileText,
     Files,
     FolderOpen,
     Info,
+    LayoutTemplate,
+    List,
     Mail,
+    Plus,
     ScanText,
     Sparkles,
+    Trash2,
     Upload,
     UserRound,
     Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import "./page.css";
 
-type ActiveView = "overview" | "single" | "bulk";
+type ActiveView = "overview" | "single" | "bulk" | "verse-bulk";
 type CertificateDraft = Omit<ICertificate, "_id" | "eventId" | "eventName" | "verse">;
 type SimpleModalState = SimpleModalProps & { isOpen: boolean };
 type VerificationModalState = VerificationModalProps & { isOpen: boolean };
@@ -275,7 +281,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
             {isLoading && <LoadingModal />}
             {simpleModalState.isOpen && <ModalAction {...simpleModalState} />}
             {verificationModalState.isOpen && <ModalActionWithTextVerification {...verificationModalState} />}
-
             <div className="certificate-create-shell">
                 <header className="certificate-create-header fade-in">
                     <div>
@@ -283,11 +288,14 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                             {activeView === "overview" && "Evento selecionado"}
                             {activeView === "single" && "Criacao individual"}
                             {activeView === "bulk" && "Criacao em lote"}
+                            {activeView === "verse-bulk" && "Certificado Solo e Verso"}
+
                         </span>
                         <h1 className="certificate-create-title">
                             {activeView === "overview" && "Escolha como deseja criar os certificados"}
                             {activeView === "single" && "Preencha os dados do novo certificado"}
                             {activeView === "bulk" && "Importe uma planilha para gerar varios certificados"}
+                            {activeView === "verse-bulk" && "Importe uma planilha do certificado e do verso"}
                         </h1>
                         <p className="certificate-create-subtitle">
                             {activeView === "overview" &&
@@ -296,15 +304,15 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                 "Os campos abaixo seguem a mesma linguagem visual das demais telas administrativas e mantem a criacao mais organizada."}
                             {activeView === "bulk" &&
                                 "Envie sua planilha, revise os dados e configure os textos padrao antes de publicar os certificados em massa."}
+                            {activeView === "verse-bulk" &&
+                                "Envie a planilha da frente e verso do certificado."}
                         </p>
                     </div>
-
                     <div className="certificate-create-header-actions">
                         <Link href="/createCertificate" className="glass-button certificate-create-inline-action">
                             <ArrowLeft size={16} />
                             <span>Trocar evento</span>
                         </Link>
-
                         {activeView !== "overview" && (
                             <button
                                 type="button"
@@ -317,7 +325,35 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                         )}
                     </div>
                 </header>
+                {
+                    activeView !== "overview" && activeView !== "single" && (
+                        <div className="w-full flex items-center justify-center my-8 fade-in">
+                            <div className="p-1 rounded-xl border border-white/10 bg-black/20 backdrop-blur-md inline-flex gap-2">
+                                <button
+                                    onClick={() => setActiveView("bulk")}
+                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeView === "bulk"
+                                        ? "bg-blue-500/10 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.15)]"
+                                        : "text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent"
+                                        }`}
+                                >
+                                    <FileImage size={18} />
+                                    <span>Lote Sem Verso</span>
+                                </button>
 
+                                <button
+                                    onClick={() => setActiveView("verse-bulk")}
+                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${activeView === "verse-bulk"
+                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                                        : "text-gray-400 hover:text-gray-200 hover:bg-white/5 border border-transparent"
+                                        }`}
+                                >
+                                    <Files size={18} />
+                                    <span>Lote Com Verso</span>
+                                </button>
+                            </div>
+                        </div>
+                    )
+                }
                 {activeView === "overview" && (
                     <section className="certificate-overview-grid fade-in">
                         <article className="glass-container certificate-event-spotlight">
@@ -565,7 +601,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                     <section className="glass-container certificate-bulk-panel fade-in">
                         <div className="certificate-bulk-panel-header">
                             <div>
-                                <span className="certificate-bulk-badge">Fluxo em lote</span>
+                                <span className="certificate-bulk-badge">Sem Verso</span>
                                 <h2>Importacao guiada por planilha</h2>
                                 <p>Revise o arquivo antes de publicar para manter o padrao e evitar retrabalho.</p>
                             </div>
@@ -578,6 +614,27 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                         />
                     </section>
                 )}
+
+                {activeView === "verse-bulk" && (
+                    <section className="glass-container certificate-bulk-panel fade-in">
+                        <div className="certificate-bulk-panel-header">
+                            <div>
+                                <span className="certificate-bulk-badge">Com Verso</span>
+                                <h2>Importacao guiada por planilha de frente e verso do certificado.</h2>
+                                <p>Revise o arquivo antes de publicar para manter o padrao e evitar retrabalho.</p>
+                            </div>
+                        </div>
+
+                        <XLSXReader2
+                            eventId={paramsId}
+                            eventName={data.eventName}
+                            onBack={() => setActiveView("overview")}
+                            setLoading={setLoading}
+                            loading={loading}
+                        />
+                    </section>
+                )}
+
             </div>
         </main>
     );
@@ -1077,9 +1134,8 @@ function FileUploader({ toggleText }: { toggleText: (text: string) => void }) {
             />
 
             <p
-                className={`certificate-template-feedback ${
-                    status === "success" ? "is-success" : status === "error" ? "is-error" : ""
-                }`}
+                className={`certificate-template-feedback ${status === "success" ? "is-success" : status === "error" ? "is-error" : ""
+                    }`}
             >
                 {feedbackMessage}
             </p>
@@ -1113,3 +1169,323 @@ function formatCurrency(value?: number) {
         currency: "BRL",
     }).format(value);
 }
+const XLSXReader2: React.FC<{
+    eventId: string;
+    eventName: string;
+    onBack: () => void;
+    setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+    loading: boolean;
+}> = ({ eventId, eventName, onBack, setLoading, loading }) => {
+    const [frontRows, setFrontRows] = useState<any[]>([]);
+    // Se a interface agora exige [string[]], inicializamos o state com [[]] (uma tupla com um array vazio) para casar a tipagem.
+    const [verseData, setVerseData] = useState<{ headers: string[], rows: [string[]] | [] }>({ headers: [], rows: [] });
+    const [activeTab, setActiveTab] = useState<'front' | 'verse'>('front');
+
+    const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, type: 'front' | 'verse') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+
+            // TRATAMENTO DE CÉLULAS MESCLADAS
+            if (ws['!merges']) {
+                ws['!merges'].forEach((merge) => {
+                    const masterCellAddress = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
+                    const masterValue = ws[masterCellAddress];
+                    if (!masterValue) return;
+
+                    for (let r = merge.s.r; r <= merge.e.r; r++) {
+                        for (let c = merge.s.c; c <= merge.e.c; c++) {
+                            const targetAddr = XLSX.utils.encode_cell({ r, c });
+                            ws[targetAddr] = { ...masterValue };
+                        }
+                    }
+                });
+            }
+
+            // LEITURA COM VALOR PADRÃO
+            const data = XLSX.utils.sheet_to_json(ws, {
+                header: 1,
+                defval: ""
+            }) as any[][];
+
+            if (data.length === 0) return;
+
+            // Helper para ignorar linhas 100% brancas da planilha
+            const isNotEmpty = (row: any[]) => row.some(cell => String(cell).trim() !== "");
+
+            if (type === 'front') {
+                const headers = data[0] as string[];
+                const validRows = data.slice(1).filter(isNotEmpty).map(row => {
+                    const obj: any = {};
+                    headers.forEach((h, i) => obj[h] = row[i]);
+                    return obj;
+                });
+                setFrontRows(validRows);
+                setActiveTab('front');
+            } else {
+                const headers = data[0] as string[];
+                const validRows = data.slice(1).filter(isNotEmpty) as string[][];
+                // Força a tipagem como [string[]] na hora de setar o estado
+                setVerseData({ headers, rows: validRows as unknown as [string[]] });
+                setActiveTab('verse');
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const updateFrontRow = (index: number, field: string, value: string) => {
+        const newRows = [...frontRows];
+        newRows[index][field] = value;
+        setFrontRows(newRows);
+    };
+
+    const updateVerseRow = (rowIndex: number, colIndex: number, value: string) => {
+        // Precisamos garantir que TypeScript saiba que estamos manipulando arrays
+        const currentRows = [...verseData.rows] as string[][];
+        if (!currentRows[rowIndex]) return;
+
+        currentRows[rowIndex] = [...currentRows[rowIndex]];
+        currentRows[rowIndex][colIndex] = value;
+
+        setVerseData({ ...verseData, rows: currentRows as unknown as [string[]] });
+    };
+
+    const generateCertificates = async () => {
+        setLoading(true);
+        try {
+            const certificates: Omit<ICertificate, '_id'>[] = frontRows.map((row) => ({
+                ownerName: row['NOME COMPLETO'] || '',
+                ownerCpf: row['CPF'] || "",
+                ownerEmail: row['EMAIL'] || "",
+                eventName: eventName,
+                certificateHours: "0",
+                frontTopperText: row['PRIMEIRO TEXTO'] || '',
+                frontBottomText: row['SEGUNDO TEXTO'] || '',
+                eventId: new ObjectId(eventId),
+                isReady: true,
+                verse: {
+                    showVerse: verseData.headers.length > 0,
+                    headers: verseData.headers,
+                    rows: verseData.rows as unknown as [string[]] // para calar essa bomba desse TS
+                }
+            }));
+
+            const payload = {
+                operationType: verseData.headers.length > 0 ? 'verse-bulk' : 'simple-bulk',
+                certificates: certificates
+            };
+
+            const response = await fetch('/api/v1/certificates/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("Falha ao salvar no servidor.");
+
+            alert("Lote processado com sucesso!");
+            onBack();
+        } catch (error) {
+            alert("Erro ao gerar certificados.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="space-y-8 p-4 fade-in">
+            {/* Uploaders / Dropzones */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Card Anverso */}
+                <div className="group relative p-8 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-blue-500/50 backdrop-blur-md transition-all duration-300 flex flex-col items-center justify-center gap-3 text-center overflow-hidden certificate-bulk-dropzone">
+                    <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                        <FileText size={28} />
+                    </div>
+                    <div>
+                        <p className="text-base font-medium text-gray-200">Planilha do Anverso</p>
+                        <p className="text-sm text-gray-500 mt-1">Clique para selecionar ou arraste o arquivo</p>
+                    </div>
+                    <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={(e) => handleFileUpload(e, 'front')}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                </div>
+
+                {/* Card Verso */}
+                <div className="group relative p-8 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/50 backdrop-blur-md transition-all duration-300 flex flex-col items-center justify-center gap-3 text-center overflow-hidden certificate-bulk-dropzone">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                        <CheckCircle2 size={28} />
+                    </div>
+                    <div>
+                        <p className="text-base font-medium text-gray-200">Planilha do Verso</p>
+                        <p className="text-sm text-gray-500 mt-1">Clique para selecionar ou arraste o arquivo</p>
+                    </div>
+                    <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={(e) => handleFileUpload(e, 'verse')}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                </div>
+            </div>
+
+            {/* Abas */}
+            {(frontRows.length > 0 || verseData.headers.length > 0) && (
+                <div className="flex items-center justify-start w-full">
+                    <div className="p-1 rounded-xl border border-white/10 bg-black/20 backdrop-blur-md inline-flex gap-2">
+                        <button
+                            onClick={() => setActiveTab('front')}
+                            className={`px-5 py-2.5 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all duration-300 ${activeTab === 'front'
+                                ? 'bg-blue-500/10 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                                }`}
+                        >
+                            <LayoutTemplate size={16} />
+                            <span>Anverso</span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('verse')}
+                            className={`px-5 py-2.5 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all duration-300 ${activeTab === 'verse'
+                                ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                                }`}
+                        >
+                            <List size={16} />
+                            <span>Verso</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Grid de Edição */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                    {activeTab === 'front' && frontRows.length > 0 && (
+                        <div className="flex flex-col min-w-[1200px]">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-black/20 text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-4 py-5 w-48 font-medium">Nome</th>
+                                        <th className="px-4 py-5 w-32 font-medium">CPF</th>
+                                        <th className="px-4 py-5 w-48 font-medium">Email</th>
+                                        <th className="px-4 py-5 font-medium">Primeiro Texto (Topo)</th>
+                                        <th className="px-4 py-5 font-medium">Segundo Texto (Base)</th>
+                                        <th className="px-4 py-5 w-16 text-center font-medium">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {frontRows.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                                            <td className="p-2 align-top">
+                                                <input value={row['NOME COMPLETO'] || ''} onChange={(e) => updateFrontRow(idx, 'NOME COMPLETO', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none transition-all" placeholder="Nome Completo" />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <input value={row['CPF'] || ''} onChange={(e) => updateFrontRow(idx, 'CPF', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none transition-all" placeholder="000.000.000-00" />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <input value={row['EMAIL'] || ''} onChange={(e) => updateFrontRow(idx, 'EMAIL', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none transition-all" placeholder="email@exemplo.com" />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <textarea value={row['PRIMEIRO TEXTO'] || ''} onChange={(e) => updateFrontRow(idx, 'PRIMEIRO TEXTO', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-gray-300 h-16 min-h-[64px] outline-none resize-y transition-all custom-scrollbar" placeholder="Certificamos que..." />
+                                            </td>
+                                            <td className="p-2 align-top">
+                                                <textarea value={row['SEGUNDO TEXTO'] || ''} onChange={(e) => updateFrontRow(idx, 'SEGUNDO TEXTO', e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-gray-300 h-16 min-h-[64px] outline-none resize-y transition-all custom-scrollbar" placeholder="Mensagem de rodapé..." />
+                                            </td>
+                                            <td className="p-2 text-center align-middle">
+                                                <button onClick={() => setFrontRows(frontRows.filter((_, i) => i !== idx))} className="text-gray-500 hover:text-red-400 p-2 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+
+                            {/* Botão de Adicionar Linha Estilizado */}
+                            <button
+                                onClick={() => setFrontRows([...frontRows, { 'NOME COMPLETO': '', 'CPF': '', 'EMAIL': '', 'PRIMEIRO TEXTO': '', 'SEGUNDO TEXTO': '' }])}
+                                className="w-full flex items-center justify-center gap-2 p-4 text-sm font-medium text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 border-t border-dashed border-white/10 transition-colors"
+                            >
+                                <Plus size={16} /> Adicionar Nova Linha
+                            </button>
+                        </div>
+                    )}
+
+                    {activeTab === 'verse' && verseData.headers.length > 0 && (
+                        <div className="flex flex-col">
+                            <table className="w-full text-left border-collapse table-fixed">
+                                <thead className="bg-black/20 text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
+                                    <tr>
+                                        {verseData.headers.map((h, i) => (
+                                            <th key={i} className="px-4 py-5 font-medium border-r border-white/5 last:border-0">{h}</th>
+                                        ))}
+                                        <th className="w-16"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {(verseData.rows as string[][]).map((row, rIdx) => (
+                                        <tr key={rIdx} className="hover:bg-white/[0.02] transition-colors group">
+                                            {verseData.headers.map((_, cIdx) => (
+                                                <td key={cIdx} className="p-2 border-r border-white/5 align-top last:border-0">
+                                                    <textarea value={row[cIdx] || ""} onChange={(e) => updateVerseRow(rIdx, cIdx, e.target.value)} className="w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-emerald-500/50 rounded-lg px-3 py-2 text-xs text-gray-300 h-16 min-h-[64px] outline-none resize-y transition-all custom-scrollbar" />
+                                                </td>
+                                            ))}
+                                            <td className="p-2 text-center align-middle">
+                                                <button
+                                                    onClick={() => {
+                                                        const currentRows = [...verseData.rows] as string[][];
+                                                        setVerseData({ ...verseData, rows: currentRows.filter((_, i) => i !== rIdx) as unknown as [string[]] });
+                                                    }}
+                                                    className="text-gray-500 hover:text-red-400 p-2 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Footer de Ações */}
+            <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-white/10">
+                <button
+                    onClick={onBack}
+                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                >
+                    Cancelar
+                </button>
+                <button
+                    onClick={generateCertificates}
+                    disabled={frontRows.length === 0 || loading}
+                    className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.2)] disabled:opacity-50 disabled:shadow-none disabled:hover:bg-blue-600 transition-all"
+                >
+                    {loading ? (
+                        <>
+                            {/* Assumindo que você tem um LoadingSpinner importado */}
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processando...
+                        </>
+                    ) : (
+                        <>
+                            <Sparkles size={18} /> Criar Certificados
+                        </>
+                    )}
+                </button>
+            </div>
+        </div>
+    );
+};

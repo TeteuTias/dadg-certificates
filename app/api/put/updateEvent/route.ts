@@ -35,7 +35,6 @@ export async function PUT(request: Request) {
                 { status: 404 }
             );
         }
-
         return NextResponse.json({ success: true, data: update });
 
     } catch (error) {
