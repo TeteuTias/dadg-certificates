@@ -1,5 +1,6 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 import { ObjectId } from "bson";
+import { IEventCertificate } from './EventCertificateModel';
 
 export interface IEventParticipant {
     _id: ObjectId;
@@ -8,6 +9,10 @@ export interface IEventParticipant {
     ownerName: string;
     createdAt?: Date;
     updatedAt?: Date;
+}
+
+export interface IEventParticipantWithEventPopulate extends Omit<IEventParticipant, 'eventId'> {
+    eventId: IEventCertificate;
 }
 
 const EventParticipantSchema = new Schema<IEventParticipant>(

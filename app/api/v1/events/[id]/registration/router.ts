@@ -8,17 +8,17 @@ import { auth0 } from '@/lib/auth0';
 
 interface RouteParams {
     params: {
-        eventId: string;
+        id: string;
     };
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
-        const { eventId } = await params;
-        if (!ObjectId.isValid(eventId)) {
+        const { id } = await params;
+        if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
-        const event = await EventCertificateModel.findOne({ _id: eventId, documentVersion: "2.0" }).lean()
+        const event = await EventCertificateModel.findOne({ _id: id, documentVersion: "2.0" }).lean()
         if (!event) {
             return NextResponse.json({ success: false, error: 'Evento não encontrado' }, { status: 404 });
         }
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     session.startTransaction();
 
     try {
-        const { eventId } = await params;
+        const { id } = await params;
 
-        if (!ObjectId.isValid(eventId)) {
+        if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Busca o evento para validar regras de negócio iniciais
         const event = await EventCertificateModel.findOne({
-            _id: eventId,
+            _id: id,
             documentVersion: "2.0"
         }).session(session).lean();
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Verificação de Duplicidade (Substituindo o Toggle)
         const existingParticipant = await EventParticipant.findOne({
-            eventId,
+            id,
             owner: ownerId
         }).session(session);
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         // Incremento de vaga ATÔMICO (Proteção contra Race Condition)
         const updatedEvent = await EventCertificateModel.findOneAndUpdate(
             {
-                _id: eventId,
+                _id: id,
                 isOpen: true,
                 $expr: { $lt: ["$registrationCount", "$maxParticipants"] }
             },
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         // Criação do registro do participante
         await EventParticipant.create(
             [{
-                eventId,
+                id,
                 owner: ownerId,
                 ownerName
             }],
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Confirma tudo no banco
         await session.commitTransaction();
-        
+
         return NextResponse.json({
             success: true,
             message: 'Inscrição realizada com sucesso!',
@@ -143,9 +143,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     try {
         const resolvedParams = await params;
-        const eventId = resolvedParams.eventId;
+        const id = resolvedParams.id;
 
-        if (!ObjectId.isValid(eventId)) {
+        if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
 
@@ -162,7 +162,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
         // Verifica se a inscrição realmente existe para este usuário
         const existingParticipant = await EventParticipant.findOne({
-            eventId,
+            id,
             owner: ownerId
         }).session(session);
 
@@ -177,7 +177,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         // Devolve a vaga para o evento
         // A condição { $gt: 0 } é a sua barreira de segurança contra números negativos
         const updatedEvent = await EventCertificateModel.findOneAndUpdate(
-            { _id: eventId, registrationCount: { $gt: 0 } },
+            { _id: id, registrationCount: { $gt: 0 } },
             { $inc: { registrationCount: -1 } },
             { session, new: true }
         );

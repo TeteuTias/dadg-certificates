@@ -107,15 +107,18 @@ export default class GateKeeper {
     }
     /**
      * Resolve e normaliza a identidade do usuário a partir de múltiplas fontes (Cookie/Bearer).
-     * * @returns {Promise<ApexSession | null>} Objeto de sessão padronizado ou null caso não identificado.
      * * @important Esta função NÃO realiza verificações de autorização ou política de acesso.
      */
     public async identifySession(): Promise<User | null> {
-        // Primeiro, vamos tentar identificar a sessão pelo Bearer.
+        // Verificando se o usuário enviou um Bearer Token (API Clients)
+        // Caso sim, verificamos o token e, se válido, normalizamos o payload para o formato User do Auth0
+        // Caso ele tenha enviado um Token NÃO vamos tentar buscar a sessão de cookie, mesmo que seja uma chamada de navegador
+        // Isso é importante para evitar confusão e garantir que o token seja a fonte de verdade quando fornecido.
         const authHeader = this.request.headers.get("authorization");
         if (authHeader?.startsWith("Bearer ")) {
             const payload = await verifyToken(authHeader);
             if (payload) return this.normalize(payload);
+            return null
         }
         // Tenta identificar via Cookie (Sessão de Navegador)
         // No App Router, getSession pode ser chamado sem o 'req' para usar o contexto global
