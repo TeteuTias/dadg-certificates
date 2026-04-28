@@ -37,6 +37,5 @@ export async function GET(req: NextRequest, {
     }
     const userInscription = await EventParticipant.find({ owner: new mongoose.Types.ObjectId(userId) }).lean()
 
-
     return NextResponse.json({ "data": userInscription })
 }

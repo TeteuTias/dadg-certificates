@@ -257,7 +257,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   // 3. EVENTOS (Events)
   // ========================================================================
   {
-    path: '^/api/v1/events/closedForRegistration/\\d+$',
+    path: '^/api/v1/events/closedForRegistration/[0-9]{4}-[0-9]{2}$', // Dinâmico: "YYYY-MM"
     isPublic: false,
     authType: 'both',
     method: 'GET',
