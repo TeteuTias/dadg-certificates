@@ -25,6 +25,9 @@ import {
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import "./page.css";
+import GetUserCertificateByEventId from "@/lib/models/src/certificatesHandler/get/GetUserCertificateByEventId";
+import { ObjectId } from "bson";
+import { ICertificate } from "@/lib/models/CertificateModel";
 
 type ViewMode = "overview" | "settings";
 type ModalState = IModalProps & { isOpen: boolean };
@@ -887,7 +890,8 @@ function VisualEditor({
     onBack: () => void;
     onSaved: (styles: VisualStyles) => void;
 }) {
-    const [saving, setSaving] = useState(false);
+    const [certificate, setCertificate] = useState<ICertificate | null>(null);
+    const [saving, setSaving] = useState(true);
     const [feedback, setFeedback] = useState("");
     const [liveTopperText, setLiveTopperText] = useState("Certificamos que");
     const [liveBottomText, setLiveBottomText] = useState(
@@ -941,7 +945,13 @@ function VisualEditor({
             setSaving(false);
         }
     };
+    useEffect(() => {
+        GetUserCertificateByEventId(new ObjectId(eventData._id)).then((cert) => {
+            setCertificate(cert);
+            setSaving(false);
+        })
 
+    }, [])
     return (
         <main className="event-editor-page" style={PoppinsFontLib.style}>
             {saving && <LoadingModal />}
@@ -1068,7 +1078,7 @@ function VisualEditor({
                                 >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                        src="https://www.dadg.com.br/api/get/templateProxy/698afa75b745573f14c27605|front?t=1771977431898"
+                                        src={certificate?._id ? `https://www.dadg.com.br/api/get/templateProxy/${certificate._id}|front?t=${Date.now()}` : `https://www.dadg.com.br/api/get/templateProxy/698afa75b745573f14c27605|front?t=${Date.now()}`}
                                         alt="Preview do certificado"
                                         className="event-editor-image"
                                     />
