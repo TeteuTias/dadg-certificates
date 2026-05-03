@@ -36,7 +36,6 @@ type EventFormState = {
     documentVersion: string;
     maxParticipants: number | "";
     registrationCount: number | "";
-    isOpen: boolean;
     isPaid: boolean;
     price: number | "";
     templatePath: string;
@@ -48,6 +47,7 @@ type EventFormState = {
     styleNameText: string;
     useStatementFormat: boolean;
 };
+
 
 type FieldName = keyof EventFormState;
 type DirtyFields = Record<FieldName, boolean>;
@@ -61,18 +61,17 @@ const createEmptyFormState = (): EventFormState => ({
     eventDescription: "",
     eventType: "",
     documentVersion: "",
-    maxParticipants: "",
-    registrationCount: "",
-    isOpen: true,
+    maxParticipants: 0,
+    registrationCount: 0,
     isPaid: false,
-    price: "",
+    price: 0,
     templatePath: "",
     templateVersePath: "",
-    styleContainer: "{}",
-    styleContainerVerse: "{}",
-    styleFrontTopperText: "{}",
-    styleFrontBottomText: "{}",
-    styleNameText: "{}",
+    styleContainer: "",
+    styleContainerVerse: "",
+    styleFrontTopperText: "",
+    styleFrontBottomText: "",
+    styleNameText: "",
     useStatementFormat: false,
 });
 
@@ -83,7 +82,6 @@ const createDirtyFields = (): DirtyFields => ({
     documentVersion: false,
     maxParticipants: false,
     registrationCount: false,
-    isOpen: false,
     isPaid: false,
     price: false,
     templatePath: false,
@@ -103,8 +101,6 @@ const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     documentVersion: eventData.documentVersion || "",
     maxParticipants: eventData.maxParticipants || 0,
     registrationCount: eventData.registrationCount || 0,
-    isOpen: eventData.isOpen ?? true,
-    isPaid: eventData.isPaid ?? false,
     price: eventData.isPaid ? eventData.price : 0,
     templatePath: eventData.templatePath || "",
     templateVersePath: eventData.templateVersePath || "",
@@ -113,7 +109,8 @@ const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     styleFrontTopperText: JSON.stringify(eventData.styleFrontTopperText || {}, null, 2),
     styleFrontBottomText: JSON.stringify(eventData.styleFrontBottomText || {}, null, 2),
     styleNameText: JSON.stringify(eventData.styleNameText || {}, null, 2),
-    useStatementFormat: (JSON.stringify(eventData.useStatementFormat) === "true" ? true : false) || false
+    useStatementFormat: (JSON.stringify(eventData.useStatementFormat) === "true" ? true : false) || false,
+    isPaid: false
 });
 
 export default function Page({ params }: { params: Promise<{ _id: string }> }) {
@@ -184,11 +181,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                 icon: <Users size={18} />,
                 label: "Participantes",
                 value: `${eventData.registrationCount || 0}/${eventData.maxParticipants || 0}`,
-            },
-            {
-                icon: <CalendarDays size={18} />,
-                label: "Inscricoes",
-                value: eventData.isOpen ? "Abertas" : "Fechadas",
             },
             {
                 icon: <CircleDollarSign size={18} />,
@@ -579,16 +571,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                 </div>
 
                                 <div className="event-toggle-row">
-                                    <ToggleField
-                                        label="Inscricoes"
-                                        description="Define se novos usuarios ainda podem entrar no evento."
-                                        active={formData.isOpen}
-                                        dirty={dirtyFields.isOpen}
-                                        trueLabel="Abertas"
-                                        falseLabel="Fechadas"
-                                        onChange={(value) => updateFieldValue("isOpen", value)}
-                                        onSave={() => saveField("isOpen")}
-                                    />
                                     <ToggleField
                                         label="Pagamento"
                                         description="Alterne entre gratuito e pago preservando o resto da configuracao."
