@@ -948,6 +948,10 @@ function VisualEditor({
     useEffect(() => {
         GetUserCertificateByEventId(new ObjectId(eventData._id)).then((cert) => {
             setCertificate(cert);
+            if (cert) {
+                setLiveTopperText(cert.frontTopperText ?? "Certificamos que");
+                setLiveBottomText(cert.frontBottomText ?? "participou com exito do evento organizado pela DADG,\ndemonstrando excelente aproveitamento nas atividades propostas.");
+            }
             setSaving(false);
         })
 
@@ -1089,7 +1093,7 @@ function VisualEditor({
                                                 {liveTopperText}
                                             </p>
                                             <p style={{ ...libSourceSerif4.style, ...styles.styleNameText }}>
-                                                Nicolly Gozaga
+                                                `{certificate?._id ? certificate.ownerName : "Nome do participante"}`
                                             </p>
                                             <p className="event-editor-code">
                                                 Codigo de verificacao: {String(eventData._id)}
