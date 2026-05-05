@@ -1,13 +1,13 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { ObjectId } from 'mongodb';
+import { ObjectId } from 'bson';
 import React from 'react';
 
 // Definição das opções de pagamento (TypeScript)
 type PaymentOptions =
     | { isPaid: false; price?: never }
     | { isPaid: true; price: number };
-// 
-type EventStatusConfig =
+
+export type EventStatusConfig =
     | {
         status: 'DRAFT';
         timeLine?: TimelineItem[];
@@ -34,12 +34,14 @@ type EventStatusConfig =
         registrationStartDate?: Date;
         registrationEndDate?: Date;
     };
-//
-type TimelineItem = {
+
+export type TimelineItem = {
+    id: ObjectId;
     startDate: Date;
     endDate: Date;
     description: string;
 };
+
 // Tipo principal do documento do usuário
 export type IEventCertificate = {
     _id: ObjectId;
@@ -62,7 +64,8 @@ export type IEventCertificate = {
     documentVersion: string;
     maxParticipants: number;
     useStatementFormat: boolean;
-} & PaymentOptions & EventStatusConfig;
+    statusDetails: EventStatusConfig;
+} & PaymentOptions;
 
 // Definição do schema do Mongoose
 const TimelineItemSchema = new Schema(
@@ -73,7 +76,6 @@ const TimelineItemSchema = new Schema(
     },
     { _id: false } // Opcional: evita gerar um ObjectId inútil para cada passo da timeline
 );
-// Assumindo que TimelineItemSchema já está definido acima no seu arquivo
 
 const EventCertificateSchema = new Schema<IEventCertificate>(
     {
@@ -106,53 +108,54 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
         },
         useStatementFormat: { type: Boolean, default: false },
 
-        // --- Nova Lógica de Status e Timeline ---
-        status: {
-            type: String,
-            enum: ['DRAFT', 'PUBLISHED_OPEN', 'PUBLISHED_CLOSED', 'CERTIFICATE_ONLY'],
-            required: true,
-            default: 'DRAFT'
-        },
-        registrationStartDate: {
-            type: Date,
-            required: function (this: any) {
-                // Obrigatório se o admin disser que está aberto
-                return this.status === 'PUBLISHED_OPEN';
-            }
-        },
-        registrationEndDate: {
-            type: Date,
-            required: function (this: any) {
-                return this.status === 'PUBLISHED_OPEN';
+        // --- Lógica de Status e Timeline Aninhada em statusDetails ---
+        statusDetails: {
+            status: {
+                type: String,
+                enum: ['DRAFT', 'PUBLISHED_OPEN', 'PUBLISHED_CLOSED', 'CERTIFICATE_ONLY'],
+                required: true,
             },
-            validate: {
-                validator: function (this: any, val: Date) {
-                    if (this.status === 'PUBLISHED_OPEN' && this.registrationStartDate) {
-                        return val > this.registrationStartDate;
-                    }
-                    return true;
+            registrationStartDate: {
+                type: Date,
+                required: function (this: any) {
+                    // Obrigatório se o admin disser que está aberto
+                    return this.statusDetails?.status === 'PUBLISHED_OPEN';
+                }
+            },
+            registrationEndDate: {
+                type: Date,
+                required: function (this: any) {
+                    return this.statusDetails?.status === 'PUBLISHED_OPEN';
                 },
-                message: 'A data de fim das inscrições deve ser posterior à data de início.',
-            }
-        },
-        timeLine: {
-            type: [TimelineItemSchema],
-            default: undefined,
-            required: function (this: any) {
-                // A timeline é obrigatória para qualquer status que não seja rascunho
-                return this.status !== 'DRAFT';
+                validate: {
+                    validator: function (this: any, val: Date) {
+                        if (this.statusDetails?.status === 'PUBLISHED_OPEN' && this.statusDetails?.registrationStartDate) {
+                            return val > this.statusDetails.registrationStartDate;
+                        }
+                        return true;
+                    },
+                    message: 'A data de fim das inscrições deve ser posterior à data de início.',
+                }
             },
-            validate: {
-                validator: function (this: any, val: any[]) {
-                    // Validação extra: se não for DRAFT, o array não pode estar vazio
-                    if (this.status !== 'DRAFT') {
-                        return Array.isArray(val) && val.length > 0;
-                    }
-                    return true; // Se for DRAFT, passa (pode ser omitido)
+            timeLine: {
+                type: [TimelineItemSchema],
+                default: undefined,
+                required: function (this: any) {
+                    // A timeline é obrigatória para qualquer status que não seja rascunho
+                    return this.statusDetails?.status !== 'DRAFT';
                 },
-                message: 'A timeLine deve conter pelo menos um evento se o evento estiver publicado ou emitindo certificados.',
+                validate: {
+                    validator: function (this: any, val: any[]) {
+                        // Validação extra: se não for DRAFT, o array não pode estar vazio
+                        if (this.statusDetails?.status !== 'DRAFT') {
+                            return Array.isArray(val) && val.length > 0;
+                        }
+                        return true; // Se for DRAFT, passa (pode ser omitido)
+                    },
+                    message: 'A timeLine deve conter pelo menos um evento se o evento estiver publicado ou emitindo certificados.',
+                },
             },
-        },
+        }
     },
     { timestamps: true, collection: "certificates.events" },
 );

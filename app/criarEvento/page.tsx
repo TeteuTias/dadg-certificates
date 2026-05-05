@@ -1,19 +1,37 @@
 "use client";
 
+import { ObjectId } from "bson";
 import ModalAction, { IModalProps } from "@/components/ModalAction";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
+import { IEventCertificate } from "@/lib/models/EventCertificateModel";
+import { TimelineItem, } from "@/lib/models/EventCertificateModel";
 import {
+    AlertCircle,
     CalendarDays,
+    CheckCircle2,
     CircleDollarSign,
     FileImage,
+    Form,
+    Plus,
     ShieldCheck,
     Sparkles,
+    Trash2,
     Users,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "./page.css";
 
 type ModalState = IModalProps & { isOpen: boolean };
+type EventStatusManagerProps = {
+    status: string;
+    setStatus: (val: string) => void;
+    registrationStartDate: string;
+    setRegistrationStartDate: (val: string) => void;
+    registrationEndDate: string;
+    setRegistrationEndDate: (val: string) => void;
+    timeLine: TimelineItem[];
+    setTimeLine: (val: TimelineItem[]) => void;
+}
 
 export default function Page() {
     return (
@@ -52,6 +70,10 @@ export default function Page() {
 }
 
 const CreateEventCertificateForm: React.FC = () => {
+    const [status, setStatus] = useState<string>("DRAFT");
+    const [registrationStartDate, setRegistrationStartDate] = useState<string>("");
+    const [registrationEndDate, setRegistrationEndDate] = useState<string>("");
+    const [timeLine, setTimeLine] = useState<TimelineItem[]>([]);
     const [eventName, setEventName] = useState("");
     const [eventDescription, setEventDescription] = useState("");
     const [templatePath, setTemplatePath] = useState("template04.png");
@@ -104,9 +126,11 @@ const CreateEventCertificateForm: React.FC = () => {
             formData.append("templateVersePath", templateVersePath);
             formData.append("eventType", eventType);
             formData.append("maxParticipants", maxParticipants.toString());
-            formData.append("isOpen", isOpen.toString());
             formData.append("isPaid", isPaid.toString());
-
+            formData.append("status", status);
+            formData.append("registrationStartDate", registrationStartDate);
+            formData.append("registrationEndDate", registrationEndDate);
+            formData.append("timeLine", JSON.stringify(timeLine));
             if (isPaid && price !== "") {
                 formData.append("price", price.toString());
             }
@@ -212,7 +236,22 @@ const CreateEventCertificateForm: React.FC = () => {
                             placeholder="Explique rapidamente o objetivo do evento e o que o participante vai receber."
                         />
                     </FormSection>
-
+                    <FormSection
+                        icon={<Sparkles size={18} />}
+                        title="NÃO SEI UM TITULO BOM"
+                        description="NÃO SEI UMA DESCRICAO BOA."
+                    >
+                        <EventStatusManager
+                            status={status}
+                            setStatus={setStatus}
+                            registrationStartDate={registrationStartDate}
+                            setRegistrationStartDate={setRegistrationStartDate}
+                            registrationEndDate={registrationEndDate}
+                            setRegistrationEndDate={setRegistrationEndDate}
+                            timeLine={timeLine}
+                            setTimeLine={setTimeLine}
+                        />
+                    </FormSection>
                     <FormSection
                         icon={<Users size={18} />}
                         title="Regras e disponibilidade"
@@ -232,13 +271,7 @@ const CreateEventCertificateForm: React.FC = () => {
                         </div>
 
                         <div className="create-event-toggle-grid">
-                            <ToggleCard
-                                id="isOpen"
-                                checked={isOpen}
-                                onChange={(checked) => setIsOpen(checked)}
-                                title="Inscricoes abertas"
-                                description="Permite novas inscricoes assim que o evento for salvo."
-                            />
+
 
                             <ToggleCard
                                 id="isPaid"
@@ -373,39 +406,39 @@ const FieldGroup: React.FC<{
     min,
     step,
 }) => {
-    return (
-        <div className="create-event-field">
-            <label htmlFor={id} className="create-event-label">
-                {label}
-            </label>
+        return (
+            <div className="create-event-field">
+                <label htmlFor={id} className="create-event-label">
+                    {label}
+                </label>
 
-            {textarea ? (
-                <textarea
-                    id={id}
-                    required={required}
-                    className="glass-input create-event-input create-event-textarea"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder={placeholder}
-                />
-            ) : (
-                <input
-                    id={id}
-                    required={required}
-                    className="glass-input create-event-input"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    type={type}
-                    min={min}
-                    step={step}
-                />
-            )}
+                {textarea ? (
+                    <textarea
+                        id={id}
+                        required={required}
+                        className="glass-input create-event-input create-event-textarea"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                    />
+                ) : (
+                    <input
+                        id={id}
+                        required={required}
+                        className="glass-input create-event-input"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        type={type}
+                        min={min}
+                        step={step}
+                    />
+                )}
 
-            {hint && <span className="create-event-hint">{hint}</span>}
-        </div>
-    );
-};
+                {hint && <span className="create-event-hint">{hint}</span>}
+            </div>
+        );
+    };
 
 const ToggleCard: React.FC<{
     id: string;
@@ -435,3 +468,270 @@ const ToggleCard: React.FC<{
         </label>
     );
 };
+//
+//
+function EventStatusManager({
+    status,
+    setStatus,
+    registrationStartDate,
+    setRegistrationStartDate,
+    registrationEndDate,
+    setRegistrationEndDate,
+    timeLine,
+    setTimeLine,
+}: EventStatusManagerProps) {
+    const [timelineError, setTimelineError] = useState<string | null>(null);
+
+    const isPublishedOpen = status === 'PUBLISHED_OPEN';
+    const isDraft = status === 'DRAFT';
+
+    // 1. Lógica de Validação e Cruzamento de Horários
+    const validateTimeline = useCallback((currentTimeline: TimelineItem[]) => {
+        let error = null;
+
+        for (let i = 0; i < currentTimeline.length; i++) {
+            const item = currentTimeline[i];
+            if (!item.startDate || !item.endDate) continue;
+
+            const start = new Date(item.startDate).getTime();
+            const end = new Date(item.endDate).getTime();
+
+            // Evita que datas inválidas quebrem a validação
+            if (isNaN(start) || isNaN(end)) continue;
+
+            // 1. Checa coerência interna: Fim deve ser depois do Início
+            // (Independente se é no passado ou no futuro em relação a hoje)
+            if (end <= start) {
+                error = "A data de fim deve ser posterior à data de início em todas as etapas.";
+                break;
+            }
+
+            // 2. Checa cruzamento com os outros itens da timeline
+            for (let j = i + 1; j < currentTimeline.length; j++) {
+                const otherItem = currentTimeline[j];
+                if (!otherItem.startDate || !otherItem.endDate) continue;
+
+                const otherStart = new Date(otherItem.startDate).getTime();
+                const otherEnd = new Date(otherItem.endDate).getTime();
+
+                if (isNaN(otherStart) || isNaN(otherEnd)) continue;
+
+                // Lógica de intersecção de datas: Se sobrepuser, dá erro.
+                if (start < otherEnd && end > otherStart) {
+                    error = "Existem horários conflitantes na timeline. Uma etapa não pode cruzar com a outra.";
+                    break; // Quebra o loop interno
+                }
+            }
+
+            if (error) break; // Quebra o loop externo se já achou um erro
+        }
+
+        setTimelineError(error);
+    }, []);
+
+    // Roda a validação sempre que a timeline muda
+    useEffect(() => {
+        validateTimeline(timeLine);
+    }, [timeLine, validateTimeline]);
+
+    // 2. Manipulação da Timeline
+    const sortTimeline = (items: TimelineItem[]) => {
+        return [...items].sort((a, b) => {
+            if (!a.startDate) return 1;
+            if (!b.startDate) return -1;
+            return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        });
+    };
+
+    const addTimelineItem = () => {
+        // 1. Pega a data de agora
+        const now = new Date();
+
+        // 2. Ajusta para o fuso horário local do computador do usuário
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+        // O slice(0, 16) corta os segundos e milissegundos, deixando no formato YYYY-MM-DDTHH:mm
+
+        // 3. Cria o item com a data de agora (para início e fim)
+        const newItem = {
+            id: new ObjectId(),
+            startDate: localISOTime,
+            endDate: localISOTime,
+            description: ''
+        };
+
+        setTimeLine([...timeLine, newItem]);
+    };
+
+    const updateTimelineItem = (id: string, field: keyof TimelineItem, value: string) => {
+        const newTimeLine = timeLine.map(item =>
+            `${item.id}` === id ? { ...item, [field]: value } : item
+        );
+        setTimeLine(newTimeLine);
+    };
+
+    const removeTimelineItem = (id: string) => {
+        setTimeLine(timeLine.filter(item => `${item.id}` !== id));
+    };
+
+    // Ordena ao perder o foco do campo de data (onBlur), evitando que o input pule enquanto o usuário digita
+    const handleSortOnBlur = () => {
+        if (!timelineError) {
+            setTimeLine(sortTimeline(timeLine));
+        }
+    };
+
+    // 3. Componentes Visuais Auxiliares
+    const RequiredBadge = () => (
+        <span style={{ fontSize: '0.75rem', color: '#ef4444', backgroundColor: '#fef2f2', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 'bold' }}>
+            Obrigatório
+        </span>
+    );
+
+    const OptionalBadge = () => (
+        <span style={{ fontSize: '0.75rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px' }}>
+            Opcional
+        </span>
+    );
+
+    return (
+        <div className="event-status-manager" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* STATUS DO EVENTO */}
+            <div className="create-event-grid">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontWeight: 600 }}>Status do Evento <RequiredBadge /></label>
+                    <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="glass-input" // Ajuste para a sua classe CSS de inputs
+                        style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                    >
+                        <option value="DRAFT">Rascunho (Oculto)</option>
+                        <option value="PUBLISHED_OPEN">Publicado (Inscrições Abertas)</option>
+                        <option value="PUBLISHED_CLOSED">Publicado (Inscrições Fechadas / Em Breve)</option>
+                        <option value="CERTIFICATE_ONLY">Apenas Emissão de Certificados</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* DATAS DE INSCRIÇÃO */}
+            <div className="create-event-grid glass-card" style={{ padding: '1.5rem', border: isPublishedOpen ? '1px solid #3b82f6' : '1px solid transparent' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontWeight: 600 }}>
+                        Início das Inscrições {isPublishedOpen ? <RequiredBadge /> : <OptionalBadge />}
+                    </label>
+                    <input
+                        type="datetime-local"
+                        value={registrationStartDate}
+                        onChange={(e) => setRegistrationStartDate(e.target.value)}
+                        required={isPublishedOpen}
+                        className="glass-input"
+                    />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontWeight: 600 }}>
+                        Fim das Inscrições {isPublishedOpen ? <RequiredBadge /> : <OptionalBadge />}
+                    </label>
+                    <input
+                        type="datetime-local"
+                        value={registrationEndDate}
+                        onChange={(e) => setRegistrationEndDate(e.target.value)}
+                        required={isPublishedOpen}
+                        className="glass-input"
+                    />
+                </div>
+            </div>
+
+            {/* TIMELINE */}
+            <div className="timeline-section glass-card" style={{ padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                    <div>
+                        <h4 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                            Cronograma do Evento {!isDraft ? <RequiredBadge /> : <OptionalBadge />}
+                        </h4>
+                        <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            As etapas são organizadas automaticamente da mais antiga para a mais recente.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={addTimelineItem}
+                        className="glass-button glass-button-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                        <Plus size={16} /> Adicionar Etapa
+                    </button>
+                </div>
+
+                {/* Alerta de Erro de Horário */}
+                {timelineError && (
+                    <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertCircle size={20} />
+                        <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{timelineError}</span>
+                    </div>
+                )}
+
+                <div className="timeline-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {timeLine.map((item, index) => (
+                        <div key={`${item.id}`} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '1rem', backgroundColor: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Data de Início</label>
+                                <input
+                                    type="datetime-local"
+                                    value={item.startDate}
+                                    onChange={(e) => updateTimelineItem(`${item.id}`, 'startDate', e.target.value)}
+                                    onBlur={handleSortOnBlur}
+                                    required={!isDraft}
+                                    className="glass-input"
+                                />
+                            </div>
+                            <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Data de Fim</label>
+                                <input
+                                    type="datetime-local"
+                                    value={item.endDate}
+                                    onChange={(e) => updateTimelineItem(`${item.id}`, 'endDate', e.target.value)}
+                                    onBlur={handleSortOnBlur}
+                                    required={!isDraft}
+                                    className="glass-input"
+                                />
+                            </div>
+                            <div style={{ flex: '2 1 300px', display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Descrição da Etapa</label>
+                                    <input
+                                        type="text"
+                                        value={item.description}
+                                        onChange={(e) => updateTimelineItem(`${item.id}`, 'description', e.target.value)}
+                                        required={!isDraft}
+                                        placeholder="Ex: Palestra de Abertura"
+                                        className="glass-input"
+                                        style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => removeTimelineItem(`${item.id}`)}
+                                    className="glass-button"
+                                    style={{ color: '#ef4444', borderColor: '#ef4444', padding: '0.75rem' }}
+                                    title="Remover etapa"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+
+                    {timeLine.length === 0 && (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            <CheckCircle2 size={32} style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                            <p>Nenhuma etapa adicionada ao cronograma.</p>
+                            {!isDraft && <p style={{ color: '#ef4444', fontSize: '0.875rem' }}>Você precisa adicionar pelo menos uma etapa para o status atual.</p>}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
