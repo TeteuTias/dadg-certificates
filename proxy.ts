@@ -23,6 +23,7 @@ export async function proxy(request: NextRequest) {
   const access = await keeper.validate();
   // Negado
   if (!access.authorized) {
+    console.log(`Acesso negado para ${request.nextUrl.pathname} ${access.message}`);
     // Se for uma chamada de API, devolvemos JSON (401 ou 403)
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json(

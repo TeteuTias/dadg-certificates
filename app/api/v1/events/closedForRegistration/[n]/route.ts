@@ -3,6 +3,12 @@ import { connectToDatabase } from "@/lib/mongodb";
 import EventCertificateModel from "@/lib/models/EventCertificateModel";
 
 export const dynamic = "force-dynamic";
+/**
+ * 
+ * @abstract Rota criada para o usuário. Ela retorna os eventos que estão fechados para inscrição, filtrando por mês e ano. O formato do parâmetro é "AAAA-MM" (ex: "2026-04"). A resposta inclui os eventos do mês especificado, ordenados do mais antigo para o mais recente
+ * @abstract Para isso, ela filtra os eventos por: "PUBLISHED_CLOSED".
+ * @returns Ela retorna os eventos que estão fechados para inscrição, filtrando por mês e ano. O formato do parâmetro é "AAAA-MM" (ex: "2026-04"). A resposta inclui os eventos do mês especificado, ordenados do mais antigo para o mais recente.
+ */
 export async function GET(
   req: NextRequest,
   {
@@ -30,24 +36,24 @@ export async function GET(
   const month = parseInt(monthStr, 10);
 
   // Data inicial: Dia 1º do mês (às 00:00:00)
-  const startDate = new Date(year, month - 1, 1);
-  // Data final: Dia 1º do próximo mês (exclusivo)
-  const endDate = new Date(year, month, 1);
+  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
 
-  // 3. Montando a Query
-  // Nota: Mantenha a versão com $regex se o seu createdAt no banco for do tipo String
+  // Data final: primeiro milissegundo do próximo mês
+  const endDate = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+
+  // 2. Montando a Query
   const query = {
-    isOpen: false,
-    createdAt: {
-      $gte: startDate,
-      $lt: endDate,
+    "statusDetails.status": { $in: ["PUBLISHED_CLOSED"] },
+    "statusDetails.registrationStartDate": {
+      $gte: startDate, // Maior ou igual ao início do mês
+      $lt: endDate,    // Menor que o início do próximo mês
     },
   };
 
   // 4. Busca direta trazendo TODOS os eventos do mês
   const events = await EventCertificateModel.find(query)
     .sort({ createdAt: 1 }); // Ordena do mais antigo para o mais novo dentro do mês
-
+  console.log(`Eventos encontrados para ${n}:`, events.length);
   // Retorna tudo de uma vez
   return NextResponse.json({
     data: events,
