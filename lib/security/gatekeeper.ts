@@ -106,8 +106,8 @@ export default class GateKeeper {
         return normalUser
     }
     /**
-     * Resolve e normaliza a identidade do usuário a partir de múltiplas fontes (Cookie/Bearer).
-     * * @important Esta função NÃO realiza verificações de autorização ou política de acesso.
+     * @description Resolve e normaliza a identidade do usuário a partir de múltiplas fontes (Cookie/Bearer).
+     * @important Esta função NÃO realiza verificações de autorização ou política de acesso.
      */
     public async identifySession(): Promise<User | null> {
         // Verificando se o usuário enviou um Bearer Token (API Clients)

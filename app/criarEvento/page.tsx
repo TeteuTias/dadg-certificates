@@ -1,10 +1,8 @@
 "use client";
 
-import { ObjectId } from "bson";
 import ModalAction, { IModalProps } from "@/components/ModalAction";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
-import { IEventCertificate } from "@/lib/models/EventCertificateModel";
-import { TimelineItem, } from "@/lib/models/EventCertificateModel";
+import { EventStatusConfig, TimelineItem } from "@/lib/models/EventCertificateModel";
 import {
     AlertCircle,
     CalendarDays,
@@ -19,19 +17,20 @@ import {
     Users,
 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { ObjectId } from "bson";
 import "./page.css";
 
 type ModalState = IModalProps & { isOpen: boolean };
 type EventStatusManagerProps = {
-    status: string;
-    setStatus: (val: string) => void;
+    status: EventStatusConfig["status"];
+    setStatus: (val: EventStatusConfig["status"]) => void;
     registrationStartDate: string;
     setRegistrationStartDate: (val: string) => void;
     registrationEndDate: string;
     setRegistrationEndDate: (val: string) => void;
     timeLine: TimelineItem[];
     setTimeLine: (val: TimelineItem[]) => void;
-}
+};
 
 export default function Page() {
     return (
@@ -70,7 +69,7 @@ export default function Page() {
 }
 
 const CreateEventCertificateForm: React.FC = () => {
-    const [status, setStatus] = useState<string>("DRAFT");
+    const [status, setStatus] = useState<EventStatusConfig["status"]>("DRAFT");
     const [registrationStartDate, setRegistrationStartDate] = useState<string>("");
     const [registrationEndDate, setRegistrationEndDate] = useState<string>("");
     const [timeLine, setTimeLine] = useState<TimelineItem[]>([]);
@@ -80,7 +79,6 @@ const CreateEventCertificateForm: React.FC = () => {
     const [templateVersePath, setTemplateVersePath] = useState("");
     const [eventType, setEventType] = useState("");
     const [maxParticipants, setMaxParticipants] = useState<number | "">("");
-    const [isOpen, setIsOpen] = useState(true);
     const [isPaid, setIsPaid] = useState(false);
     const [price, setPrice] = useState<number | "">("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,7 +109,6 @@ const CreateEventCertificateForm: React.FC = () => {
         setTemplateVersePath("");
         setPrice("");
         setIsPaid(false);
-        setIsOpen(true);
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -238,8 +235,8 @@ const CreateEventCertificateForm: React.FC = () => {
                     </FormSection>
                     <FormSection
                         icon={<Sparkles size={18} />}
-                        title="NÃO SEI UM TITULO BOM"
-                        description="NÃO SEI UMA DESCRICAO BOA."
+                        title="Status e cronograma"
+                        description="Defina quando as inscrições abrem e fecham, além da linha do tempo do evento."
                     >
                         <EventStatusManager
                             status={status}
@@ -553,10 +550,10 @@ function EventStatusManager({
         // O slice(0, 16) corta os segundos e milissegundos, deixando no formato YYYY-MM-DDTHH:mm
 
         // 3. Cria o item com a data de agora (para início e fim)
-        const newItem = {
+        const newItem: TimelineItem = {
             id: new ObjectId(),
-            startDate: localISOTime,
-            endDate: localISOTime,
+            startDate: new Date(localISOTime),
+            endDate: new Date(localISOTime),
             description: ''
         };
 
@@ -564,8 +561,9 @@ function EventStatusManager({
     };
 
     const updateTimelineItem = (id: string, field: keyof TimelineItem, value: string) => {
+        const nextValue = field === 'startDate' || field === 'endDate' ? new Date(value) : value;
         const newTimeLine = timeLine.map(item =>
-            `${item.id}` === id ? { ...item, [field]: value } : item
+            `${item.id}` === id ? { ...item, [field]: nextValue } : item
         );
         setTimeLine(newTimeLine);
     };
@@ -603,7 +601,7 @@ function EventStatusManager({
                     <label style={{ fontWeight: 600 }}>Status do Evento <RequiredBadge /></label>
                     <select
                         value={status}
-                        onChange={(e) => setStatus(e.target.value)}
+                        onChange={(e) => setStatus(e.target.value as EventStatusConfig["status"])}
                         className="glass-input" // Ajuste para a sua classe CSS de inputs
                         style={{ padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}
                     >
@@ -679,7 +677,7 @@ function EventStatusManager({
                                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Data de Início</label>
                                 <input
                                     type="datetime-local"
-                                    value={item.startDate}
+                                    value={item.startDate.toISOString().slice(0, 16)}
                                     onChange={(e) => updateTimelineItem(`${item.id}`, 'startDate', e.target.value)}
                                     onBlur={handleSortOnBlur}
                                     required={!isDraft}
@@ -690,7 +688,7 @@ function EventStatusManager({
                                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>Data de Fim</label>
                                 <input
                                     type="datetime-local"
-                                    value={item.endDate}
+                                    value={item.endDate.toISOString().slice(0, 16)}
                                     onChange={(e) => updateTimelineItem(`${item.id}`, 'endDate', e.target.value)}
                                     onBlur={handleSortOnBlur}
                                     required={!isDraft}

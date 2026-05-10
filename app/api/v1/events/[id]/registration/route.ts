@@ -1,37 +1,52 @@
 import mongoose from 'mongoose';
 import EventCertificateModel from '@/lib/models/EventCertificateModel';
 import { NextRequest, NextResponse } from 'next/server';
-import { ObjectId } from "bson"
+import { ObjectId } from 'bson';
 import EventParticipant from '@/lib/models/EventParticipant';
 import { auth0 } from '@/lib/auth0';
+import GateKeeper from '@/lib/security/gatekeeper';
+import { connectToDatabase } from '@/lib/mongodb';
 
 
 interface RouteParams {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
-
+/**
+ * 
+ * @description Retorna o evento que o usuário está inscrito, baseado no ID. Se ele não tiver inscrito, não é retornado.
+ * @returns 
+ */
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
+        console.log("Buscando participantes para o evento ID:", id);
         if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
-        const event = await EventCertificateModel.findOne({ _id: id, documentVersion: "2.0" }).lean()
+        //
+        //
+        // Não verifica se está autenticado, isso foi feito no proxy!
+        const keeper = new GateKeeper(request)
+        const user = await keeper.identifySession()
+        if (!user) {
+            return NextResponse.json({ success: false, message: 'Usuário não encontrado/autenticado' }, { status: 401 });
+        }
+        await connectToDatabase();
+        const event = await EventParticipant.findOne({ eventId: id, owner: user.sub.replace("auth0|", "") }).populate("eventId").lean()
         if (!event) {
             return NextResponse.json({ success: false, error: 'Evento não encontrado' }, { status: 404 });
         }
         return NextResponse.json({ data: event }, { status: 200 });
 
     } catch (error) {
-        return NextResponse.json({ success: false, error: 'Erro ao buscar participantes' }, { status: 500 });
+        return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
     const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
         const { id } = await params;
@@ -40,40 +55,52 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
 
-        // Autenticação
-        const sessionAuth = await auth0.getSession(request);
-        if (!sessionAuth || !sessionAuth.user) {
+        const keeper = new GateKeeper(request);
+        const user = await keeper.identifySession();
+        if (!user?.sub) {
             return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
         }
 
-        const user = sessionAuth.user;
-        const ownerId = new ObjectId(user.sub.split('|')[1]);
-        const ownerName = user.name;
-
-        if (!ownerId || !ownerName) {
-            return NextResponse.json({ success: false, error: 'Dados do participante incompletos no perfil' }, { status: 400 });
+        const ownerIdValue = user.sub.includes('|') ? user.sub.split('|')[1] : user.sub;
+        if (!ownerIdValue || !ObjectId.isValid(ownerIdValue)) {
+            return NextResponse.json({ success: false, error: 'Identidade do usuário inválida' }, { status: 403 });
         }
 
-        // Busca o evento para validar regras de negócio iniciais
+        const ownerName = user.name?.trim();
+        if (!ownerName) {
+            return NextResponse.json({ success: false, error: 'Nome do usuário não encontrado' }, { status: 400 });
+        }
+
+        const ownerId = new ObjectId(ownerIdValue);
+        const eventId = new ObjectId(id);
+
+        await connectToDatabase();
+        session.startTransaction();
+
         const event = await EventCertificateModel.findOne({
-            _id: id,
-            documentVersion: "2.0"
-        }).session(session).lean();
+            _id: eventId,
+            'statusDetails.status': 'PUBLISHED_OPEN',
+        })
+            .session(session)
+            .lean();
 
         if (!event) {
             await session.abortTransaction();
-            return NextResponse.json({ success: false, error: 'Evento não encontrado' }, { status: 404 });
+            return NextResponse.json({ success: false, error: 'Evento não encontrado ou inscrições fechadas' }, { status: 404 });
         }
 
-        if (!event.isOpen) {
+        const now = new Date();
+        const startDate = event.statusDetails.registrationStartDate ? new Date(event.statusDetails.registrationStartDate) : null;
+        const endDate = event.statusDetails.registrationEndDate ? new Date(event.statusDetails.registrationEndDate) : null;
+
+        if ((startDate && now < startDate) || (endDate && now > endDate)) {
             await session.abortTransaction();
-            return NextResponse.json({ success: false, error: 'Evento fechado para novas inscrições' }, { status: 403 });
+            return NextResponse.json({ success: false, error: 'Fora do período de inscrições' }, { status: 403 });
         }
 
-        // Verificação de Duplicidade (Substituindo o Toggle)
         const existingParticipant = await EventParticipant.findOne({
-            id,
-            owner: ownerId
+            eventId,
+            owner: ownerId,
         }).session(session);
 
         if (existingParticipant) {
@@ -81,59 +108,52 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Você já está inscrito neste evento.' }, { status: 409 });
         }
 
-        // Verificação de Vagas Disponíveis
-        if (event.registrationCount >= event.maxParticipants) {
-            await session.abortTransaction();
-            return NextResponse.json({ success: false, error: 'Limite de participantes atingido' }, { status: 403 });
-        }
-
-        // Incremento de vaga ATÔMICO (Proteção contra Race Condition)
         const updatedEvent = await EventCertificateModel.findOneAndUpdate(
             {
-                _id: id,
-                isOpen: true,
-                $expr: { $lt: ["$registrationCount", "$maxParticipants"] }
+                _id: eventId,
+                'statusDetails.status': 'PUBLISHED_OPEN',
+                $expr: { $lt: ['$registrationCount', '$maxParticipants'] },
             },
             { $inc: { registrationCount: 1 } },
             { session, new: true, runValidators: true }
-        );
+        ).lean();
 
         if (!updatedEvent) {
             await session.abortTransaction();
-            return NextResponse.json(
-                { success: false, error: "Inscrições encerradas ou sem vagas disponíveis no momento." },
-                { status: 422 }
-            );
+            return NextResponse.json({ success: false, error: 'Evento lotado ou inscrições indisponíveis no momento.' }, { status: 409 });
         }
 
-        // Criação do registro do participante
         await EventParticipant.create(
-            [{
-                id,
-                owner: ownerId,
-                ownerName
-            }],
+            [
+                {
+                    eventId,
+                    owner: ownerId,
+                    ownerName,
+                },
+            ],
             { session }
         );
 
-        // Confirma tudo no banco
         await session.commitTransaction();
 
-        return NextResponse.json({
-            success: true,
-            message: 'Inscrição realizada com sucesso!',
-            data: updatedEvent
-        }, { status: 201 });
-
+        return NextResponse.json(
+            {
+                success: true,
+                message: 'Inscrição realizada com sucesso!',
+                data: {
+                    eventId: updatedEvent._id,
+                    registrationCount: updatedEvent.registrationCount,
+                },
+            },
+            { status: 201 }
+        );
     } catch (error: any) {
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
-        console.error("Erro na transação de inscrição:", error);
-        return NextResponse.json({ success: false, error: 'Erro interno ao processar inscrição' }, { status: 500 });
-
+        return NextResponse.json({ success: false, error: error?.message ?? 'Erro interno ao processar inscrição' }, { status: 500 });
     } finally {
-        await session.endSession();
+        session.endSession();
     }
 }
 
@@ -142,9 +162,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     session.startTransaction();
 
     try {
-        const resolvedParams = await params;
-        const id = resolvedParams.id;
-
+        const { id } = await params;
         if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
@@ -154,15 +172,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
         }
 
-        const ownerId = sessionAuth.user.sub.split('|')[1];
+        const ownerIdValue = sessionAuth.user.sub.includes('|') ? sessionAuth.user.sub.split('|')[1] : sessionAuth.user.sub;
 
-        if (!ownerId) {
+        if (!ownerIdValue || !ObjectId.isValid(ownerIdValue)) {
             return NextResponse.json({ success: false, error: 'ID do participante é obrigatório' }, { status: 400 });
         }
 
+        const ownerId = new ObjectId(ownerIdValue);
+        const eventId = new ObjectId(id);
+
         // Verifica se a inscrição realmente existe para este usuário
         const existingParticipant = await EventParticipant.findOne({
-            id,
+            eventId,
             owner: ownerId
         }).session(session);
 
@@ -177,7 +198,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         // Devolve a vaga para o evento
         // A condição { $gt: 0 } é a sua barreira de segurança contra números negativos
         const updatedEvent = await EventCertificateModel.findOneAndUpdate(
-            { _id: id, registrationCount: { $gt: 0 } },
+            { _id: eventId, registrationCount: { $gt: 0 } },
             { $inc: { registrationCount: -1 } },
             { session, new: true }
         );
@@ -198,10 +219,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         }, { status: 200 });
 
     } catch (error: any) {
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
         console.error("Erro na transação de retirada:", error);
         return NextResponse.json({ success: false, error: 'Erro interno ao processar o cancelamento' }, { status: 500 });
     } finally {
-        await session.endSession(); // Garante que não trave a sessão do banco de dados
+        session.endSession();
     }
 }

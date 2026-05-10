@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, {
     if (userId !== userIdToken) {
         return NextResponse.json({ message: "ID do usuário não corresponde ao token de autenticação." }, { status: 403 });
     }
-    const userInscription = await EventParticipant.find({ owner: new mongoose.Types.ObjectId(userId) }).lean()
+    const userInscription = await EventParticipant.find({ owner: new mongoose.Types.ObjectId(userId) }).populate("eventId").lean()
 
     return NextResponse.json({ "data": userInscription })
 }
