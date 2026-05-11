@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 
 export async function PUT(request: Request) {
     const formData = await request.formData();
-    
+
     // Configurando os campos do front
     const eventName = formData.get("eventName");
     const eventDescription = formData.get("eventDescription");
@@ -58,28 +58,55 @@ export async function PUT(request: Request) {
         eventType: eventType,
         maxParticipants: maxParticipants,
         isOpen: isOpen,
+        styleContainerVerse: {
+            containerStyle: {
+                border: "1.5px solid",
+                width: "50%",
+                color: "#02425A"
+            },
+            rowsStyle: {
+                textAlign: "center",
+                backgroundColor: "",
+                padding: "25px",
+                fontSize: "20px",
+                border: "1.5px solid"
+            },
+            headerStyle: {
+                fontSize: "25px",
+                border: "1.5px solid",
+                padding: "30px"
+            }
+        },
         styleContainer: {
-            "width": "90%", "top": "-30px", "left": "55px", "textAlign": "center", "color": "02425A"
+            width: "90%",
+            top: "-30px",
+            left: "55px",
+            textAlign: "center",
+            color: "#02425A"
         },
         styleFrontTopperText: {
-            "lineHeight": 1.6, "fontSize": "50.5px", "fontWeight": "400", "color": "#02425A"
+            lineHeight: 1.6,
+            fontSize: "45.0px",
+            fontWeight: "400",
+            color: "#02425A"
         },
         styleFrontBottomText: {
-            "lineHeight": 1.6, "fontSize": "50.5px", "fontWeight": "400", "color": "#02325A"
+            lineHeight: 1.6,
+            fontSize: "45.0px",
+            fontWeight: "400",
+            color: "#02325A"
         },
         styleNameText: {
-            "fontSize": "55.5px", "fontWeight": "800", "lineHeight": 1.5, "color": "#02425A"
+            fontSize: "55.5px",
+            fontWeight: "800",
+            lineHeight: 1.5,
+            color: "#02425A"
         },
-        styleContainerVerse: {
-            containerStyle: { border: "1.5px solid", width: "50%" },
-            rowsStyle: { textAlign: "center", backgroundColor: "", padding: "25px", fontSize: "20px", border: "1.5px solid" },
-            headerStyle: { fontSize: "25px", border: "1.5px solid", padding: "30px" }
-        }
     };
 
     // Aplicando o playload no payload final ...
-    const finalEventData = isPaid 
-        ? { ...baseEventData, isPaid: true as const, price: price! } 
+    const finalEventData = isPaid
+        ? { ...baseEventData, isPaid: true as const, price: price! }
         : { ...baseEventData, isPaid: false as const };
 
     try {
