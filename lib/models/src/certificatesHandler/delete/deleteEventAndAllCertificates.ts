@@ -13,7 +13,7 @@ export async function DeleteEventAndAllCertificates(eventId: ObjectId): Promise<
     await connectToDatabase()
     const deletedDocument = await EventCertificateModel.findOneAndDelete({ _id: new ObjectId(eventId) }).lean();
     await CertificateModel.deleteMany({ eventId: eventId })
-
+ 
 
 
     const userId = await getUserId()
