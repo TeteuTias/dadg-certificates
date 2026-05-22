@@ -41,6 +41,20 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     isPublic: true,
   },
   //
+  // >>>> TEMPLATES API <<<<
+  {
+    path: "/api/v1/templates/ˆ",
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  // >>>> TEMPLATES PÁGINAS <<<<
+
+  {
+    path: "/templates",
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  //
   // >>>> ROTAS JÁ EXISTENTES [TEMPORÁRIAS] <<<
   // >>>> Como a mudança é brusca, POR ENQUANTO VAI CONTINUAR FUNCIONADO. APENAS NO PRÓPRIO APP
   //

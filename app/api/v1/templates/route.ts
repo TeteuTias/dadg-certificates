@@ -1,8 +1,8 @@
-'use server'
-
+import { NextResponse } from "next/server";
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+// Inicializa o cliente fora da função para reaproveitar a conexão entre requisições
 const s3Client = new S3Client({
     region: "auto",
     endpoint: process.env.R2_ENDPOINT_URL!,
@@ -12,29 +12,21 @@ const s3Client = new S3Client({
     },
 });
 
-export type R2Document = {
-    key: string;
-    size: number;
-    lastModified: Date;
-    url: string;
-    isImage: boolean;
-};
-
-export async function listR2Documents() {
+export async function GET() {
     try {
         const listCommand = new ListObjectsV2Command({
             Bucket: process.env.R2_BUCKET_NAME!,
-            Delimiter: "/"
+            Delimiter: "/" // Garante que só pegue arquivos na raiz
         });
 
         const response = await s3Client.send(listCommand);
 
         if (!response.Contents) {
-            return { success: true, documents: [] };
+            return NextResponse.json({ success: true, documents: [] });
         }
 
-        // Gerando URLs assinadas em paralelo para performance
-        const documents: R2Document[] = await Promise.all(
+        // Gerando URLs assinadas em paralelo
+        const documents = await Promise.all(
             response.Contents.map(async (item) => {
                 const getCommand = new GetObjectCommand({
                     Bucket: process.env.R2_BUCKET_NAME!,
@@ -48,17 +40,22 @@ export async function listR2Documents() {
                 const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item.Key || "");
 
                 return {
-                    key: item.Key as string,
-                    size: item.Size as number,
-                    lastModified: item.LastModified as Date,
+                    key: item.Key,
+                    size: item.Size,
+                    lastModified: item.LastModified,
                     url,
                     isImage,
                 };
             })
         );
-        return { success: true, documents };
+
+        return NextResponse.json({ success: true, documents }, { status: 200 });
+
     } catch (error) {
-        console.error("Erro ao listar documentos no R2:", error);
-        return { success: false, error: "Falha ao listar documentos" };
+        console.error("Erro na API ao listar documentos no R2:", error);
+        return NextResponse.json(
+            { success: false, error: "Falha ao listar documentos" },
+            { status: 500 }
+        );
     }
 }
