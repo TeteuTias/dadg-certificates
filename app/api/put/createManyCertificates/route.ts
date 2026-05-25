@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
             frontTopperText: data.frontText,
             frontBottomText: data.bottomText,
             isReady: data.isReady === "true",
+            onlyImage: false,
             verse: {
                 showVerse: false
             }

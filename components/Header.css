@@ -110,7 +110,11 @@
   flex-direction: column;
   gap: 0.35rem;
   border-radius: 1rem;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   z-index: 1200;
 }
 

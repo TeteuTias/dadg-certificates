@@ -1,0 +1,74 @@
+
+> dadg-certificates@0.1.0 dev
+> next dev --turbopack
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.70.193.252:3000
+- Environments: .env.local
+✓ Ready in 10.7s
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('id' !== 'slug').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('id' !== 'slug').
+    at ignore-listed frames
+⚠ Failed to reload dynamic routes: Error: You cannot use different slug names for the same dynamic path ('id' !== 'slug').
+    at ignore-listed frames
+
+Error: You cannot use different slug names for the same dynamic path ('id' !== 'slug').
+    at ignore-listed frames
+⨯ unhandledRejection: Error: You cannot use different slug names for the same dynamic path ('id' !== 'slug').
+    at ignore-listed frames
+⨯ unhandledRejection:  Error: You cannot use different slug names for the same dynamic path ('id' !== 'slug').
+    at ignore-listed frames
+Acesso negado para /api/v1/events/calendar Bloqueio: Rota não mapeada.
+Todos os modelos foram registrados corretamente!
+ GET /api/v1/leagues 200 in 10.0s (next.js: 3.0s, proxy.ts: 12ms, application-code: 7.0s)
+Acesso negado para /api/v1/blog/posts Bloqueio: Rota não mapeada.
+ GET /api/v1/certificates/test@test.com 404 in 2.3s (next.js: 1789ms, proxy.ts: 9ms, application-code: 470ms)
+Acesso negado para /api/v1/test Sessão não identificada.
+⨯ MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster. One common reason is that you're trying to access the database from an IP that isn't whitelisted. Make sure your current IP address is on your Atlas cluster's IP whitelist: https://www.mongodb.com/docs/atlas/security-whitelist/
+    at async connectToDatabase (lib\mongodb.ts:42:19)
+    at async GET (app\api\v1\leagues\route.ts:6:5)
+  40 |     }
+  41 |
+> 42 |     cached.conn = await cached.promise;
+     |                   ^
+  43 |     return cached.conn;
+  44 | } {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'ReplicaSetNoPrimary',
+    servers: Map(3) {
+      'cluster-teste-certifica-shard-00-00.kx7ye.mongodb.net:27017' => [ServerDescription],
+      'cluster-teste-certifica-shard-00-01.kx7ye.mongodb.net:27017' => [ServerDescription],
+      'cluster-teste-certifica-shard-00-02.kx7ye.mongodb.net:27017' => [ServerDescription]
+    },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: 'atlas-14dx7w-shard-0',
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  [cause]: TopologyDescription {
+    type: 'ReplicaSetNoPrimary',
+    servers: Map(3) {
+      'cluster-teste-certifica-shard-00-00.kx7ye.mongodb.net:27017' => [ServerDescription],
+      'cluster-teste-certifica-shard-00-01.kx7ye.mongodb.net:27017' => [ServerDescription],
+      'cluster-teste-certifica-shard-00-02.kx7ye.mongodb.net:27017' => [ServerDescription]
+    },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: 'atlas-14dx7w-shard-0',
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}

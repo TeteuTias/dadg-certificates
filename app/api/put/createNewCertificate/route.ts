@@ -72,7 +72,8 @@ export async function PUT(request: Request) {
         isReady: isReady === "true" ? true : false,
         verse: {
             showVerse: false,
-        }
+        },
+        onlyImage: false
     })
 
     return NextResponse.json({ _id: update })
