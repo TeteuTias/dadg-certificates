@@ -190,6 +190,15 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     isPublic: false,
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
   },
+  {
+    path: '^/configuracoes(/.*)?$',
+    isPublic: false,
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
+  },
+  {
+    path: '^/api/v1/settings$',
+    isPublic: true,
+  },
   // >>>> CERTIFICADOS <<<<
   {
     // Acesso ao PDF final do certificado
@@ -302,6 +311,48 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     method: 'GET',
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
   },
+  // ── Novas rotas do sistema de inscrição / check-in / certificado ──────────
+  {
+    // Lista de participantes inscritos num evento (admin)
+    path: '^/api/v1/events/[0-9a-fA-F]{24}/participants$',
+    isPublic: false,
+    authType: 'both',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
+    // Validação do QR Code do ingresso (scan)
+    path: '^/api/v1/events/[0-9a-fA-F]{24}/checkin/scan$',
+    isPublic: false,
+    authType: 'both',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
+    // Confirmar presença de um participante (check-in manual ou pós-scan)
+    path: '^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/checkin$',
+    isPublic: false,
+    authType: 'both',
+    method: 'PATCH',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
+    // Liberar certificados automáticos para todos os presentes
+    path: '^/api/v1/events/[0-9a-fA-F]{24}/release-certificates$',
+    isPublic: false,
+    authType: 'both',
+    method: 'POST',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
+    // Adicionar participante walk-in (sem inscrição prévia)
+    path: '^/api/v1/events/[0-9a-fA-F]{24}/walkin$',
+    isPublic: false,
+    authType: 'both',
+    method: 'POST',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  // ─────────────────────────────────────────────────────────────────────────
   {
     path: "^/api/v1/events/openForRegistration",
     isPublic: true,

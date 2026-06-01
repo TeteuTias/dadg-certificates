@@ -6,6 +6,7 @@ import EventParticipant from '@/lib/models/EventParticipant';
 import { auth0 } from '@/lib/auth0';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { connectToDatabase } from '@/lib/mongodb';
+import { randomUUID } from 'crypto';
 
 
 interface RouteParams {
@@ -25,7 +26,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
-        //
         //
         // Não verifica se está autenticado, isso foi feito no proxy!
         const keeper = new GateKeeper(request)
@@ -71,8 +71,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Nome do usuário não encontrado' }, { status: 400 });
         }
 
+        // Extraindo dados complementares do body
+        const body = await request.json().catch(() => ({}));
+        const ownerEmail: string = (body.ownerEmail || user.email || '').trim().toLowerCase();
+        const ownerCpf: string = (body.ownerCpf || '').trim().replace(/[^0-9]/g, '');
+
+        if (!ownerEmail) {
+            return NextResponse.json({ success: false, error: 'E-mail do participante é obrigatório.' }, { status: 400 });
+        }
+        if (!ownerCpf || ownerCpf.length !== 11) {
+            return NextResponse.json({ success: false, error: 'CPF do participante é obrigatório e deve ter 11 dígitos.' }, { status: 400 });
+        }
+
         const ownerId = new ObjectId(ownerIdValue);
         const eventId = new ObjectId(id);
+        // Gera token único para o QR Code do ingresso
+        const qrToken = randomUUID();
 
         await connectToDatabase();
         session.startTransaction();
@@ -129,6 +143,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                     eventId,
                     owner: ownerId,
                     ownerName,
+                    ownerEmail,
+                    ownerCpf,
+                    qrToken,
+                    checkedIn: false,
                 },
             ],
             { session }
@@ -143,6 +161,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 data: {
                     eventId: updatedEvent._id,
                     registrationCount: updatedEvent.registrationCount,
+                    qrToken,
                 },
             },
             { status: 201 }

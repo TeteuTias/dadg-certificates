@@ -5,16 +5,17 @@ import GateKeeper from "@/lib/security/gatekeeper";
 import { isAdmin } from "@/lib/security/isAdmin";
 import { ObjectId } from "bson";
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
+    const { id } = await params;
     
     if (!isAdmin(user)) {
       return NextResponse.json({ success: false, error: "Acesso Negado. Privilégios insuficientes." }, { status: 403 });
     }
 
-    if (!ObjectId.isValid(params.id)) {
+    if (!ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "ID de post inválido." }, { status: 400 });
     }
 
@@ -23,7 +24,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     await connectToDatabase();
 
-    const postToUpdate = await BlogPostModel.findById(params.id);
+    const postToUpdate = await BlogPostModel.findById(id);
     if (!postToUpdate) {
       return NextResponse.json({ success: false, error: "Artigo não encontrado." }, { status: 404 });
     }
@@ -62,22 +63,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
+    const { id } = await params;
     
     if (!isAdmin(user)) {
       return NextResponse.json({ success: false, error: "Acesso Negado. Privilégios insuficientes." }, { status: 403 });
     }
 
-    if (!ObjectId.isValid(params.id)) {
+    if (!ObjectId.isValid(id)) {
       return NextResponse.json({ success: false, error: "ID de post inválido." }, { status: 400 });
     }
 
     await connectToDatabase();
 
-    const deletedPost = await BlogPostModel.findByIdAndDelete(params.id);
+    const deletedPost = await BlogPostModel.findByIdAndDelete(id);
     if (!deletedPost) {
       return NextResponse.json({ success: false, error: "Artigo não encontrado." }, { status: 404 });
     }

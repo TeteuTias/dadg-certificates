@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verifica se já favoritou
-    const existingBookmark = await BlogBookmarkModel.findOne({ postId: post._id, ownerId: user.sub });
+    const existingBookmark = await BlogBookmarkModel.findOne({ postId: id, ownerId: user.sub });
     
     let isBookmarked = false;
     if (existingBookmark) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       isBookmarked = false;
     } else {
       // Adicionar bookmark
-      await BlogBookmarkModel.create({ postId: post._id, ownerId: user.sub });
+      await BlogBookmarkModel.create({ postId: id, ownerId: user.sub });
       isBookmarked = true;
     }
 

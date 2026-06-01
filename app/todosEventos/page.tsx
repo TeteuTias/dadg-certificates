@@ -200,6 +200,15 @@ function EventCard({ event }: { event: IEventCertificate }) {
                 </Link>
                 <Link
                     prefetch={false}
+                    href={`/todosEventos/${event._id}/presenca`}
+                    target="_blank"
+                    className="glass-button glass-button-success event-card-button"
+                >
+                    <Users size={16} />
+                    <span>Lista de Presença</span>
+                </Link>
+                <Link
+                    prefetch={false}
                     href={`/todosCertificados/${event._id}`}
                     target="_blank"
                     className="glass-button event-card-button"
@@ -211,6 +220,7 @@ function EventCard({ event }: { event: IEventCertificate }) {
         </article>
     );
 }
+
 
 function formatCurrency(value?: number) {
     if (typeof value !== "number") {

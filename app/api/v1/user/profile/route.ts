@@ -64,11 +64,17 @@ export async function GET(req: NextRequest) {
                 status: event.statusDetails?.status || "UNKNOWN",
                 isOpen: isOpen,
                 enrolledAt: p.createdAt ? p.createdAt.toISOString() : new Date().toISOString(),
-                certificateId: cert ? cert._id.toString() : null
+                certificateId: cert ? cert._id.toString() : null,
+                // Novos campos para ingresso QR e certificado automático
+                qrToken: p.qrToken || null,
+                checkedIn: p.checkedIn || false,
+                checkedInAt: p.checkedInAt ? p.checkedInAt.toISOString() : null,
+                certificateReleased: event.certificateReleased || false,
             };
         });
 
         return NextResponse.json({ data: events }, { status: 200 });
+
 
     } catch (error) {
         console.error("Erro ao buscar perfil do usuário:", error);
