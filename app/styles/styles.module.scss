@@ -1,0 +1,154 @@
+// app/styles/styles.module.scss
+@use "sass:math";
+
+// Variáveis
+$hoverEasing: cubic-bezier(0.23, 1, 0.32, 1);
+$returnEasing: cubic-bezier(0.445, 0.05, 0.55, 0.95);
+
+// Mixins
+@mixin transition($property: all) {
+  transition: $property 0.3s ease;
+}
+
+@mixin hover-transform {
+  &:hover {
+    transform: translateY(-5px);
+  }
+}
+
+// Estilos
+.pageWrapper {
+  display: flex;
+  background: linear-gradient(135deg, #023e8a, #00b4d8, #028f58);
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  padding-top: 200px;
+}
+
+.title {
+  font-family: "Raleway", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #5d4037;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.container {
+  padding: 40px 80px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.cardWrap {
+  margin: 10px;
+  transform: perspective(800px);
+  transform-style: preserve-3d;
+  cursor: pointer;
+  
+  &:hover {
+    .cardInfo {
+      transform: translateY(0);
+    }
+    
+    .cardInfo p {
+      opacity: 1;
+    }
+    
+    .cardInfo,
+    .cardInfo p {
+      @include transition(transform);
+    }
+    
+    .cardInfo:after {
+      @include transition(transform);
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .cardBg {
+      @include transition(opacity);
+      opacity: 0.8;
+    }
+    
+    .card {
+      @include transition(box-shadow);
+      box-shadow: 
+        rgba(255, 255, 255, 0.2) 0 0 40px 5px,
+        rgba(255, 255, 255, 1) 0 0 0 1px,
+        rgba(0, 0, 0, 0.66) 0 30px 60px 0,
+        inset #333 0 0 0 5px,
+        inset #fff 0 0 0 6px;
+    }
+  }
+}
+
+.card {
+  position: relative;
+  flex: 0 0 240px;
+  width: 240px;
+  height: 320px;
+  background-color: #333;
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: 
+    rgba(0, 0, 0, 0.66) 0 30px 60px 0,
+    inset #333 0 0 0 5px,
+    inset rgba(255, 255, 255, 0.5) 0 0 0 6px;
+  @include transition(transform);
+}
+
+.cardBg {
+  opacity: 0.5;
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  transform: scale(1.2);
+  @include transition(opacity);
+  pointer-events: none;
+}
+
+.cardInfo {
+  padding: 20px;
+  position: absolute;
+  bottom: 0;
+  color: #fff;
+  transform: translateY(40%);
+  @include transition(transform);
+  
+  p {
+    opacity: 0;
+    text-shadow: rgba(0, 0, 0, 1) 0 2px 3px;
+    @include transition(opacity);
+  }
+  
+  * {
+    position: relative;
+    z-index: 1;
+  }
+  
+  &:after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.6) 100%);
+    background-blend-mode: overlay;
+    opacity: 0;
+    transform: translateY(100%);
+    @include transition(transform);
+  }
+}
+
+.cardInfo h1 {
+  font-family: "Playfair Display", serif;
+  font-size: 36px;
+  font-weight: 700;
+  text-shadow: rgba(0, 0, 0, 0.5) 0 10px 10px;
+}

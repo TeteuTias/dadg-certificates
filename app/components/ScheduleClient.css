@@ -1,0 +1,429 @@
+.calendar-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(9, 66, 125, 0.1);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.calendar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #09427d;
+    text-transform: capitalize;
+}
+
+.calendar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.calendar-nav-button {
+    background: #09427d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.calendar-nav-button:hover {
+    background: #1a5ca8;
+    transform: translateY(-2px);
+}
+
+.today-button {
+    background: white;
+    color: #09427d;
+    border: 1px solid rgba(9, 66, 125, 0.2);
+}
+
+.today-button:hover {
+    background: rgba(9, 66, 125, 0.08);
+    color: #09427d;
+}
+
+.calendar-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    gap: 2rem;
+    align-items: start;
+}
+
+.calendar-main {
+    min-width: 0;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.weekday {
+    text-align: center;
+    font-weight: 600;
+    color: #09427d;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    padding: 0.5rem;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(9, 66, 125, 0.1);
+    font-size: clamp(0.75rem, 2vw, 1rem);
+    min-height: 0;
+    min-width: 0;
+}
+
+.calendar-day:hover {
+    background: rgba(9, 66, 125, 0.05);
+    transform: translateY(-2px);
+}
+
+.calendar-day.selected {
+    background: #09427d;
+    color: white;
+}
+
+.calendar-day.today {
+    box-shadow: inset 0 0 0 3px #09427d;
+}
+
+.calendar-day.today.selected {
+    box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.6);
+}
+
+.calendar-day.other-month {
+    color: #94a3b8;
+    background: rgba(148, 163, 184, 0.1);
+}
+
+.event-indicator {
+    width: 4px;
+    height: 4px;
+    background: #10b981;
+    border-radius: 50%;
+    margin-top: 2px;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.calendar-day.other-month .event-indicator {
+    background: #94a3b8;
+    opacity: 0.8;
+}
+
+.calendar-day.selected .event-indicator {
+    background: white;
+}
+
+.events-list {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid rgba(9, 66, 125, 0.1);
+}
+
+.selected-day-events {
+    margin-bottom: 0;
+}
+
+.events-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #09427d !important;
+    margin-bottom: 1rem;
+}
+
+.event-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(9, 66, 125, 0.1);
+    transition: all 0.3s ease;
+}
+
+.event-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.event-card-highlight {
+    background: linear-gradient(135deg, #09427d 0%, #1a5ca8 100%);
+    border-color: rgba(9, 66, 125, 0.25);
+    box-shadow: 0 12px 24px rgba(9, 66, 125, 0.22);
+}
+
+.event-card-highlight .event-name,
+.event-card-highlight .event-time {
+    color: white;
+}
+
+.event-card-highlight .event-time {
+    opacity: 0.9;
+}
+
+.event-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #09427d;
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+}
+
+.event-time {
+    color: #64748b;
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+.loading-message {
+    text-align: center;
+    color: #64748b;
+    padding: 2rem;
+    font-style: italic;
+}
+
+.no-events-message {
+    text-align: center;
+    color: #64748b;
+    padding: 2rem;
+    font-style: italic;
+    background: rgba(148, 163, 184, 0.1);
+    border-radius: 12px;
+}
+
+.loading-message.compact,
+.no-events-message.compact {
+    padding: 1rem;
+    margin: 0;
+}
+
+.month-events-panel {
+    position: sticky;
+    top: 1rem;
+    background: rgba(248, 250, 252, 0.85);
+    border: 1px solid rgba(9, 66, 125, 0.1);
+    border-radius: 16px;
+    padding: 1rem;
+    min-width: 0;
+}
+
+.next-event-block {
+    margin-bottom: 1.5rem;
+}
+
+.panel-eyebrow {
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+}
+
+.month-events-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.month-events-heading .events-title {
+    margin-bottom: 0;
+}
+
+.events-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: rgba(9, 66, 125, 0.1);
+    color: #09427d;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.month-events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-height: 28rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.month-event-item {
+    display: grid;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    background: white;
+    border: 1px solid rgba(9, 66, 125, 0.1);
+    border-radius: 12px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.month-event-item:hover {
+    border-color: rgba(9, 66, 125, 0.28);
+    transform: translateY(-1px);
+}
+
+.month-event-item.active {
+    background: rgba(9, 66, 125, 0.08);
+    border-color: rgba(9, 66, 125, 0.35);
+}
+
+.month-event-date {
+    color: #09427d;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.month-event-name {
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.35;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .calendar-wrapper {
+        padding: 1rem;
+    }
+
+    .calendar-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .calendar-title {
+        font-size: 1.25rem;
+    }
+
+    .calendar-nav-button {
+        width: 100%;
+    }
+
+    .calendar-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .calendar-content {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .month-events-panel {
+        position: static;
+        padding: 0.85rem;
+    }
+
+    .weekday {
+        font-size: 0.8rem;
+        padding: 0.25rem;
+    }
+
+    .calendar-day {
+        padding: 0.25rem;
+        min-height: 2rem;
+    }
+
+    .event-card {
+        padding: 0.75rem;
+    }
+
+    .event-name {
+        font-size: 1rem;
+    }
+
+    .event-time {
+        font-size: 0.8rem;
+    }
+
+    .calendar-grid {
+        gap: 0.5rem;
+    }
+
+    .month-events-list {
+        max-height: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendar-wrapper {
+        padding: 0.75rem;
+    }
+
+    .calendar-day {
+        font-size: 0.75rem;
+        min-height: 1.75rem;
+    }
+
+    .weekday {
+        font-size: 0.7rem;
+    }
+
+    .calendar-grid {
+        gap: 0.4rem;
+    }
+
+    .month-event-item {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+    }
+} 

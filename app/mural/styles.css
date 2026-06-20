@@ -1,0 +1,170 @@
+.mural-container {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 4rem 2rem;
+  padding-top: 100px;
+  position: relative;
+}
+
+.mural-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.mural-title {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #09427d;
+  text-align: center;
+  margin-bottom: 3rem;
+  position: relative;
+  display: inline-block;
+}
+
+.mural-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 4px;
+  background: linear-gradient(90deg, #09427d, #0b3d91);
+  border-radius: 2px;
+}
+
+.mural-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.mural-item {
+  transition: all 0.3s ease;
+}
+
+.mural-item:hover {
+  transform: translateY(-5px);
+}
+
+.mural-item a {
+  text-decoration: none;
+  display: block;
+}
+
+.mural-card {
+  background: white;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.mural-card:hover {
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.mural-text {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #4a5568;
+  margin: 0;
+}
+
+.mural-arc {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #09427d;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.rainbow-glow {
+  background: linear-gradient(45deg, #09427d, #0b3d91, #09427d);
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+  padding: 3px;
+  border-radius: 15px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(9, 66, 125, 0.3);
+}
+
+.rainbow-glow::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  transform: rotate(45deg);
+  animation: shine 2s infinite;
+}
+
+.rainbow-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, #09427d, #0b3d91, #09427d);
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+  z-index: 1;
+  opacity: 0.8;
+}
+
+.rainbow-glow .mural-card {
+  background: white;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.no-mural {
+  text-align: center;
+  color: #e53e3e;
+  font-size: 1.1rem;
+  padding: 2rem;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+  50% {
+    transform: translateX(100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) rotate(45deg);
+  }
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@media (max-width: 768px) {
+  .mural-container {
+    padding: 2rem 1rem;
+    padding-top: 80px;
+  }
+
+  .mural-title {
+    font-size: 2.2rem;
+  }
+
+  .mural-text {
+    font-size: 1rem;
+  }
+} 

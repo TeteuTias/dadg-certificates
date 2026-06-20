@@ -1,0 +1,241 @@
+/* Contato - layout e cards alinhados ao restante do site */
+
+.contato-container {
+  position: relative;
+  min-height: 100vh;
+  padding: 2rem;
+  padding-top: 5rem;
+  padding-bottom: 6rem;
+  background: linear-gradient(135deg, #09427d 0%, #1a5ca8 100%);
+  overflow: hidden;
+}
+
+.contato-content {
+  position: relative;
+  z-index: 2;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.contato-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.contato-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.contato-subtitle {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Grid de cards Instagram */
+.contato-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.contato-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contato-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.contato-card-icon {
+  margin-bottom: 0.75rem;
+  color: #09427d;
+}
+
+.contato-card-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #09427d;
+  text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+
+.contato-card-handle {
+  font-size: 0.9rem;
+  color: #64748b;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* Bloco Email */
+.contato-email-section {
+  margin-bottom: 2rem;
+}
+
+.contato-email-card {
+  padding: 1.5rem 2rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contato-email-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+}
+
+.contato-email-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #09427d;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.5rem;
+}
+
+.contato-email-link {
+  font-size: 1rem;
+  color: #475569;
+  text-decoration: none;
+  word-break: break-all;
+  transition: color 0.2s ease;
+}
+
+.contato-email-link:hover {
+  color: #09427d;
+}
+
+/* Card Ouvidoria - "algo mais sério" */
+.contato-ouvidoria-wrap {
+  margin-top: 2rem;
+}
+
+.contato-ouvidoria-card {
+  display: block;
+  padding: 1.5rem 1.75rem;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  text-decoration: none;
+  color: white;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.contato-ouvidoria-card:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  color: white;
+}
+
+.contato-ouvidoria-text {
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.contato-ouvidoria-link {
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.95);
+  text-underline-offset: 3px;
+}
+
+.contato-ouvidoria-card:hover .contato-ouvidoria-link {
+  text-decoration: underline;
+}
+
+.contato-ouvidoria-arrow {
+  transition: transform 0.2s ease;
+}
+
+.contato-ouvidoria-card:hover .contato-ouvidoria-arrow {
+  transform: translateX(4px);
+}
+
+/* Onda no rodapé */
+.contato-wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.contato-wave svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+  .contato-container {
+    padding: 1.5rem;
+    padding-top: 4.5rem;
+    padding-bottom: 5rem;
+  }
+
+  .contato-title {
+    font-size: 1.6rem;
+  }
+
+  .contato-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .contato-header {
+    padding: 1.5rem;
+  }
+
+  .contato-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .contato-ouvidoria-card {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .contato-ouvidoria-text {
+    font-size: 1rem;
+  }
+}

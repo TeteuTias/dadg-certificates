@@ -1,0 +1,735 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Personalização da Seleção de Texto */
+::selection {
+  background-color: #002B5B;
+  color: #ffffff;
+}
+::-moz-selection {
+  background-color: #002B5B;
+  color: #ffffff;
+}
+
+/* Prevenir download e arrasto de imagens */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-select: none;
+  pointer-events: auto; /* Permite hover, mas o script global bloqueia o drag */
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+
+    /* Aurora background color tokens */
+    --white: #ffffff;
+    --black: #000000;
+    --transparent: transparent;
+    --blue-300: #93c5fd;
+    --blue-400: #60a5fa;
+    --blue-500: #3b82f6;
+    --indigo-300: #a5b4fc;
+    --violet-200: #ddd6fe;
+  }
+ 
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Reset básico */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  /* height: 100%; removido para evitar duplo scroll */
+}
+
+body {
+  background: linear-gradient(to bottom right, #eff6ff, white, #eff6ff);
+  overflow-x: hidden;
+}
+
+/* Scrollbar Customizada Global */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #002B5B;
+  border-radius: 4px;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #002B5B transparent;
+}
+
+/* Scrollbar padrão para o DrawerMenu */
+.drawerContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.drawerContainer::-webkit-scrollbar-track {
+  background: #1E3A8A;
+}
+
+.drawerContainer::-webkit-scrollbar-thumb {
+  background-color: #073059;
+  border-radius: 4px;
+  border: 1px solid #1E3A8A;
+}
+
+.drawerContainer {
+  scrollbar-width: thin;
+  scrollbar-color: #073059 #1E3A8A;
+}
+
+/* Scrollbar para o DrawerMenu na página CLAM */
+.clam-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.clam-scroll::-webkit-scrollbar-track {
+  background: #16a34a; /* Fundo do track em verde */
+}
+
+.clam-scroll::-webkit-scrollbar-thumb {
+  background-color: #15803d; /* Thumb em um verde um pouco mais escuro */
+  border-radius: 4px;
+  border: 1px solid #16a34a;
+}
+
+.clam-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #15803d #16a34a;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(to bottom right, #eff6ff, white, #eff6ff);
+}
+
+.rainbow-glow {
+  padding: 3px;
+  border-radius: 1rem;
+  background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff);
+  background-size: 400% 400%;
+  animation: rainbow 5s ease infinite;
+}
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.card {
+  background: white;
+  border-radius: 0.75rem;
+}
+
+.showbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loader {
+  width: 80px;
+  height: 80px;
+}
+
+.circular {
+  animation: rotate 2s linear infinite;
+  width: 100%;
+  height: 100%;
+}
+
+.path {
+  stroke: #4285F4;
+  stroke-linecap: round;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 89, 200;
+    stroke-dashoffset: -35px;
+  }
+  100% {
+    stroke-dasharray: 89, 200;
+    stroke-dashoffset: -124px;
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+.blinking-cursor {
+  font-weight: 100;
+  font-size: 1em;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Import Google Fonts */
+.waves {
+  position: relative;
+  width: 100%;
+  height: 15vh;
+  margin-bottom: -7px; /* Corrige gap no Safari */
+  min-height: 100px;
+  max-height: 150px;
+}
+
+.parallax > use {
+  animation: move-forever 25s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;
+}
+.parallax > use:nth-child(1) {
+  animation-delay: -2s;
+  animation-duration: 7s;
+}
+.parallax > use:nth-child(2) {
+  animation-delay: -3s;
+  animation-duration: 10s;
+}
+.parallax > use:nth-child(3) {
+  animation-delay: -4s;
+  animation-duration: 13s;
+}
+.parallax > use:nth-child(4) {
+  animation-delay: -5s;
+  animation-duration: 20s;
+}
+
+@keyframes move-forever {
+  0% {
+    transform: translate3d(-90px, 0, 0);
+  }
+  100% {
+    transform: translate3d(85px, 0, 0);
+  }
+}
+
+.blinking-cursor {
+  font-weight: 100;
+  font-size: 1em;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+body {
+  background-color: #000000;
+  padding: 0;
+  margin: 0;
+}
+
+#gradient {
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+}
+
+/* Base para o close button */
+.container {
+  position: relative;
+  width: 2em;
+  height: 2em;
+}
+.container:before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 0;
+  width: 0;
+  border: 1em solid rgba(100,100,100,0.8);
+  border-radius: 6em;
+  transition: all 0.2s ease-in-out;
+}
+.close_icon {
+  transition: all 0.075s ease-in-out;
+  position: absolute;
+  width: 2em;
+  height: 2em;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  border: 0.1em solid;
+  border-color: rgba(250,250,250,0.8);
+  border-radius: 6em;
+}
+.close_icon:after {
+  transition: all 0.075s ease-in-out;
+  font: 1em Helvetica, arial;
+  font-size: 1em;
+  width: 100%;
+  height: 100%;
+  content:"x";
+  color: rgba(250,250,250,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform: translate(0,-5%) scale(1.25,1);
+}
+
+/* Inverted Zoom animações */
+.container.zoom_invert:hover:before {
+  font-size: 1.4em;
+  border-color: rgba(200,200,200,0.6);
+}
+.container.zoom_invert:hover .close_icon.zoom_invert {
+  border-color: rgba(200,200,200,1);
+}
+.container.zoom_invert:hover .close_icon.zoom_invert:after {
+  color: rgba(100,100,100,1);
+}
+
+.container.zoom_invert:active:before {
+  font-size: 1.2em;
+  border-color: rgba(200,100,100,0.8);
+}
+ .container.zoom_invert:active .close_icon.zoom_invert {
+  transition: all 0.05s ease-in-out;
+  font-size: 1.2em;
+  border-color: rgba(50,50,50,0.8);
+}
+.container.zoom_invert:active .close_icon.zoom_invert:after {
+  transition: all 0.05s ease-in-out;
+  font-size: 1.2em;
+  color: rgba(50,50,50,0.8);
+}
+
+/* Efeito Hover com Gradiente de Rosa (Instagram) com bordas arredondadas */
+.instagram-hover {
+  position: relative;
+  border-radius: 0.75rem; /* Certifique-se de usar o mesmo valor do rounded-xl */
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2); /* Sombra forte para destacar do fundo */
+  transition: transform 0.3s;
+  overflow: hidden; /* Garante que o pseudo-elemento respeite o border-radius */
+}
+
+.instagram-hover::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  border: 3px solid transparent;
+  background: linear-gradient(45deg, #ff6ec4, #ee0979) border-box;
+  -webkit-mask: 
+    linear-gradient(white, white) content-box, 
+    linear-gradient(white, white);
+  mask: 
+    linear-gradient(white, white) content-box, 
+    linear-gradient(white, white);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.instagram-hover:hover::after {
+  opacity: 1;
+}
+
+/* Wrapper externo para a sombra do email */
+.email-shadow-wrapper {
+  border-radius: 0.75rem; /* mesmo valor de rounded-xl */
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.3);
+  /* Opcional: adicionar margin-bottom para espaçamento, se necessário */
+}
+
+/* Efeito Hover para o container de Email com borda azul em gradiente */
+.email-hover {
+  position: relative;
+  border-radius: 0.75rem; /* mesmo valor do rounded-xl */
+  overflow: hidden; /* garante que o pseudo-elemento respeite os cantos arredondados */
+  transition: transform 0.3s ease; /* para o scale */
+}
+
+.email-hover::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  border: 3px solid transparent;
+  background: linear-gradient(45deg, #09427d, #3366cc) border-box;
+  -webkit-mask: 
+    linear-gradient(white, white) content-box, 
+    linear-gradient(white, white);
+  mask: 
+    linear-gradient(white, white) content-box, 
+    linear-gradient(white, white);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+
+.email-hover:hover::after {
+  opacity: 1;
+}
+
+
+
+/* Estilo global para os containers verdes */
+.container-green {
+  background-color: #056653;
+  color: white;
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.3);
+  max-width: 900px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.container-green:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Estiliza também os containers brancos para ficarem interativos */
+.container-white {
+  background-color: white;
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.container-white:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Ajusta o conteúdo principal */
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100vh; /* Agora cobre toda a tela */
+  padding: 4rem 1.5rem;
+  gap: 3rem;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes title-glow {
+  0% {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5),
+                 0 0 20px rgba(255, 255, 255, 0.3),
+                 0 0 30px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.7),
+                 0 0 30px rgba(255, 255, 255, 0.5),
+                 0 0 40px rgba(255, 255, 255, 0.3);
+  }
+  100% {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5),
+                 0 0 20px rgba(255, 255, 255, 0.3),
+                 0 0 30px rgba(255, 255, 255, 0.2);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-title-glow {
+  animation: title-glow 3s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+/* Classes de delay para animações sequenciais */
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+.delay-600 {
+  animation-delay: 600ms;
+}
+
+.main-content {
+  padding-top: 35px;
+}
+
+@media (min-width: 768px) {
+  .main-content {
+    padding-top: 45px;
+  }
+}
+
+.menu-close-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 1001;
+  margin-bottom: 20px;
+}
+
+.menu-close-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+.menu-close-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.menu-close-icon::before,
+.menu-close-icon::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background-color: white;
+  top: 50%;
+  left: 0;
+  transition: all 0.3s ease;
+}
+
+.menu-close-icon::before {
+  transform: rotate(45deg);
+}
+
+.menu-close-icon::after {
+  transform: rotate(-45deg);
+}
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+

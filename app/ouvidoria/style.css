@@ -1,0 +1,424 @@
+/* Ouvidoria - estilos alinhados ao restante do site (eventos, sobre, home) */
+
+.ouvidoria-container {
+  position: relative;
+  min-height: 100vh;
+  padding: 2rem;
+  padding-top: 5rem;
+  background: linear-gradient(135deg, #09427d 0%, #1a5ca8 100%);
+  overflow: hidden;
+}
+
+.ouvidoria-content {
+  position: relative;
+  z-index: 2;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.ouvidoria-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.ouvidoria-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.ouvidoria-subtitle {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.ouvidoria-form-card {
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ouvidoria-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.ouvidoria-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ouvidoria-field label,
+.ouvidoria-field-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #09427d;
+}
+
+.ouvidoria-field select,
+.ouvidoria-field textarea,
+.ouvidoria-field .ouvidoria-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(9, 66, 125, 0.25);
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  color: #1e293b;
+  background: white;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ouvidoria-field select:focus,
+.ouvidoria-field textarea:focus,
+.ouvidoria-field .ouvidoria-input:focus {
+  outline: none;
+  border-color: #09427d;
+  box-shadow: 0 0 0 3px rgba(9, 66, 125, 0.15);
+}
+
+/* Campo de texto com ícone (ex.: nome) */
+.ouvidoria-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: 12px;
+  border: 2px solid rgba(9, 66, 125, 0.2);
+  background: #f8fafc;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ouvidoria-input-wrap:focus-within {
+  border-color: #09427d;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(9, 66, 125, 0.15);
+}
+
+.ouvidoria-input-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem 0 1rem;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.ouvidoria-input-wrap:focus-within .ouvidoria-input-icon {
+  color: #09427d;
+}
+
+.ouvidoria-name-wrap .ouvidoria-input,
+.ouvidoria-class-wrap .ouvidoria-input {
+  border: none;
+  border-radius: 0 10px 10px 0;
+  padding-left: 0;
+  padding-right: 1rem;
+  background: transparent;
+}
+
+.ouvidoria-name-wrap .ouvidoria-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Turma: input numérico sem setinhas e placeholder suave */
+.ouvidoria-class-wrap .ouvidoria-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ouvidoria-class-wrap .ouvidoria-input::-webkit-outer-spin-button,
+.ouvidoria-class-wrap .ouvidoria-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ouvidoria-class-wrap .ouvidoria-input::placeholder {
+  color: #94a3b8;
+}
+
+.ouvidoria-turma-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.35rem;
+  display: block;
+}
+
+.ouvidoria-field textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.ouvidoria-field select {
+  cursor: pointer;
+}
+
+/* Seletor de tópicos em cards */
+.ouvidoria-topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.ouvidoria-topic-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid rgba(9, 66, 125, 0.2);
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #1e293b;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.ouvidoria-topic-option:hover {
+  border-color: rgba(9, 66, 125, 0.4);
+  background: #f1f5f9;
+  box-shadow: 0 2px 8px rgba(9, 66, 125, 0.08);
+}
+
+.ouvidoria-topic-option:focus-visible {
+  outline: none;
+  border-color: #09427d;
+  box-shadow: 0 0 0 3px rgba(9, 66, 125, 0.2);
+}
+
+.ouvidoria-topic-option.selected {
+  border-color: #09427d;
+  background: linear-gradient(135deg, rgba(9, 66, 125, 0.08) 0%, rgba(9, 66, 125, 0.04) 100%);
+  box-shadow: 0 2px 12px rgba(9, 66, 125, 0.15);
+}
+
+.ouvidoria-topic-option.selected .ouvidoria-topic-option-text {
+  color: #09427d;
+  font-weight: 600;
+}
+
+.ouvidoria-topic-option-check {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #09427d;
+  color: white;
+}
+
+.ouvidoria-topic-option-text {
+  flex: 1;
+  line-height: 1.3;
+}
+
+.ouvidoria-topic-hint {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 0.35rem;
+  display: block;
+}
+
+.ouvidoria-topic-hidden {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.ouvidoria-honeypot {
+  position: absolute;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ouvidoria-submit {
+  margin-top: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: linear-gradient(135deg, #09427d 0%, #073366 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ouvidoria-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(9, 66, 125, 0.35);
+}
+
+.ouvidoria-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ouvidoria-feedback {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.ouvidoria-feedback.success {
+  background: rgba(22, 163, 74, 0.15);
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+.ouvidoria-feedback.error {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.ouvidoria-char-count {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
+/* Popup para tópico Certificados */
+.ouvidoria-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: ouvidoria-popup-fade 0.2s ease-out;
+}
+
+@keyframes ouvidoria-popup-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ouvidoria-popup {
+  max-width: 420px;
+  width: 100%;
+  padding: 1.75rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(9, 66, 125, 0.2);
+  animation: ouvidoria-popup-slide 0.25s ease-out;
+}
+
+@keyframes ouvidoria-popup-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ouvidoria-popup-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #09427d;
+  margin: 0 0 1rem 0;
+}
+
+.ouvidoria-popup-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #334155;
+  margin: 0 0 1.5rem 0;
+}
+
+.ouvidoria-popup-text strong {
+  color: #09427d;
+}
+
+.ouvidoria-popup-close {
+  width: 100%;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #09427d 0%, #073366 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ouvidoria-popup-close:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(9, 66, 125, 0.35);
+}
+
+.ouvidoria-required {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .ouvidoria-container {
+    padding: 1.5rem;
+    padding-top: 4.5rem;
+  }
+
+  .ouvidoria-title {
+    font-size: 1.75rem;
+  }
+
+  .ouvidoria-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .ouvidoria-form-card {
+    padding: 1.5rem;
+  }
+
+  .ouvidoria-header {
+    padding: 1.5rem;
+  }
+
+  .ouvidoria-topic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ouvidoria-topic-option {
+    padding: 1rem;
+  }
+}

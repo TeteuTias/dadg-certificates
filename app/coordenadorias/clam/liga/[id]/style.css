@@ -1,0 +1,265 @@
+.uroliga-container {
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #01a283 0%, #00838f 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 0;
+  }
+  
+  .uroliga-content {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .uroliga-card {
+    background: rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    padding: 2.5rem 2rem;
+    margin-bottom: 2rem;
+    width: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .uroliga-card:hover {
+    transform: translateY(-8px) scale(1.01);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22), 0 0 20px rgba(1, 162, 131, 0.10);
+    border-color: rgba(1, 162, 131, 0.25);
+  }
+  
+  .uroliga-title {
+    font-size: 3rem;
+    font-weight: bold;
+    background: linear-gradient(90deg, #01a283 0%, #00cba9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 2rem;
+    text-align: center;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #fff;
+  }
+  
+  .uroliga-section-title {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 0.8rem;
+    text-align: left;
+    letter-spacing: 0.5px;
+  }
+  
+  .uroliga-text {
+    color: #f3f3f3;
+    font-size: 1.15rem;
+    line-height: 1.7;
+    margin-bottom: 0.5rem;
+  }
+  
+  @media (max-width: 700px) {
+    .uroliga-content {
+      padding: 0 0.5rem;
+    }
+    .uroliga-card {
+      padding: 1.2rem 0.7rem;
+    }
+    .uroliga-title {
+      font-size: 2rem;
+    }
+    .uroliga-section-title {
+      font-size: 1.3rem;
+    }
+  }
+
+.lame-main {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #01a283 0%, #00838f 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 0 2rem 0;
+}
+
+.lame-header {
+  display: flex;
+  padding-top: 30px;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+.lame-logo-circle-pro {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #01a283 60%, #00cba9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(1, 162, 131, 0.18), 0 2px 8px #00cba933;
+  margin-bottom: 1.2rem;
+  border: 4px solid #fff;
+}
+.lame-logo-text {
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  opacity: 0.8;
+  letter-spacing: 1px;
+}
+
+.lame-title-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lame-title-gradient {
+  font-size: 2.3rem;
+  font-weight: bold;
+  background: linear-gradient(90deg, #01a283 0%, #00cba9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-align: center;
+  letter-spacing: 1.5px;
+  margin-bottom: 1.2rem;
+  text-shadow: 1px 1px 0 #fff;
+}
+
+.lame-info-card-pro {
+  display: flex;
+  flex-direction: row;
+  gap: 2.5rem;
+  background: rgba(1, 162, 131, 0.13);
+  border-radius: 18px;
+  box-shadow: 0 2px 12px rgba(1, 162, 131, 0.10);
+  padding: 1.1rem 2.2rem;
+  border: 1.5px solid #00cba9;
+  align-items: center;
+  justify-content: center;
+}
+.lame-info-item-pro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 120px;
+}
+.lame-info-label-pro {
+  color: #00cba9;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.lame-info-value-pro {
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.lame-info-icon {
+  font-size: 1.7rem;
+  color: #00cba9;
+  margin-bottom: 0.2rem;
+}
+
+.lame-section-card {
+  background: rgba(255, 255, 255, 0.13);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  box-shadow: 0 4px 18px rgba(1, 162, 131, 0.10);
+  margin-bottom: 2.2rem;
+  padding: 2.1rem 2rem 1.5rem 2rem;
+  width: 100%;
+  max-width: 900px;
+  border: 1.5px solid #00cba9;
+  position: relative;
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+.lame-section-card:hover {
+  box-shadow: 0 8px 32px rgba(1, 162, 131, 0.18), 0 2px 8px #00cba933;
+  border-color: #01a283;
+}
+.lame-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.7rem;
+}
+.lame-section-icon {
+  font-size: 1.5rem;
+  color: #00cba9;
+}
+.lame-section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.7px;
+}
+.lame-section-content {
+  color: #f3f3f3;
+  font-size: 1.13rem;
+  line-height: 1.7;
+  margin-bottom: 0.2rem;
+}
+.lame-section-list {
+  color: #f3f3f3;
+  font-size: 1.13rem;
+  line-height: 1.7;
+  margin-bottom: 0.2rem;
+  padding-left: 1.2rem;
+  list-style: none;
+}
+.lame-section-list li {
+  margin-bottom: 0.7rem;
+  display: flex;
+  align-items: flex-start;
+}
+.lame-list-bullet {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  background: linear-gradient(135deg, #01a283 60%, #00cba9 100%);
+  border-radius: 50%;
+  margin-right: 0.7em;
+  margin-top: 0.45em;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .lame-section-card {
+    padding: 1.2rem 0.7rem 1rem 0.7rem;
+  }
+  .lame-info-card-pro {
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 1rem 0.7rem;
+  }
+  .lame-logo-circle-pro {
+    width: 80px;
+    height: 80px;
+  }
+  .lame-info-value-pro {
+    font-size: 1.1rem;
+  }
+  .lame-title-gradient {
+    font-size: 1.3rem;
+  }
+}

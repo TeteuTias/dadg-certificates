@@ -1,0 +1,141 @@
+.header-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 35px;
+  background-color: #09427d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.menu-close-button {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 1001;
+}
+
+.menu-close-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+.menu-close-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.menu-close-icon::before,
+.menu-close-icon::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background-color: white;
+  top: 50%;
+  left: 0;
+  transition: all 0.3s ease;
+}
+
+.menu-close-icon::before {
+  transform: rotate(45deg);
+}
+
+.menu-close-icon::after {
+  transform: rotate(-45deg);
+}
+
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 48px;
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding-left: 200px;
+}
+
+.header-center a {
+  color: white;
+  text-decoration: none;
+  padding: 5px 10px;
+  transition: all 0.3s ease;
+  position: relative;
+  min-width: 80px;
+  text-align: center;
+}
+
+.header-center a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: white;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.header-center a:hover::after {
+  transform: scaleX(1);
+}
+
+.header-center a:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .header-center {
+    padding-left: 0;
+    gap: 24px;
+  }
+  
+  .header-center a {
+    min-width: 60px;
+  }
+}
+
+/* Estilos para o scrollbar do submenu */
+.drawer-submenu-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-submenu-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.drawer-submenu-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.drawer-submenu-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+} 

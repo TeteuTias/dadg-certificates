@@ -1,0 +1,56 @@
+@use "sass:math";
+@use "sass:color";
+
+// Estilos para o efeito de paralaxe
+.parallax-container {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+.parallax-item {
+  transform: translateZ(0);
+  will-change: transform;
+  transition: transform 0.1s ease-out;
+}
+
+.check-icon {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1.5s ease;
+}
+
+.group:hover .check-icon {
+  stroke-dashoffset: 100;
+  animation: drawCheck 1.5s ease forwards;
+}
+
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+// Estilo para o título CLEV
+.gradient-text {
+  background: linear-gradient(45deg, #09427d, #3b82f6, #60a5fa, #3b82f6, #09427d);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  animation: gradient 5s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+// Mantendo apenas os estilos necessários para o efeito de paralaxe 
