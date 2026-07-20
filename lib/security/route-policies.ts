@@ -257,6 +257,13 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   // 3. EVENTOS (Events)
   // ========================================================================
   {
+    path: '^/api/v1/user/profile$',
+    isPublic: false,
+    authType: 'bearer',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
+  },
+  {
     path: '^/api/v1/events/(?:id/)?([0-9a-fA-F]{24})/registration/?$', // Dinâmico: [eventId]
     isPublic: false,
     authType: 'both',

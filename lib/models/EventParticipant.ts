@@ -7,6 +7,11 @@ export interface IEventParticipant {
     eventId: ObjectId;
     owner: ObjectId;
     ownerName: string;
+    ownerEmail?: string;
+    ownerCpf?: string;
+    qrToken?: string;
+    checkedIn: boolean;
+    checkedInAt?: Date | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -30,6 +35,33 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
         ownerName: {
             type: String,
             required: true,
+        },
+        ownerEmail: {
+            type: String,
+            required: false,
+            trim: true,
+            lowercase: true,
+        },
+        ownerCpf: {
+            type: String,
+            required: false,
+            trim: true,
+        },
+        qrToken: {
+            type: String,
+            required: false,
+            unique: true,
+            sparse: true,
+        },
+        checkedIn: {
+            type: Boolean,
+            required: true,
+            default: false,
+        },
+        checkedInAt: {
+            type: Date,
+            required: false,
+            default: null,
         },
     },
     {

@@ -6,6 +6,7 @@ import EventParticipant from '@/lib/models/EventParticipant';
 import { auth0 } from '@/lib/auth0';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { connectToDatabase } from '@/lib/mongodb';
+import { randomBytes } from 'crypto';
 
 
 interface RouteParams {
@@ -71,6 +72,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Nome do usuário não encontrado' }, { status: 400 });
         }
 
+        let registrationData: { ownerEmail?: unknown; ownerCpf?: unknown } = {};
+        try {
+            registrationData = await request.json();
+        } catch {
+            // Corpo opcional para manter compatibilidade com clientes existentes.
+        }
+
+        const ownerEmail = typeof registrationData.ownerEmail === 'string'
+            ? registrationData.ownerEmail.trim().toLowerCase()
+            : user.email?.trim().toLowerCase();
+        const ownerCpf = typeof registrationData.ownerCpf === 'string'
+            ? registrationData.ownerCpf.replace(/\D/g, '')
+            : undefined;
+
         const ownerId = new ObjectId(ownerIdValue);
         const eventId = new ObjectId(id);
 
@@ -129,6 +144,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                     eventId,
                     owner: ownerId,
                     ownerName,
+                    ownerEmail: ownerEmail || undefined,
+                    ownerCpf: ownerCpf || undefined,
+                    qrToken: randomBytes(32).toString('hex'),
+                    checkedIn: false,
                 },
             ],
             { session }
@@ -147,11 +166,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             },
             { status: 201 }
         );
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
-        return NextResponse.json({ success: false, error: error?.message ?? 'Erro interno ao processar inscrição' }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Erro interno ao processar inscrição';
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     } finally {
         session.endSession();
     }
@@ -218,7 +238,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             data: updatedEvent
         }, { status: 200 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
