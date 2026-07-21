@@ -1,7 +1,9 @@
 "use client";
 
 import ModalAction, { IModalProps } from "@/components/ModalAction";
+import StatusScheduleManager from "@/components/EventStatusManager";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
+import { EventStatusConfig, TimelineItem } from "@/lib/models/EventCertificateModel";
 import {
     CalendarDays,
     CircleDollarSign,
@@ -52,13 +54,16 @@ export default function Page() {
 }
 
 const CreateEventCertificateForm: React.FC = () => {
+    const [status, setStatus] = useState<EventStatusConfig["status"]>("DRAFT");
+    const [registrationStartDate, setRegistrationStartDate] = useState<string>("");
+    const [registrationEndDate, setRegistrationEndDate] = useState<string>("");
+    const [timeLine, setTimeLine] = useState<TimelineItem[]>([]);
     const [eventName, setEventName] = useState("");
     const [eventDescription, setEventDescription] = useState("");
     const [templatePath, setTemplatePath] = useState("template04.png");
     const [templateVersePath, setTemplateVersePath] = useState("");
     const [eventType, setEventType] = useState("");
     const [maxParticipants, setMaxParticipants] = useState<number | "">("");
-    const [isOpen, setIsOpen] = useState(true);
     const [isPaid, setIsPaid] = useState(false);
     const [price, setPrice] = useState<number | "">("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,6 +86,10 @@ const CreateEventCertificateForm: React.FC = () => {
     };
 
     const resetForm = () => {
+        setStatus("DRAFT");
+        setRegistrationStartDate("");
+        setRegistrationEndDate("");
+        setTimeLine([]);
         setEventName("");
         setEventDescription("");
         setEventType("");
@@ -89,7 +98,6 @@ const CreateEventCertificateForm: React.FC = () => {
         setTemplateVersePath("");
         setPrice("");
         setIsPaid(false);
-        setIsOpen(true);
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -104,9 +112,11 @@ const CreateEventCertificateForm: React.FC = () => {
             formData.append("templateVersePath", templateVersePath);
             formData.append("eventType", eventType);
             formData.append("maxParticipants", maxParticipants.toString());
-            formData.append("isOpen", isOpen.toString());
             formData.append("isPaid", isPaid.toString());
-
+            formData.append("status", status);
+            formData.append("registrationStartDate", registrationStartDate);
+            formData.append("registrationEndDate", registrationEndDate);
+            formData.append("timeLine", JSON.stringify(timeLine));
             if (isPaid && price !== "") {
                 formData.append("price", price.toString());
             }
@@ -212,7 +222,22 @@ const CreateEventCertificateForm: React.FC = () => {
                             placeholder="Explique rapidamente o objetivo do evento e o que o participante vai receber."
                         />
                     </FormSection>
-
+                    <FormSection
+                        icon={<Sparkles size={18} />}
+                        title="Status e cronograma"
+                        description="Defina quando as inscricoes abrem e fecham, alem da linha do tempo do evento."
+                    >
+                        <StatusScheduleManager
+                            status={status}
+                            setStatus={setStatus}
+                            registrationStartDate={registrationStartDate}
+                            setRegistrationStartDate={setRegistrationStartDate}
+                            registrationEndDate={registrationEndDate}
+                            setRegistrationEndDate={setRegistrationEndDate}
+                            timeLine={timeLine}
+                            setTimeLine={setTimeLine}
+                        />
+                    </FormSection>
                     <FormSection
                         icon={<Users size={18} />}
                         title="Regras e disponibilidade"
@@ -232,13 +257,7 @@ const CreateEventCertificateForm: React.FC = () => {
                         </div>
 
                         <div className="create-event-toggle-grid">
-                            <ToggleCard
-                                id="isOpen"
-                                checked={isOpen}
-                                onChange={(checked) => setIsOpen(checked)}
-                                title="Inscricoes abertas"
-                                description="Permite novas inscricoes assim que o evento for salvo."
-                            />
+
 
                             <ToggleCard
                                 id="isPaid"
@@ -373,39 +392,39 @@ const FieldGroup: React.FC<{
     min,
     step,
 }) => {
-    return (
-        <div className="create-event-field">
-            <label htmlFor={id} className="create-event-label">
-                {label}
-            </label>
+        return (
+            <div className="create-event-field">
+                <label htmlFor={id} className="create-event-label">
+                    {label}
+                </label>
 
-            {textarea ? (
-                <textarea
-                    id={id}
-                    required={required}
-                    className="glass-input create-event-input create-event-textarea"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder={placeholder}
-                />
-            ) : (
-                <input
-                    id={id}
-                    required={required}
-                    className="glass-input create-event-input"
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder={placeholder}
-                    type={type}
-                    min={min}
-                    step={step}
-                />
-            )}
+                {textarea ? (
+                    <textarea
+                        id={id}
+                        required={required}
+                        className="glass-input create-event-input create-event-textarea"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                    />
+                ) : (
+                    <input
+                        id={id}
+                        required={required}
+                        className="glass-input create-event-input"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder={placeholder}
+                        type={type}
+                        min={min}
+                        step={step}
+                    />
+                )}
 
-            {hint && <span className="create-event-hint">{hint}</span>}
-        </div>
-    );
-};
+                {hint && <span className="create-event-hint">{hint}</span>}
+            </div>
+        );
+    };
 
 const ToggleCard: React.FC<{
     id: string;

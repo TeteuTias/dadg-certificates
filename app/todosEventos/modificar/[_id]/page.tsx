@@ -3,8 +3,10 @@
 import LoadingModal from "@/components/LoadingModal";
 import LoadingPage from "@/components/LoadingPage";
 import ModalAction, { IModalProps } from "@/components/ModalAction";
+import StatusScheduleManager from "@/components/EventStatusManager";
 import { IEventParticipant } from "@/lib/models/EventParticipant";
-import { IEventCertificate } from "@/lib/models/EventCertificateModel";
+import { EventStatusConfig, IEventCertificate, TimelineItem } from "@/lib/models/EventCertificateModel";
+import { toDateTimeLocalValue } from "@/lib/events/formDates";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
 import { libSourceSerif4 } from "@/public/fonts/lib/libSourceSerif4";
 import {
@@ -22,6 +24,7 @@ import {
     Users,
     X,
 } from "lucide-react";
+import { ObjectId } from "bson";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import "./page.css";
@@ -39,7 +42,6 @@ type EventFormState = {
     documentVersion: string;
     maxParticipants: number | "";
     registrationCount: number | "";
-    isOpen: boolean;
     isPaid: boolean;
     price: number | "";
     templatePath: string;
@@ -51,6 +53,14 @@ type EventFormState = {
     styleNameText: string;
     useStatementFormat: boolean;
 };
+
+type EventStatusFormState = {
+    status: EventStatusConfig["status"];
+    registrationStartDate: string;
+    registrationEndDate: string;
+    timeLine: TimelineItem[];
+};
+
 
 type FieldName = keyof EventFormState;
 type DirtyFields = Record<FieldName, boolean>;
@@ -64,19 +74,25 @@ const createEmptyFormState = (): EventFormState => ({
     eventDescription: "",
     eventType: "",
     documentVersion: "",
-    maxParticipants: "",
-    registrationCount: "",
-    isOpen: true,
+    maxParticipants: 0,
+    registrationCount: 0,
     isPaid: false,
-    price: "",
+    price: 0,
     templatePath: "",
     templateVersePath: "",
-    styleContainer: "{}",
-    styleContainerVerse: "{}",
-    styleFrontTopperText: "{}",
-    styleFrontBottomText: "{}",
-    styleNameText: "{}",
+    styleContainer: "",
+    styleContainerVerse: "",
+    styleFrontTopperText: "",
+    styleFrontBottomText: "",
+    styleNameText: "",
     useStatementFormat: false,
+});
+
+const createEmptyStatusFormState = (): EventStatusFormState => ({
+    status: "DRAFT",
+    registrationStartDate: "",
+    registrationEndDate: "",
+    timeLine: [],
 });
 
 const createDirtyFields = (): DirtyFields => ({
@@ -86,7 +102,6 @@ const createDirtyFields = (): DirtyFields => ({
     documentVersion: false,
     maxParticipants: false,
     registrationCount: false,
-    isOpen: false,
     isPaid: false,
     price: false,
     templatePath: false,
@@ -99,6 +114,35 @@ const createDirtyFields = (): DirtyFields => ({
     useStatementFormat: false,
 });
 
+const buildStatusFormState = (statusDetails?: EventStatusConfig): EventStatusFormState => {
+    if (!statusDetails) {
+        return createEmptyStatusFormState();
+    }
+
+    return {
+        status: statusDetails.status,
+        registrationStartDate: toDateTimeLocalValue(statusDetails.registrationStartDate),
+        registrationEndDate: toDateTimeLocalValue(statusDetails.registrationEndDate),
+        timeLine: (statusDetails.timeLine ?? []).map((item) => ({
+            id: item.id ?? new ObjectId(),
+            startDate: new Date(item.startDate),
+            endDate: new Date(item.endDate),
+            description: item.description || "",
+        })),
+    };
+};
+
+const serializeStatusFormState = (state: EventStatusFormState) => ({
+    status: state.status,
+    registrationStartDate: state.registrationStartDate,
+    registrationEndDate: state.registrationEndDate,
+    timeLine: state.timeLine.map((item) => ({
+        startDate: item.startDate,
+        endDate: item.endDate,
+        description: item.description,
+    })),
+});
+
 const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     eventName: eventData.eventName || "",
     eventDescription: eventData.eventDescription || "",
@@ -106,8 +150,6 @@ const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     documentVersion: eventData.documentVersion || "",
     maxParticipants: eventData.maxParticipants || 0,
     registrationCount: eventData.registrationCount || 0,
-    isOpen: eventData.isOpen ?? true,
-    isPaid: eventData.isPaid ?? false,
     price: eventData.isPaid ? eventData.price : 0,
     templatePath: eventData.templatePath || "",
     templateVersePath: eventData.templateVersePath || "",
@@ -116,7 +158,8 @@ const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     styleFrontTopperText: JSON.stringify(eventData.styleFrontTopperText || {}, null, 2),
     styleFrontBottomText: JSON.stringify(eventData.styleFrontBottomText || {}, null, 2),
     styleNameText: JSON.stringify(eventData.styleNameText || {}, null, 2),
-    useStatementFormat: (JSON.stringify(eventData.useStatementFormat) === "true" ? true : false) || false
+    useStatementFormat: (JSON.stringify(eventData.useStatementFormat) === "true" ? true : false) || false,
+    isPaid: false
 });
 
 export default function Page({ params }: { params: Promise<{ _id: string }> }) {
@@ -129,6 +172,8 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
     const [showParticipants, setShowParticipants] = useState(false);
     const [formData, setFormData] = useState<EventFormState>(createEmptyFormState);
     const [originalFormData, setOriginalFormData] = useState<EventFormState>(createEmptyFormState);
+    const [statusFormData, setStatusFormData] = useState<EventStatusFormState>(createEmptyStatusFormState);
+    const [originalStatusFormData, setOriginalStatusFormData] = useState<EventStatusFormState>(createEmptyStatusFormState);
     const [dirtyFields, setDirtyFields] = useState<DirtyFields>(createDirtyFields);
     const [modalState, setModalState] = useState<ModalState>({
         title: "Aviso",
@@ -162,9 +207,12 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
 
             const dataJson: { data: IEventCertificate } = await response.json();
             const nextFormState = buildFormState(dataJson.data);
+            const nextStatusFormState = buildStatusFormState(dataJson.data.statusDetails);
             setEventData(dataJson.data);
             setFormData(nextFormState);
             setOriginalFormData(nextFormState);
+            setStatusFormData(nextStatusFormState);
+            setOriginalStatusFormData(nextStatusFormState);
             setDirtyFields(createDirtyFields());
             setLoading(false);
         };
@@ -189,17 +237,22 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                 value: `${eventData.registrationCount || 0}/${eventData.maxParticipants || 0}`,
             },
             {
-                icon: <CalendarDays size={18} />,
-                label: "Inscricoes",
-                value: eventData.isOpen ? "Abertas" : "Fechadas",
-            },
-            {
                 icon: <CircleDollarSign size={18} />,
                 label: "Pagamento",
                 value: eventData.isPaid ? formatCurrency(eventData.price) : "Gratuito",
             },
+            {
+                icon: <CalendarDays size={18} />,
+                label: "Status",
+                value: getStatusLabel(eventData.statusDetails?.status),
+            },
         ];
     }, [eventData]);
+
+    const statusDetailsDirty = useMemo(() => {
+        return JSON.stringify(serializeStatusFormState(statusFormData)) !==
+            JSON.stringify(serializeStatusFormState(originalStatusFormData));
+    }, [statusFormData, originalStatusFormData]);
 
     const updateModal = (nextState: Partial<ModalState>) => {
         setModalState((prev) => ({ ...prev, ...nextState }));
@@ -305,6 +358,63 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
         } catch (error) {
             updateModal({
                 title: "Erro ao salvar",
+                text: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
+                isOpen: true,
+                buttons: [
+                    {
+                        label: "Fechar",
+                        action: () => updateModal({ isOpen: false }),
+                    },
+                ],
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const saveStatusDetails = async () => {
+        if (!eventData) {
+            return;
+        }
+
+        setSaving(true);
+
+        try {
+            const response = await fetch("/api/put/updateEvent/", {
+                method: "PUT",
+                body: JSON.stringify({
+                    _id: eventData._id,
+                    statusDetails: serializeStatusFormState(statusFormData),
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || "Nao foi possivel salvar o status do evento.");
+            }
+
+            const updatedEvent = result.data as IEventCertificate;
+            const nextStatusFormState = buildStatusFormState(updatedEvent.statusDetails);
+
+            setEventData(updatedEvent);
+            setStatusFormData(nextStatusFormState);
+            setOriginalStatusFormData(nextStatusFormState);
+
+            updateModal({
+                title: "Status salvo com sucesso",
+                text: "O status, as datas de inscricao e o cronograma foram atualizados.",
+                isOpen: true,
+                buttons: [
+                    {
+                        label: "Fechar",
+                        action: () => updateModal({ isOpen: false }),
+                    },
+                ],
+            });
+        } catch (error) {
+            updateModal({
+                title: "Erro ao salvar status",
                 text: error instanceof Error ? error.message : "Ocorreu um erro inesperado.",
                 isOpen: true,
                 buttons: [
@@ -549,6 +659,33 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
 
                             <SettingsSection
                                 icon={<CalendarDays size={18} />}
+                                title="Status e cronograma"
+                                description="Controle publicacao, periodo de inscricoes e etapas oficiais do evento."
+                            >
+                                <StatusScheduleManager
+                                    status={statusFormData.status}
+                                    setStatus={(status) => setStatusFormData((prev) => ({ ...prev, status }))}
+                                    registrationStartDate={statusFormData.registrationStartDate}
+                                    setRegistrationStartDate={(registrationStartDate) =>
+                                        setStatusFormData((prev) => ({ ...prev, registrationStartDate }))
+                                    }
+                                    registrationEndDate={statusFormData.registrationEndDate}
+                                    setRegistrationEndDate={(registrationEndDate) =>
+                                        setStatusFormData((prev) => ({ ...prev, registrationEndDate }))
+                                    }
+                                    timeLine={statusFormData.timeLine}
+                                    setTimeLine={(timeLine) => setStatusFormData((prev) => ({ ...prev, timeLine }))}
+                                    saveAction={{
+                                        dirty: statusDetailsDirty,
+                                        disabled: saving,
+                                        label: "Salvar status",
+                                        onSave: saveStatusDetails,
+                                    }}
+                                />
+                            </SettingsSection>
+
+                            <SettingsSection
+                                icon={<CalendarDays size={18} />}
                                 title="Regras e disponibilidade"
                                 description="Controle vagas, versao do documento e condicoes de acesso."
                             >
@@ -582,16 +719,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                 </div>
 
                                 <div className="event-toggle-row">
-                                    <ToggleField
-                                        label="Inscricoes"
-                                        description="Define se novos usuarios ainda podem entrar no evento."
-                                        active={formData.isOpen}
-                                        dirty={dirtyFields.isOpen}
-                                        trueLabel="Abertas"
-                                        falseLabel="Fechadas"
-                                        onChange={(value) => updateFieldValue("isOpen", value)}
-                                        onSave={() => saveField("isOpen")}
-                                    />
                                     <ToggleField
                                         label="Pagamento"
                                         description="Alterne entre gratuito e pago preservando o resto da configuracao."
@@ -1238,6 +1365,17 @@ function formatCurrency(value?: number) {
         style: "currency",
         currency: "BRL",
     }).format(value);
+}
+
+function getStatusLabel(status?: EventStatusConfig["status"]) {
+    const labels: Record<EventStatusConfig["status"], string> = {
+        DRAFT: "Rascunho",
+        PUBLISHED_OPEN: "Inscricoes abertas",
+        PUBLISHED_CLOSED: "Inscricoes fechadas",
+        CERTIFICATE_ONLY: "Apenas certificados",
+    };
+
+    return status ? labels[status] : "Nao definido";
 }
 
 function formatDate(value?: Date) {

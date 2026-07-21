@@ -132,7 +132,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
             {
                 icon: <CalendarDays size={18} />,
                 label: "Inscricoes",
-                value: data.isOpen ? "Abertas" : "Fechadas",
+                value: "Fechadas",
             },
             {
                 icon: <CircleDollarSign size={18} />,

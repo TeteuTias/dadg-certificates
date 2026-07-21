@@ -27,6 +27,10 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     path: '^/api/v1/test$',
     isPublic: false,
   },
+  {
+    path: '^/teste$',
+    isPublic: false,
+  },
   //
   //
   //
@@ -253,8 +257,43 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   // 3. EVENTOS (Events)
   // ========================================================================
   {
+    path: '^/api/v1/user/profile$',
+    isPublic: false,
+    authType: 'bearer',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
+  },
+  {
+    path: '^/api/v1/events/(?:id/)?([0-9a-fA-F]{24})/registration/?$', // Dinâmico: [eventId]
+    isPublic: false,
+    authType: 'both',
+    //method: 'POST', Vou permitir tudo, mas sempre logado!
+    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
+  },
+  {
+    path: '^/api/v1/events/(user/)?([0-9a-fA-F]{24})$',
+    isPublic: false,
+    authType: 'both',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
+    path: '^/api/v1/events/closedForRegistration/[0-9]{4}-[0-9]{2}$', // Dinâmico: "YYYY-MM"
+    isPublic: false,
+    authType: 'both',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
+    path: '^/api/v1/events/openForRegistration/[0-9]{4}-[0-9]{2}$', // Dinâmico: "YYYY-MM"
+    isPublic: false,
+    authType: 'both',
+    method: 'GET',
+    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
+  },
+  {
     // Visualizar detalhes de um evento
-    path: '^/api/v1/events/[^/]+$',
+    path: '^/api/v1/events/[0-9a-fA-F]{24}$',
     isPublic: true,
     method: 'GET'
   },
@@ -265,13 +304,13 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     method: 'GET'
   },
   {
-    // PROTEÇÃO: Criação e configuração de Eventos 
-    // (Restrito ao dadgSite via Bearer Token, por exemplo)
-    path: '^/api/v1/events',
+    path: "/api/v1/events/openForRegistration",
     isPublic: false,
-    authType: 'bearer',
+    authType: 'both',
+    method: 'GET',
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
   },
+
   //
   // PUBLIC
   {
