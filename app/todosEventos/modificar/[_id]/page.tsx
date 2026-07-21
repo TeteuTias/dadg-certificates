@@ -29,7 +29,6 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import "./page.css";
 import GetUserCertificateByEventId from "@/lib/models/src/certificatesHandler/get/GetUserCertificateByEventId";
-import { ObjectId } from "bson";
 import { ICertificate } from "@/lib/models/CertificateModel";
 
 type ViewMode = "overview" | "settings";

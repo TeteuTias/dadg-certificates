@@ -92,6 +92,8 @@ export async function PUT(request: Request) {
         registrationCount: 0,
         documentVersion: "3.0",
         useStatementFormat: false,
+        certificateHours: "",
+        certificateReleased: false,
         statusDetails
     };
 

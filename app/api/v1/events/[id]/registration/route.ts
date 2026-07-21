@@ -3,10 +3,9 @@ import EventCertificateModel from '@/lib/models/EventCertificateModel';
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'bson';
 import EventParticipant from '@/lib/models/EventParticipant';
-import { auth0 } from '@/lib/auth0';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { connectToDatabase } from '@/lib/mongodb';
-import { randomBytes } from 'crypto';
+import { randomUUID } from 'crypto';
 
 
 interface RouteParams {
@@ -22,20 +21,25 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
-        console.log("Buscando participantes para o evento ID:", id);
         if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
-        //
-        //
-        // Não verifica se está autenticado, isso foi feito no proxy!
-        const keeper = new GateKeeper(request)
-        const user = await keeper.identifySession()
-        if (!user) {
+        const keeper = new GateKeeper(request);
+        const user = await keeper.identifySession();
+        if (!user?.sub) {
             return NextResponse.json({ success: false, message: 'Usuário não encontrado/autenticado' }, { status: 401 });
         }
+
+        const ownerIdValue = user.sub.includes('|') ? user.sub.split('|')[1] : user.sub;
+        if (!ObjectId.isValid(ownerIdValue)) {
+            return NextResponse.json({ success: false, error: 'Identidade do usuário inválida' }, { status: 403 });
+        }
+
         await connectToDatabase();
-        const event = await EventParticipant.findOne({ eventId: id, owner: user.sub.replace("auth0|", "") }).populate("eventId").lean()
+        const event = await EventParticipant.findOne({
+            eventId: new ObjectId(id),
+            owner: new ObjectId(ownerIdValue),
+        }).populate("eventId").lean();
         if (!event) {
             return NextResponse.json({ success: false, error: 'Evento não encontrado' }, { status: 404 });
         }
@@ -72,22 +76,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Nome do usuário não encontrado' }, { status: 400 });
         }
 
-        let registrationData: { ownerEmail?: unknown; ownerCpf?: unknown } = {};
-        try {
-            registrationData = await request.json();
-        } catch {
-            // Corpo opcional para manter compatibilidade com clientes existentes.
-        }
+        // Extraindo dados complementares do body
+        const body = await request.json().catch(() => ({}));
+        const ownerEmail: string = (body.ownerEmail || user.email || '').trim().toLowerCase();
+        const ownerCpf: string = (body.ownerCpf || '').trim().replace(/[^0-9]/g, '');
 
-        const ownerEmail = typeof registrationData.ownerEmail === 'string'
-            ? registrationData.ownerEmail.trim().toLowerCase()
-            : user.email?.trim().toLowerCase();
-        const ownerCpf = typeof registrationData.ownerCpf === 'string'
-            ? registrationData.ownerCpf.replace(/\D/g, '')
-            : undefined;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {
+            return NextResponse.json({ success: false, error: 'E-mail do participante é obrigatório.' }, { status: 400 });
+        }
+        if (!ownerCpf || ownerCpf.length !== 11) {
+            return NextResponse.json({ success: false, error: 'CPF do participante é obrigatório e deve ter 11 dígitos.' }, { status: 400 });
+        }
 
         const ownerId = new ObjectId(ownerIdValue);
         const eventId = new ObjectId(id);
+        // Gera token único para o QR Code do ingresso
+        const qrToken = randomUUID();
 
         await connectToDatabase();
         session.startTransaction();
@@ -144,9 +148,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                     eventId,
                     owner: ownerId,
                     ownerName,
-                    ownerEmail: ownerEmail || undefined,
-                    ownerCpf: ownerCpf || undefined,
-                    qrToken: randomBytes(32).toString('hex'),
+                    ownerEmail,
+                    ownerCpf,
+                    qrToken,
                     checkedIn: false,
                 },
             ],
@@ -162,6 +166,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 data: {
                     eventId: updatedEvent._id,
                     registrationCount: updatedEvent.registrationCount,
+                    qrToken,
                 },
             },
             { status: 201 }
@@ -179,7 +184,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
         const { id } = await params;
@@ -187,12 +191,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
 
-        const sessionAuth = await auth0.getSession(request);
-        if (!sessionAuth || !sessionAuth.user) {
+        const keeper = new GateKeeper(request);
+        const user = await keeper.identifySession();
+        if (!user?.sub) {
             return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
         }
 
-        const ownerIdValue = sessionAuth.user.sub.includes('|') ? sessionAuth.user.sub.split('|')[1] : sessionAuth.user.sub;
+        const ownerIdValue = user.sub.includes('|') ? user.sub.split('|')[1] : user.sub;
 
         if (!ownerIdValue || !ObjectId.isValid(ownerIdValue)) {
             return NextResponse.json({ success: false, error: 'ID do participante é obrigatório' }, { status: 400 });
@@ -200,6 +205,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
         const ownerId = new ObjectId(ownerIdValue);
         const eventId = new ObjectId(id);
+
+        await connectToDatabase();
+        session.startTransaction();
 
         // Verifica se a inscrição realmente existe para este usuário
         const existingParticipant = await EventParticipant.findOne({

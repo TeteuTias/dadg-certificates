@@ -5,13 +5,19 @@ import { IEventCertificate } from './EventCertificateModel';
 export interface IEventParticipant {
     _id: ObjectId;
     eventId: ObjectId;
-    owner: ObjectId;
+    owner?: ObjectId;
     ownerName: string;
     ownerEmail?: string;
     ownerCpf?: string;
     qrToken?: string;
     checkedIn: boolean;
     checkedInAt?: Date | null;
+    /** Indica se o participante fez o check-out (saída) do evento */
+    checkedOut?: boolean;
+    /** Momento em que a saída foi confirmada */
+    checkedOutAt?: Date | null;
+    /** Referência ao certificado gerado após a liberação automática */
+    certificateId?: ObjectId | null;
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -29,8 +35,7 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
         },
         owner: {
             type: Schema.Types.ObjectId,
-            //ref: 'User',  Por enquanto não temos
-            required: true,
+            required: false,
         },
         ownerName: {
             type: String,
@@ -63,13 +68,27 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
             required: false,
             default: null,
         },
+        checkedOut: {
+            type: Boolean,
+            required: false,
+            default: false,
+        },
+        checkedOutAt: {
+            type: Date,
+            required: false,
+        },
+        certificateId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Certificate',
+            required: false,
+            default: null,
+        },
     },
     {
         timestamps: true,
         toJSON: { virtuals: true },
         toObject: { virtuals: true },
         collection: 'certificates.participants',
-
     }
 );
 

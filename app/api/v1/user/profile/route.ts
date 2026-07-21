@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "bson";
+import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import CertificateModel from "@/lib/models/CertificateModel";
 import EventParticipant from "@/lib/models/EventParticipant";
@@ -12,11 +12,26 @@ type PopulatedEvent = {
     eventName: string;
     eventDescription: string;
     eventType: string;
+    certificateReleased?: boolean;
     statusDetails?: {
         status?: "DRAFT" | "PUBLISHED_OPEN" | "PUBLISHED_CLOSED" | "CERTIFICATE_ONLY";
         registrationStartDate?: Date;
         registrationEndDate?: Date;
     };
+};
+
+type ParticipantRecord = {
+    _id: ObjectId;
+    eventId: PopulatedEvent | null;
+    ownerEmail?: string;
+    ownerCpf?: string;
+    qrToken?: string;
+    checkedIn?: boolean;
+    checkedInAt?: Date | null;
+    checkedOut?: boolean;
+    checkedOutAt?: Date | null;
+    certificateId?: ObjectId | null;
+    createdAt?: Date;
 };
 
 function isRegistrationOpen(event: PopulatedEvent) {
@@ -52,17 +67,22 @@ export async function GET(request: NextRequest) {
         const participants = await EventParticipant.find({ owner: new ObjectId(ownerIdValue) })
             .populate("eventId")
             .sort({ createdAt: -1 })
-            .lean();
+            .lean() as unknown as ParticipantRecord[];
 
-        const eventIds = participants
-            .map((participant) => participant.eventId as unknown as PopulatedEvent)
-            .filter((event): event is PopulatedEvent => Boolean(event?._id))
-            .map((event) => event._id);
+        const validParticipants = participants.filter(
+            (participant): participant is ParticipantRecord & { eventId: PopulatedEvent } => Boolean(participant.eventId?._id),
+        );
+        const eventIds = validParticipants.map((participant) => participant.eventId._id);
+        const linkedCertificateIds = validParticipants
+            .map((participant) => participant.certificateId)
+            .filter((certificateId): certificateId is ObjectId => Boolean(certificateId));
+
         const emails = new Set<string>();
         const cpfs = new Set<string>();
-
-        if (user.email) emails.add(user.email.trim().toLowerCase());
-        for (const participant of participants) {
+        if (typeof user.email === "string" && user.email.trim()) {
+            emails.add(user.email.trim().toLowerCase());
+        }
+        for (const participant of validParticipants) {
             if (participant.ownerEmail) emails.add(participant.ownerEmail.trim().toLowerCase());
             if (participant.ownerCpf) cpfs.add(participant.ownerCpf.replace(/\D/g, ""));
         }
@@ -71,24 +91,37 @@ export async function GET(request: NextRequest) {
         if (emails.size) identityFilters.push({ ownerEmail: { $in: [...emails] } });
         if (cpfs.size) identityFilters.push({ ownerCpf: { $in: [...cpfs] } });
 
-        const certificates = eventIds.length && identityFilters.length
-            ? await CertificateModel.find({
+        const certificateFilters: Array<Record<string, unknown>> = [];
+        if (linkedCertificateIds.length) {
+            certificateFilters.push({ _id: { $in: linkedCertificateIds }, isReady: true });
+        }
+        if (eventIds.length && identityFilters.length) {
+            certificateFilters.push({
                 eventId: { $in: eventIds },
                 isReady: true,
                 $or: identityFilters,
-            }).select({ _id: 1, eventId: 1 }).lean()
+            });
+        }
+
+        const certificates = certificateFilters.length
+            ? await CertificateModel.find({ $or: certificateFilters })
+                .select({ _id: 1, eventId: 1 })
+                .lean()
             : [];
 
+        const certificateIds = new Set(certificates.map((certificate) => String(certificate._id)));
         const certificateByEvent = new Map(
             certificates.map((certificate) => [String(certificate.eventId), String(certificate._id)]),
         );
 
-        const data = participants.flatMap((participant) => {
-            const event = participant.eventId as unknown as PopulatedEvent;
-            if (!event?._id) return [];
-
+        const data = validParticipants.map((participant) => {
+            const event = participant.eventId;
             const status = event.statusDetails?.status || "DRAFT";
-            return [{
+            const linkedCertificateId = participant.certificateId && certificateIds.has(String(participant.certificateId))
+                ? String(participant.certificateId)
+                : null;
+
+            return {
                 participationId: String(participant._id),
                 eventId: String(event._id),
                 eventName: event.eventName,
@@ -97,12 +130,14 @@ export async function GET(request: NextRequest) {
                 status,
                 isOpen: isRegistrationOpen(event),
                 enrolledAt: participant.createdAt?.toISOString?.() || new Date().toISOString(),
-                certificateId: certificateByEvent.get(String(event._id)) || null,
+                certificateId: linkedCertificateId || certificateByEvent.get(String(event._id)) || null,
                 qrToken: participant.qrToken || null,
                 checkedIn: participant.checkedIn === true,
                 checkedInAt: participant.checkedInAt?.toISOString?.() || null,
-                certificateReleased: status === "CERTIFICATE_ONLY",
-            }];
+                checkedOut: participant.checkedOut === true,
+                checkedOutAt: participant.checkedOutAt?.toISOString?.() || null,
+                certificateReleased: event.certificateReleased === true || status === "CERTIFICATE_ONLY",
+            };
         });
 
         return NextResponse.json({ success: true, data });

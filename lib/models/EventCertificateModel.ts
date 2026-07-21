@@ -61,9 +61,14 @@ export type IEventCertificate = {
     templateVersePath?: string;
     // Informações Gerais e Regras
     eventType: string;
+    eventBenefits?: string;
     documentVersion: string;
     maxParticipants: number;
     useStatementFormat: boolean;
+    /** Carga horária do evento — usada na geração automática dos certificados (ex: "4h", "8 horas") */
+    certificateHours?: string;
+    /** Flag que indica se os certificados já foram liberados para os participantes */
+    certificateReleased: boolean;
     statusDetails: EventStatusConfig;
 } & PaymentOptions;
 
@@ -94,9 +99,12 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
         templateVersePath: { type: String, required: false },
 
         eventType: { type: String, required: true },
+        eventBenefits: { type: String, required: false },
         registrationCount: { type: Number, required: true, default: 0 },
         documentVersion: { type: String, required: false, default: "2.0" },
         maxParticipants: { type: Number, required: true },
+        certificateHours: { type: String, required: false, default: "" },
+        certificateReleased: { type: Boolean, required: true, default: false },
 
         // Regras de Pagamento
         isPaid: { type: Boolean, required: true },

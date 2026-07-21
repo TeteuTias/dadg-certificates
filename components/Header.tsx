@@ -270,6 +270,10 @@ export default function Header() {
             <Link href="/historicoDeModificacoes" className="header-link" onClick={closeNavigation}>
               Historico
             </Link>
+            
+            <Link href="/configuracoes" className="header-link" onClick={closeNavigation}>
+              Configurações
+            </Link>
           </div>
         </nav>
       </header>
