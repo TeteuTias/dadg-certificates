@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
+import * as LucideIcons from "lucide-react";
+import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
+import "./page.css";
+
+const {
   AlertCircle,
   CheckCircle2,
   Loader2,
   Newspaper,
   Settings,
   ShieldCheck,
-} from "lucide-react";
-import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
-import "./page.css";
+} = LucideIcons;
 
 type Feedback = {
   type: "success" | "error";
