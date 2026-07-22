@@ -9,7 +9,6 @@ import {
     Camera,
     CameraOff,
     CheckCircle2,
-    Clock,
     Loader2,
     QrCode,
     RefreshCw,
@@ -17,7 +16,6 @@ import {
     UserPlus,
     Users,
     XCircle,
-    Sparkles,
     AlertTriangle,
     ExternalLink,
     LogOut,
@@ -81,14 +79,6 @@ export default function PresencaPage() {
     const [walkinForm, setWalkinForm] = useState({ ownerName: "", ownerEmail: "", ownerCpf: "" });
     const [walkinLoading, setWalkinLoading] = useState(false);
     const [walkinError, setWalkinError] = useState("");
-
-    // Release modal
-    const [showReleaseModal, setShowReleaseModal] = useState(false);
-    const [releaseHours, setReleaseHours] = useState("");
-    const [isReleasing, setIsReleasing] = useState(false);
-    const [releaseSuccess, setReleaseSuccess] = useState(false);
-    const [releaseError, setReleaseError] = useState("");
-    const [generatedCount, setGeneratedCount] = useState(0);
 
     const fetchParticipants = useCallback(async () => {
         try {
@@ -205,39 +195,12 @@ export default function PresencaPage() {
         finally { setWalkinLoading(false); }
     };
 
-    // Release certificates
-    const handleRelease = async () => {
-        if (!releaseHours.trim()) { setReleaseError("Informe a carga horária antes de continuar."); return; }
-        setIsReleasing(true); setReleaseError("");
-        try {
-            const res = await fetch(`/api/v1/events/${eventId}/release-certificates`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ certificateHours: releaseHours.trim() }),
-            });
-            const data = await res.json();
-            if (!res.ok) { setReleaseError(data.error || "Erro ao liberar certificados."); return; }
-            setGeneratedCount(data.data?.generatedCount || 0);
-            setReleaseSuccess(data.data?.releaseCompleted === true);
-            setShowReleaseModal(false);
-            await fetchParticipants();
-        } catch { setReleaseError("Erro de conexão."); }
-        finally { setIsReleasing(false); }
-    };
-
     const filteredParticipants = participants.filter(p => {
         const matchesFilter = filter === "all" || (filter === "checkedIn" && p.checkedIn) || (filter === "absent" && !p.checkedIn);
         const q = searchQuery.toLowerCase();
         const matchesSearch = !q || p.ownerName.toLowerCase().includes(q) || p.ownerEmail.toLowerCase().includes(q) || p.ownerCpf.includes(q);
         return matchesFilter && matchesSearch;
     });
-    const certificateEligibleCount = participants.filter(
-        participant => participant.checkedIn && participant.checkedOut && !participant.certificateId,
-    ).length;
-    const awaitingCheckoutCount = participants.filter(
-        participant => participant.checkedIn && !participant.checkedOut,
-    ).length;
-
     return (
         <main className="presenca-page" style={PoppinsFontLib.style}>
             <div className="presenca-shell">
@@ -340,42 +303,6 @@ export default function PresencaPage() {
                     )}
                 </div>
 
-                {/* Release Certificates */}
-                {meta.checkedIn > 0 && (
-                    <div className={`glass-card release-card ${releaseSuccess ? "release-done" : ""}`}>
-                        <div className="release-content">
-                            <div className="release-text">
-                                <Award size={24} className="release-icon" />
-                                <div>
-                                    <h2>Certificados Automáticos</h2>
-                                    {releaseSuccess
-                                        ? <p>✅ {generatedCount} certificado(s) gerado(s) para quem concluiu entrada e saída.</p>
-                                        : certificateEligibleCount > 0
-                                            ? <p>{certificateEligibleCount} participante(s) concluíram check-in e check-out e estão aptos.</p>
-                                            : <p>Nenhum participante apto. {awaitingCheckoutCount} ainda aguardando check-out.</p>
-                                    }
-                                </div>
-                            </div>
-                            {!releaseSuccess ? (
-                                <button
-                                    onClick={() => { setShowReleaseModal(true); setReleaseError(""); }}
-                                    className="glass-button release-btn"
-                                    disabled={certificateEligibleCount === 0}
-                                >
-                                    <Sparkles size={18} />Liberar Certificados Automáticos
-                                </button>
-                            ) : (
-                                <span className="release-done-badge">✅ Emitidos</span>
-                            )}
-                        </div>
-                        {releaseError && <p className="release-error">{releaseError}</p>}
-                        <p className="release-note">
-                            💡 O fluxo manual de criação de certificados continua disponível em{" "}
-                            <Link href={`/todosCertificados/${eventId}`} target="_blank" className="release-manual-link">Ver certificados</Link>
-                        </p>
-                    </div>
-                )}
-
                 {/* Filtros */}
                 <div className="presenca-controls">
                     <div className="presenca-filters">
@@ -449,41 +376,6 @@ export default function PresencaPage() {
                 </div>
             )}
 
-            {/* Modal: Liberar Certificados */}
-            {showReleaseModal && (
-                <div className="modal-backdrop" onClick={() => setShowReleaseModal(false)}>
-                    <div className="modal-box" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <Sparkles size={20} className="modal-icon modal-icon-gold" />
-                            <h2>Liberar Certificados Automáticos</h2>
-                        </div>
-                        <p className="modal-desc">
-                            Serão gerados certificados para <strong>{certificateEligibleCount} participante(s)</strong> que concluíram check-in e check-out.
-                            <br /><br />
-                            Informe a carga horária que aparecerá nos certificados:
-                        </p>
-                        <div className="modal-fields">
-                            <div className="modal-field">
-                                <label>Carga Horária *</label>
-                                <input type="text" placeholder="Ex: 4 horas, 8h, 2 horas e 30 minutos"
-                                    value={releaseHours} onChange={e => setReleaseHours(e.target.value)}
-                                    className="glass-input" autoFocus />
-                            </div>
-                        </div>
-                        <div className="modal-warning">
-                            <AlertTriangle size={14} />
-                            <span>Esta ação é irreversível. Os certificados serão liberados automaticamente para os alunos.</span>
-                        </div>
-                        {releaseError && <p className="modal-error">{releaseError}</p>}
-                        <div className="modal-actions">
-                            <button onClick={() => setShowReleaseModal(false)} className="glass-button">Cancelar</button>
-                            <button onClick={handleRelease} disabled={isReleasing} className="glass-button release-btn">
-                                {isReleasing ? <><Loader2 size={15} className="spin" />Gerando...</> : <><Sparkles size={15} />Confirmar e Liberar</>}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </main>
     );
 }

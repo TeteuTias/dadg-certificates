@@ -265,80 +265,6 @@
 .scanner-validating { }
 .scanner-spinner { color: #60a5fa; animation: spin 1s linear infinite; }
 
-/* Release card */
-.release-card {
-    padding: 1.5rem;
-    border-color: rgba(16, 185, 129, 0.25) !important;
-    background: rgba(6, 78, 59, 0.2) !important;
-}
-
-.release-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.25rem;
-    flex-wrap: wrap;
-}
-
-.release-text {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    flex: 1;
-}
-
-.release-icon { color: #34d399; flex-shrink: 0; margin-top: 2px; }
-
-.release-text h2 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #6ee7b7;
-    margin: 0 0 0.25rem;
-}
-
-.release-text p {
-    color: #a7f3d0;
-    font-size: 0.875rem;
-    margin: 0;
-}
-
-.release-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(16, 185, 129, 0.25) !important;
-    border-color: rgba(16, 185, 129, 0.5) !important;
-    color: #6ee7b7 !important;
-    font-size: 0.9rem;
-    padding: 0.75rem 1.5rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.release-btn:hover:not(:disabled) {
-    background: rgba(16, 185, 129, 0.4) !important;
-}
-
-.release-done-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: rgba(16, 185, 129, 0.2);
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    color: #6ee7b7;
-    padding: 0.6rem 1.2rem;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 700;
-}
-
-.release-error {
-    margin-top: 0.75rem;
-    color: #fca5a5;
-    font-size: 0.85rem;
-    text-align: center;
-}
-
 /* Controls */
 .presenca-controls {
     display: flex;
@@ -546,8 +472,6 @@
 /* Responsive */
 @media (max-width: 768px) {
     .presenca-page { padding: 1.25rem 1rem 3rem; }
-    .release-content { flex-direction: column; }
-    .release-btn { width: 100%; justify-content: center; }
     .participant-row { flex-wrap: wrap; }
     .participant-actions { flex-direction: row; align-items: center; flex-wrap: wrap; }
     .presenca-controls { flex-direction: column; align-items: stretch; }
@@ -575,24 +499,6 @@
     text-decoration: none;
     color: #93c5fd;
 }
-
-/* =============================================
-   Release note
-   ============================================= */
-.release-note {
-    margin-top: 0.75rem;
-    font-size: 0.8rem;
-    color: #6ee7b7;
-    opacity: 0.8;
-}
-
-.release-manual-link {
-    color: #34d399;
-    font-weight: 600;
-    text-decoration: underline;
-}
-
-.release-done { border-color: rgba(16, 185, 129, 0.4) !important; }
 
 /* =============================================
    Modal

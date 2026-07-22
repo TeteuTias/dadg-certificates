@@ -333,14 +333,6 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
   },
   {
-    // Liberar certificados automáticos para todos os presentes
-    path: '^/api/v1/events/[0-9a-fA-F]{24}/release-certificates$',
-    isPublic: false,
-    authType: 'both',
-    method: 'POST',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
     // Adicionar participante walk-in (sem inscrição prévia)
     path: '^/api/v1/events/[0-9a-fA-F]{24}/walkin$',
     isPublic: false,
