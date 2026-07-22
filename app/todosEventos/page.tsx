@@ -175,7 +175,7 @@ function EventCard({ event }: { event: IEventCertificate }) {
                 <div className="event-card-metrics">
                     <span className="event-card-chip">
                         <CalendarDays size={15} />
-                        <span>{event.isOpen ? "Inscricoes abertas" : "Inscricoes fechadas"}</span>
+                        <span>{event.statusDetails?.status === "PUBLISHED_OPEN" ? "Inscricoes abertas" : "Inscricoes fechadas"}</span>
                     </span>
                     <span className="event-card-chip">
                         <Users size={15} />
@@ -200,6 +200,15 @@ function EventCard({ event }: { event: IEventCertificate }) {
                 </Link>
                 <Link
                     prefetch={false}
+                    href={`/todosEventos/${event._id}/presenca`}
+                    target="_blank"
+                    className="glass-button glass-button-success event-card-button"
+                >
+                    <Users size={16} />
+                    <span>Lista de Presença</span>
+                </Link>
+                <Link
+                    prefetch={false}
                     href={`/todosCertificados/${event._id}`}
                     target="_blank"
                     className="glass-button event-card-button"
@@ -211,6 +220,7 @@ function EventCard({ event }: { event: IEventCertificate }) {
         </article>
     );
 }
+
 
 function formatCurrency(value?: number) {
     if (typeof value !== "number") {
