@@ -9,7 +9,7 @@ interface RouteParams {
 }
 
 /**
- * @description Confirma a presença (check-in) de um participante em um evento.
+ * @description Registra check-in, check-out ou remove manualmente a presença de um participante.
  * PATCH /api/v1/events/[id]/registration/[participantId]/checkin
  * Apenas admins autenticados podem chamar este endpoint.
  */
@@ -39,6 +39,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         } catch (e) {
             // body is optional, default to checkin
         }
+        if (!['checkin', 'checkout', 'reset'].includes(mode)) {
+            return NextResponse.json({ success: false, error: 'Ação de presença inválida.' }, { status: 400 });
+        }
 
         await connectToDatabase();
 
@@ -52,6 +55,40 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         }
 
         const now = new Date();
+
+        if (mode === 'reset') {
+            if (participant.certificateId) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Não é possível remover a presença porque o certificado já foi emitido.',
+                }, { status: 409 });
+            }
+            if (!participant.checkedIn && !participant.checkedOut) {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Este participante ainda não possui presença registrada.',
+                }, { status: 409 });
+            }
+
+            participant.checkedIn = false;
+            participant.checkedInAt = null;
+            participant.checkedOut = false;
+            participant.checkedOutAt = null;
+            await participant.save();
+
+            return NextResponse.json({
+                success: true,
+                message: `Presença de ${participant.ownerName} removida com sucesso!`,
+                data: {
+                    participantId: String(participant._id),
+                    ownerName: participant.ownerName,
+                    checkedIn: false,
+                    checkedInAt: null,
+                    checkedOut: false,
+                    checkedOutAt: null,
+                },
+            }, { status: 200 });
+        }
 
         if (mode === 'checkout') {
             if (!participant.checkedIn) {

@@ -498,6 +498,21 @@
     white-space: nowrap;
 }
 
+.manual-remove-presence-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-color: rgba(248, 113, 113, 0.45) !important;
+    color: #fca5a5 !important;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.85rem;
+    white-space: nowrap;
+}
+
+.manual-remove-presence-btn:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.18) !important;
+}
+
 .participant-action-error {
     width: 100%;
     color: #fca5a5;

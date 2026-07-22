@@ -492,8 +492,11 @@ function ParticipantRow({ participant, eventId, onCheckinSuccess }: { participan
     const [isChecking, setIsChecking] = useState(false);
     const [actionError, setActionError] = useState("");
 
-    const handleManualAction = async (mode: "checkin" | "checkout") => {
-        if (!confirm(`Confirmar ${mode === "checkin" ? "entrada" : "saída"} de ${participant.ownerName}?`)) return;
+    const handleManualAction = async (mode: "checkin" | "checkout" | "reset") => {
+        const confirmationMessage = mode === "reset"
+            ? `Remover a presença de ${participant.ownerName}? O check-in e o check-out serão apagados.`
+            : `Confirmar ${mode === "checkin" ? "entrada" : "saída"} de ${participant.ownerName}?`;
+        if (!confirm(confirmationMessage)) return;
         setIsChecking(true);
         setActionError("");
         try {
@@ -505,7 +508,10 @@ function ParticipantRow({ participant, eventId, onCheckinSuccess }: { participan
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-                throw new Error(data.error || data.message || `Não foi possível registrar ${mode === "checkin" ? "o check-in" : "o check-out"}.`);
+                const fallbackMessage = mode === "reset"
+                    ? "Não foi possível remover a presença."
+                    : `Não foi possível registrar ${mode === "checkin" ? "o check-in" : "o check-out"}.`;
+                throw new Error(data.error || data.message || fallbackMessage);
             }
             await onCheckinSuccess();
         } catch (error) {
@@ -539,6 +545,12 @@ function ParticipantRow({ participant, eventId, onCheckinSuccess }: { participan
                             <button onClick={() => handleManualAction("checkout")} disabled={isChecking} className="glass-button manual-checkin-btn" style={{ marginLeft: "10px" }}>
                                 {isChecking ? <Loader2 size={14} className="spin" /> : <LogOut size={14} />}
                                 Saída manual
+                            </button>
+                        )}
+                        {!participant.certificateId && (
+                            <button onClick={() => handleManualAction("reset")} disabled={isChecking} className="glass-button manual-remove-presence-btn">
+                                {isChecking ? <Loader2 size={14} className="spin" /> : <XCircle size={14} />}
+                                Remover presença
                             </button>
                         )}
                     </>
