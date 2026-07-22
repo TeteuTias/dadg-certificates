@@ -175,7 +175,7 @@ function EventCard({ event }: { event: IEventCertificate }) {
                 <div className="event-card-metrics">
                     <span className="event-card-chip">
                         <CalendarDays size={15} />
-                        <span>{event.statusDetails.status === "PUBLISHED_OPEN" ? "Inscricoes abertas" : "Inscricoes fechadas"}</span>
+                        <span>{event.statusDetails?.status === "PUBLISHED_OPEN" ? "Inscricoes abertas" : "Inscricoes fechadas"}</span>
                     </span>
                     <span className="event-card-chip">
                         <Users size={15} />
