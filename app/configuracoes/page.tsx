@@ -1,102 +1,193 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Newspaper,
+  Settings,
+  ShieldCheck,
+} from "lucide-react";
+import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
 import "./page.css";
-import { Settings } from "lucide-react";
+
+type Feedback = {
+  type: "success" | "error";
+  text: string;
+} | null;
 
 export default function ConfiguracoesPage() {
   const [blogEnabled, setBlogEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState<Feedback>(null);
 
   useEffect(() => {
-    fetchSettings();
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch("/api/v1/settings", { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || typeof data.blogEnabled !== "boolean") {
+          throw new Error(data.error || "Não foi possível carregar as configurações.");
+        }
+
+        setBlogEnabled(data.blogEnabled);
+      } catch (error) {
+        setFeedback({
+          type: "error",
+          text: error instanceof Error ? error.message : "Não foi possível carregar as configurações.",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchSettings();
   }, []);
 
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch("/api/v1/settings");
-      if (res.ok) {
-        const data = await res.json();
-        setBlogEnabled(data.blogEnabled);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar configurações:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const toggleBlog = async () => {
-    if (blogEnabled === null) return;
-    
-    setSaving(true);
-    setMessage("");
-    
+    if (blogEnabled === null || saving) return;
+
     const newValue = !blogEnabled;
+    setSaving(true);
+    setFeedback(null);
+
     try {
-      const res = await fetch("/api/v1/settings", {
+      const response = await fetch("/api/v1/settings", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ blogEnabled: newValue }),
       });
+      const data = await response.json().catch(() => ({}));
 
-      if (res.ok) {
-        setBlogEnabled(newValue);
-        setMessage("Configuração salva com sucesso!");
-        setTimeout(() => setMessage(""), 3000);
-      } else {
-        setMessage("Erro ao salvar configuração.");
+      if (!response.ok) {
+        throw new Error(data.error || "Não foi possível salvar a configuração.");
       }
+
+      setBlogEnabled(typeof data.blogEnabled === "boolean" ? data.blogEnabled : newValue);
+      setFeedback({ type: "success", text: "Configuração salva com sucesso." });
     } catch (error) {
-      console.error("Erro ao atualizar configurações:", error);
-      setMessage("Erro ao salvar configuração.");
+      setFeedback({
+        type: "error",
+        text: error instanceof Error ? error.message : "Não foi possível salvar a configuração.",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <div className="configuracoes-container">
-      <div className="configuracoes-header">
-        <h1 className="configuracoes-title">
-          <Settings className="inline-block mr-2" size={28} />
-          Configurações Globais
-        </h1>
-        <p className="configuracoes-subtitle">
-          Gerencie as opções do sistema que refletem no site principal.
-        </p>
-      </div>
+  const statusLabel = loading
+    ? "Carregando"
+    : blogEnabled === true
+      ? "Blog publicado"
+      : blogEnabled === false
+        ? "Blog oculto"
+        : "Indisponível";
 
-      {loading ? (
-        <p>Carregando configurações...</p>
-      ) : (
-        <div className="configuracoes-card">
-          <div className="configuracoes-item-info">
-            <h3>Blog do Diretório</h3>
+  return (
+    <main className="settings-page" style={PoppinsFontLib.style}>
+      <div className="settings-shell">
+        <header className="settings-header fade-in">
+          <div className="settings-hero">
+            <span className="settings-badge"><Settings size={15} />Administração</span>
+            <h1>Configurações globais</h1>
             <p>
-              Ao desativar, o blog deixará de aparecer no menu, na página de perfil 
-              e as rotas do blog não ficarão acessíveis no site principal.
+              Controle recursos que refletem no site principal sem alterar o restante da experiência.
             </p>
           </div>
-          <div className="flex flex-col items-end">
-            <label className="configuracoes-switch">
-              <input 
-                type="checkbox" 
-                checked={blogEnabled || false} 
-                onChange={toggleBlog}
-                disabled={saving}
-              />
-              <span className="configuracoes-slider"></span>
-            </label>
+
+          <div className="glass-card settings-overview" aria-live="polite">
+            <span className={`settings-status-dot ${blogEnabled ? "is-active" : ""}`} />
+            <div>
+              <small>Estado atual</small>
+              <strong>{statusLabel}</strong>
+            </div>
           </div>
-        </div>
-      )}
-      
-      {message && <div className="configuracoes-status-msg">{message}</div>}
-    </div>
+        </header>
+
+        <section className="settings-section fade-in">
+          <div className="settings-section-heading">
+            <div>
+              <span>Conteúdo e comunicação</span>
+              <h2>Visibilidade dos canais</h2>
+            </div>
+            <p>As mudanças são aplicadas imediatamente no site principal.</p>
+          </div>
+
+          {loading ? (
+            <div className="glass-card settings-loading" role="status">
+              <Loader2 size={24} className="settings-spinner" />
+              <div>
+                <strong>Carregando configurações</strong>
+                <span>Consultando o estado atual do sistema.</span>
+              </div>
+            </div>
+          ) : blogEnabled === null ? (
+            <div className="glass-card settings-loading is-error" role="alert">
+              <AlertCircle size={24} />
+              <div>
+                <strong>Configuração indisponível</strong>
+                <span>Não foi possível consultar o estado do blog neste momento.</span>
+              </div>
+            </div>
+          ) : (
+            <article className="glass-card settings-card">
+              <div className="settings-card-icon"><Newspaper size={24} /></div>
+
+              <div className="settings-card-copy">
+                <div className="settings-card-title-row">
+                  <h3>Blog do Diretório</h3>
+                  <span className={`settings-state-pill ${blogEnabled ? "is-active" : "is-inactive"}`}>
+                    {blogEnabled ? "Ativo" : "Oculto"}
+                  </span>
+                </div>
+                <p>
+                  Define se o blog aparece no menu, no perfil e nas páginas públicas do site principal.
+                  Ao desativar, o conteúdo permanece armazenado e pode ser reativado depois.
+                </p>
+              </div>
+
+              <div className="settings-control">
+                <span className="settings-control-label">Exibir no site</span>
+                <label className={`settings-switch ${blogEnabled ? "is-active" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={blogEnabled === true}
+                    onChange={() => void toggleBlog()}
+                    disabled={saving || blogEnabled === null}
+                    aria-label={blogEnabled ? "Ocultar blog do site principal" : "Exibir blog no site principal"}
+                  />
+                  <span className="settings-switch-track" aria-hidden="true">
+                    <span className="settings-switch-thumb">
+                      {saving && <Loader2 size={13} className="settings-spinner" />}
+                    </span>
+                  </span>
+                </label>
+                <span className="settings-control-state">
+                  {saving ? "Salvando..." : blogEnabled ? "Visível" : "Não visível"}
+                </span>
+              </div>
+            </article>
+          )}
+
+          <div className="glass-card settings-note">
+            <ShieldCheck size={20} />
+            <div>
+              <strong>Configuração protegida</strong>
+              <p>Somente usuários autenticados nesta área administrativa podem alterar esse estado.</p>
+            </div>
+          </div>
+        </section>
+
+        {feedback && (
+          <div className={`settings-feedback is-${feedback.type}`} role="status" aria-live="polite">
+            {feedback.type === "success" ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span>{feedback.text}</span>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
