@@ -9,7 +9,7 @@ import GateKeeper from "./lib/security/gatekeeper"
  * @abstract Nova autenticação, fazendo a autenticação dentro de cada roat
  */
 export async function proxy(request: NextRequest) {
-  const authRes = auth0.middleware(request);
+  const authRes = await auth0.middleware(request);
 
   // Regra de bypass para as rotas do próprio Auth0
   if (request.nextUrl.pathname.startsWith("/auth")) {

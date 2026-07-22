@@ -123,7 +123,7 @@ export default class GateKeeper {
         // Tenta identificar via Cookie (Sessão de Navegador)
         // No App Router, getSession pode ser chamado sem o 'req' para usar o contexto global
         try {
-            const session = await auth0.getSession();
+            const session = await auth0.getSession(this.request);
 
             if (session?.user) {
                 return this.normalize(session.user);

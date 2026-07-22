@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (checkedInFilter === 'false') query.checkedIn = false;
 
         const participants = await EventParticipant.find(query)
-            .select('ownerName ownerEmail ownerCpf checkedIn checkedInAt certificateId qrToken createdAt')
+            .select('ownerName ownerEmail ownerCpf checkedIn checkedInAt checkedOut checkedOutAt certificateId qrToken createdAt')
             .sort({ ownerName: 1 })
             .lean();
 

@@ -85,7 +85,6 @@ export default function PresencaPage() {
     // Release modal
     const [showReleaseModal, setShowReleaseModal] = useState(false);
     const [releaseHours, setReleaseHours] = useState("");
-    const [requireCheckout, setRequireCheckout] = useState(false);
     const [isReleasing, setIsReleasing] = useState(false);
     const [releaseSuccess, setReleaseSuccess] = useState(false);
     const [releaseError, setReleaseError] = useState("");
@@ -214,12 +213,12 @@ export default function PresencaPage() {
             const res = await fetch(`/api/v1/events/${eventId}/release-certificates`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ certificateHours: releaseHours.trim(), requireCheckout }),
+                body: JSON.stringify({ certificateHours: releaseHours.trim() }),
             });
             const data = await res.json();
             if (!res.ok) { setReleaseError(data.error || "Erro ao liberar certificados."); return; }
             setGeneratedCount(data.data?.generatedCount || 0);
-            setReleaseSuccess(true);
+            setReleaseSuccess(data.data?.releaseCompleted === true);
             setShowReleaseModal(false);
             await fetchParticipants();
         } catch { setReleaseError("Erro de conexão."); }
@@ -232,6 +231,12 @@ export default function PresencaPage() {
         const matchesSearch = !q || p.ownerName.toLowerCase().includes(q) || p.ownerEmail.toLowerCase().includes(q) || p.ownerCpf.includes(q);
         return matchesFilter && matchesSearch;
     });
+    const certificateEligibleCount = participants.filter(
+        participant => participant.checkedIn && participant.checkedOut && !participant.certificateId,
+    ).length;
+    const awaitingCheckoutCount = participants.filter(
+        participant => participant.checkedIn && !participant.checkedOut,
+    ).length;
 
     return (
         <main className="presenca-page" style={PoppinsFontLib.style}>
@@ -344,13 +349,19 @@ export default function PresencaPage() {
                                 <div>
                                     <h2>Certificados Automáticos</h2>
                                     {releaseSuccess
-                                        ? <p>✅ {generatedCount} certificado(s) gerado(s) automaticamente para os presentes!</p>
-                                        : <p>{meta.checkedIn} participante(s) com presença confirmada. Clique para gerar os certificados automaticamente.</p>
+                                        ? <p>✅ {generatedCount} certificado(s) gerado(s) para quem concluiu entrada e saída.</p>
+                                        : certificateEligibleCount > 0
+                                            ? <p>{certificateEligibleCount} participante(s) concluíram check-in e check-out e estão aptos.</p>
+                                            : <p>Nenhum participante apto. {awaitingCheckoutCount} ainda aguardando check-out.</p>
                                     }
                                 </div>
                             </div>
                             {!releaseSuccess ? (
-                                <button onClick={() => { setShowReleaseModal(true); setReleaseError(""); }} className="glass-button release-btn">
+                                <button
+                                    onClick={() => { setShowReleaseModal(true); setReleaseError(""); }}
+                                    className="glass-button release-btn"
+                                    disabled={certificateEligibleCount === 0}
+                                >
                                     <Sparkles size={18} />Liberar Certificados Automáticos
                                 </button>
                             ) : (
@@ -447,7 +458,7 @@ export default function PresencaPage() {
                             <h2>Liberar Certificados Automáticos</h2>
                         </div>
                         <p className="modal-desc">
-                            Serão gerados certificados para <strong>{meta.checkedIn} participante(s)</strong> com presença confirmada.
+                            Serão gerados certificados para <strong>{certificateEligibleCount} participante(s)</strong> que concluíram check-in e check-out.
                             <br /><br />
                             Informe a carga horária que aparecerá nos certificados:
                         </p>
@@ -457,10 +468,6 @@ export default function PresencaPage() {
                                 <input type="text" placeholder="Ex: 4 horas, 8h, 2 horas e 30 minutos"
                                     value={releaseHours} onChange={e => setReleaseHours(e.target.value)}
                                     className="glass-input" autoFocus />
-                            </div>
-                            <div className="modal-field" style={{ flexDirection: "row", alignItems: "center", gap: "10px", marginTop: "10px" }}>
-                                <input type="checkbox" id="requireCheckout" checked={requireCheckout} onChange={e => setRequireCheckout(e.target.checked)} />
-                                <label htmlFor="requireCheckout" style={{ margin: 0, cursor: "pointer" }}>Exigir Check-out para emitir os certificados</label>
                             </div>
                         </div>
                         <div className="modal-warning">
@@ -481,19 +488,28 @@ export default function PresencaPage() {
     );
 }
 
-function ParticipantRow({ participant, eventId, onCheckinSuccess }: { participant: Participant; eventId: string; onCheckinSuccess: () => void }) {
+function ParticipantRow({ participant, eventId, onCheckinSuccess }: { participant: Participant; eventId: string; onCheckinSuccess: () => void | Promise<void> }) {
     const [isChecking, setIsChecking] = useState(false);
+    const [actionError, setActionError] = useState("");
 
     const handleManualAction = async (mode: "checkin" | "checkout") => {
         if (!confirm(`Confirmar ${mode === "checkin" ? "entrada" : "saída"} de ${participant.ownerName}?`)) return;
         setIsChecking(true);
+        setActionError("");
         try {
             const res = await fetch(`/api/v1/events/${eventId}/registration/${participant._id}/checkin`, { 
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
                 body: JSON.stringify({ mode })
             });
-            if (res.ok) onCheckinSuccess();
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.error || data.message || `Não foi possível registrar ${mode === "checkin" ? "o check-in" : "o check-out"}.`);
+            }
+            await onCheckinSuccess();
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : "Erro de conexão ao registrar presença.");
         } finally { setIsChecking(false); }
     };
 
@@ -535,6 +551,7 @@ function ParticipantRow({ participant, eventId, onCheckinSuccess }: { participan
                 {participant.certificateId && (
                     <span className="cert-badge"><Award size={14} />Certificado emitido</span>
                 )}
+                {actionError && <span className="participant-action-error" role="alert">{actionError}</span>}
             </div>
         </div>
     );

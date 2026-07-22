@@ -11,11 +11,11 @@ interface RouteParams {
 }
 
 /**
- * @description Libera certificados automaticamente para todos os participantes que fizeram check-in.
+ * @description Libera certificados automaticamente para participantes que concluíram check-in e check-out.
  * POST /api/v1/events/[id]/release-certificates
  * 
  * 
- * Body: { certificateHours: string, requireCheckout?: boolean }  — carga horária e se exige checkout
+ * Body: { certificateHours: string } — carga horária do certificado
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
     try {
@@ -34,7 +34,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         // Lê carga horária digitada pelo admin na hora de liberar
         const body = await request.json().catch(() => ({}));
         const certificateHours: string = (body.certificateHours || '').trim();
-        const requireCheckout: boolean = !!body.requireCheckout;
         if (!certificateHours) {
             return NextResponse.json({
                 success: false,
@@ -58,18 +57,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             }, { status: 409 });
         }
 
-        // 2. Buscar participantes com check-in confirmado e sem certificado
-        const query: any = {
+        // 2. Somente participantes que concluíram entrada e saída podem receber certificado.
+        const pendingCertificateQuery = {
             eventId: new ObjectId(id),
             checkedIn: true,
             $or: [{ certificateId: null }, { certificateId: { $exists: false } }],
         };
-
-        if (requireCheckout) {
-            query.checkedOut = true;
-        }
-
-        const pendingParticipants = await EventParticipant.find(query).lean();
+        const [pendingParticipants, awaitingCheckoutCount] = await Promise.all([
+            EventParticipant.find({ ...pendingCertificateQuery, checkedOut: true }).lean(),
+            EventParticipant.countDocuments({ ...pendingCertificateQuery, checkedOut: { $ne: true } }),
+        ]);
         const eligibleParticipants = pendingParticipants.filter((participant) => {
             const email = typeof participant.ownerEmail === 'string' ? participant.ownerEmail.trim() : '';
             const cpf = typeof participant.ownerCpf === 'string' ? participant.ownerCpf.replace(/\D/g, '') : '';
@@ -83,9 +80,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({
                 success: false,
                 error: incompleteParticipants.length > 0
-                    ? 'Os participantes presentes precisam ter e-mail e CPF regularizados antes da emissão.'
-                    : 'Nenhum participante com presença confirmada. Realize o check-in antes de liberar certificados.',
-                data: { incompleteParticipants: incompleteParticipants.length },
+                    ? 'Os participantes que concluíram entrada e saída precisam ter e-mail e CPF regularizados antes da emissão.'
+                    : awaitingCheckoutCount > 0
+                        ? 'Nenhum participante concluiu check-in e check-out. Registre a saída antes de liberar certificados.'
+                        : 'Nenhum participante apto para receber certificado.',
+                data: {
+                    incompleteParticipants: incompleteParticipants.length,
+                    awaitingCheckout: awaitingCheckoutCount,
+                },
             }, { status: 400 });
         }
 
@@ -117,8 +119,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             await EventParticipant.bulkWrite(bulkOps);
         }
 
-        // 5. Só concluir totalmente quando não houver participante legado pendente.
-        const releaseCompleted = incompleteParticipants.length === 0;
+        // 5. O evento só fica concluído quando nenhum presente aguarda check-out
+        // e todos os participantes aptos possuem dados válidos.
+        const releaseCompleted = incompleteParticipants.length === 0 && awaitingCheckoutCount === 0;
         await EventCertificateModel.findByIdAndUpdate(id, {
             $set: { certificateReleased: releaseCompleted, certificateHours },
         });
@@ -127,12 +130,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             success: true,
             message: releaseCompleted
                 ? `${insertedCerts.length} certificado(s) gerado(s) e liberado(s) com sucesso!`
-                : `${insertedCerts.length} certificado(s) gerado(s). ${incompleteParticipants.length} participante(s) precisam regularizar e-mail/CPF.`,
+                : `${insertedCerts.length} certificado(s) gerado(s). Ainda existem participantes aguardando check-out ou regularização de dados.`,
             data: {
                 generatedCount: insertedCerts.length,
-                totalCheckedIn: eligibleParticipants.length,
+                totalEligible: eligibleParticipants.length,
                 certificateHours,
                 incompleteParticipants: incompleteParticipants.length,
+                awaitingCheckout: awaitingCheckoutCount,
                 releaseCompleted,
             },
         }, { status: 201 });
