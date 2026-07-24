@@ -305,7 +305,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     isPublic: false,
     authType: 'both',
     method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
+    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br", "https://certificados.dadg.com.br", "https://www.dadg.com.br"],
   },
   // ── Novas rotas do sistema de inscrição / check-in / certificado ──────────
   {
