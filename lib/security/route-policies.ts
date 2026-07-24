@@ -301,7 +301,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     method: 'GET'
   },
   {
-    path: '^/api/v1/user/profile$',
+    path: '^/api/v1/user/profile$', 
     isPublic: false,
     authType: 'both',
     method: 'GET',
