@@ -7,50 +7,72 @@ import GateKeeper from '@/lib/security/gatekeeper';
 import { connectToDatabase } from '@/lib/mongodb';
 import { randomUUID } from 'crypto';
 
-
 interface RouteParams {
     params: Promise<{
         id: string;
     }>;
 }
+
 /**
- * 
- * @description Retorna o evento que o usuário está inscrito, baseado no ID. Se ele não tiver inscrito, não é retornado.
- * @returns 
+ * @route GET /api/v1/events/[id]/registration
+ * @desc Recupera os dados da inscrição do usuário autenticado para um evento específico.
+ * @access Private (Autenticado via GateKeeper)
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
+
+        // Validação sintática do parâmetro da rota como BSON ObjectId válido
         if (!ObjectId.isValid(id)) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
+
+        // Resolução de contexto de sessão e extração das claims de autenticação
         const keeper = new GateKeeper(request);
         const user = await keeper.identifySession();
         if (!user?.sub) {
             return NextResponse.json({ success: false, message: 'Usuário não encontrado/autenticado' }, { status: 401 });
         }
 
+        // Normalização do identificador do usuário (Subject Claim)
         const ownerIdValue = user.sub.includes('|') ? user.sub.split('|')[1] : user.sub;
         if (!ObjectId.isValid(ownerIdValue)) {
             return NextResponse.json({ success: false, error: 'Identidade do usuário inválida' }, { status: 403 });
         }
 
         await connectToDatabase();
+
+        // Consulta relacional com projeção de população (populate) e payload desidratado (.lean())
         const event = await EventParticipant.findOne({
             eventId: new ObjectId(id),
             owner: new ObjectId(ownerIdValue),
         }).populate("eventId").lean();
+
         if (!event) {
             return NextResponse.json({ success: false, error: 'Evento não encontrado' }, { status: 404 });
         }
+
         return NextResponse.json({ data: event }, { status: 200 });
 
     } catch (error) {
-        return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }, { status: 500 });
+        return NextResponse.json(
+            { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' }, 
+            { status: 500 }
+        );
     }
 }
 
+/**
+ * @route POST /api/v1/events/[id]/registration
+ * @desc Realiza a inscrição atômica do usuário autenticado no evento especificado.
+ * @access Private (Autenticado via GateKeeper)
+ * @note Utiliza transação ACID de documento cruzado para prevenir overbooking via race condition.
+ */
 export async function POST(request: NextRequest, { params }: RouteParams) {
+    // Inicialização prévia da conexão ao cluster MongoDB para prevenir exceções de connection buffering
+    await connectToDatabase();
+    
+    // Provisionamento da sessão transacional do Mongoose
     const session = await mongoose.startSession();
 
     try {
@@ -60,6 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
         }
 
+        // Validação da credencial da requisição
         const keeper = new GateKeeper(request);
         const user = await keeper.identifySession();
         if (!user?.sub) {
@@ -76,11 +99,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Nome do usuário não encontrado' }, { status: 400 });
         }
 
-        // Extraindo dados complementares do body
+        // Parsing e sanitização dos dados complementares do payload
         const body = await request.json().catch(() => ({}));
         const ownerEmail: string = (body.ownerEmail || user.email || '').trim().toLowerCase();
         const ownerCpf: string = (body.ownerCpf || '').trim().replace(/[^0-9]/g, '');
 
+        // Validações de esquema e integridade de formato (RFC 5322 e máscara CPF)
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) {
             return NextResponse.json({ success: false, error: 'E-mail do participante é obrigatório.' }, { status: 400 });
         }
@@ -90,12 +114,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         const ownerId = new ObjectId(ownerIdValue);
         const eventId = new ObjectId(id);
-        // Gera token único para o QR Code do ingresso
         const qrToken = randomUUID();
 
-        await connectToDatabase();
+        // Início da transação ACID de duas fases (Two-Phase Commit no Replica Set)
         session.startTransaction();
 
+        // Leitura isolada do documento do evento com lock no escopo do snapshot da transação
         const event = await EventCertificateModel.findOne({
             _id: eventId,
             'statusDetails.status': 'PUBLISHED_OPEN',
@@ -108,6 +132,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Evento não encontrado ou inscrições fechadas' }, { status: 404 });
         }
 
+        // Validação da janela temporal de elegibilidade de inscrição
         const now = new Date();
         const startDate = event.statusDetails.registrationStartDate ? new Date(event.statusDetails.registrationStartDate) : null;
         const endDate = event.statusDetails.registrationEndDate ? new Date(event.statusDetails.registrationEndDate) : null;
@@ -117,6 +142,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Fora do período de inscrições' }, { status: 403 });
         }
 
+        // Verificação de unicidade/idempotência da inscrição para o participante
         const existingParticipant = await EventParticipant.findOne({
             eventId,
             owner: ownerId,
@@ -127,6 +153,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Você já está inscrito neste evento.' }, { status: 409 });
         }
 
+        // Operação atômica condicional para prevenção de mutação concorrente (Controle de Concorrência Otimista)
         const updatedEvent = await EventCertificateModel.findOneAndUpdate(
             {
                 _id: eventId,
@@ -142,6 +169,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Evento lotado ou inscrições indisponíveis no momento.' }, { status: 409 });
         }
 
+        // Persistência da entidade participante vinculada ao contexto da transação
         await EventParticipant.create(
             [
                 {
@@ -157,6 +185,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             { session }
         );
 
+        // Commit da transação ACID no cluster
         await session.commitTransaction();
 
         return NextResponse.json(
@@ -172,17 +201,27 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             { status: 201 }
         );
     } catch (error: unknown) {
+        // Rollback defensivo em caso de erro na pipeline da transação
         if (session.inTransaction()) {
             await session.abortTransaction();
         }
         const message = error instanceof Error ? error.message : 'Erro interno ao processar inscrição';
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     } finally {
+        // Liberação explícita do recurso de sessão da pool
         session.endSession();
     }
 }
 
+/**
+ * @route DELETE /api/v1/events/[id]/registration
+ * @desc Cancela a inscrição de um participante e realiza o estorno atômico da vaga consumida.
+ * @access Private (Autenticado via GateKeeper)
+ */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+    // Garantia da conexão ativa antes da alocação da sessão do driver
+    await connectToDatabase();
+    
     const session = await mongoose.startSession();
 
     try {
@@ -206,10 +245,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         const ownerId = new ObjectId(ownerIdValue);
         const eventId = new ObjectId(id);
 
-        await connectToDatabase();
         session.startTransaction();
 
-        // Verifica se a inscrição realmente existe para este usuário
+        // Consulta de verificação de existência sob o isolamento da transação
         const existingParticipant = await EventParticipant.findOne({
             eventId,
             owner: ownerId
@@ -220,11 +258,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Inscrição não encontrada' }, { status: 404 });
         }
 
-        // Remove o documento do participante
+        // Remoção física da entidade de participação
         await EventParticipant.deleteOne({ _id: existingParticipant._id }).session(session);
 
-        // Devolve a vaga para o evento
-        // A condição { $gt: 0 } é a sua barreira de segurança contra números negativos
+        // Decremento atômico com restrição de limite inferior ($gt: 0) para garantia de integridade de dados
         const updatedEvent = await EventCertificateModel.findOneAndUpdate(
             { _id: eventId, registrationCount: { $gt: 0 } },
             { $inc: { registrationCount: -1 } },
@@ -232,13 +269,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         );
 
         if (!updatedEvent) {
-            // Se o código cair aqui, significa que o banco de dados tem uma inconsistência:
-            // O usuário tinha uma inscrição, mas o evento já marcava 0 vagas ocupadas.
+            // Abortagem da transação por inconsistência de estado do banco (contador zerado com registro presente)
             await session.abortTransaction();
-            return NextResponse.json({ success: false, error: 'Erro de integridade na contagem de vagas do evento, por favor contate o administrador do sistema.' }, { status: 500 });
+            return NextResponse.json(
+                { success: false, error: 'Erro de integridade na contagem de vagas do evento, por favor contate o administrador do sistema.' }, 
+                { status: 500 }
+            );
         }
 
-        // Confirma a transação com segurança
         await session.commitTransaction();
         return NextResponse.json({
             success: true,
