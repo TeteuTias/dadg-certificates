@@ -6,41 +6,91 @@ import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
 import LoadingPage from "@/components/LoadingPage";
 import "./page.css";
 
+const PAGE_SIZE = 48;
+
+type EventsResponse = {
+    data: IEventCertificate[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+};
 
 export default function Page() {
     const [isLoading, setLoading] = useState<boolean>(true);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [data, setData] = useState<IEventCertificate[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>("");
+    const [activeQuery, setActiveQuery] = useState<string>("");
+    const [page, setPage] = useState<number>(1);
+    const [total, setTotal] = useState<number>(0);
+    const [hasMore, setHasMore] = useState<boolean>(false);
 
     useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            setPage(1);
+            setActiveQuery(searchQuery.trim());
+        }, 300);
+
+        return () => window.clearTimeout(timeout);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
         const fetchData = async () => {
-            const res = await fetch("/api/get/allEvents/");
-            if (!res.ok) {
-                console.log("Ocorreu algum erro");
-                return;
+            if (page === 1) {
+                setLoading(true);
+            } else {
+                setIsLoadingMore(true);
             }
-            const dataJson: { data: IEventCertificate[] } = await res.json();
-            setData(dataJson.data);
-            setLoading(false);
+
+            const searchParams = new URLSearchParams({
+                page: String(page),
+                limit: String(PAGE_SIZE),
+            });
+
+            if (activeQuery) {
+                searchParams.set("search", activeQuery);
+            }
+
+            try {
+                const res = await fetch(`/api/get/allEvents/?${searchParams.toString()}`, {
+                    signal: controller.signal,
+                });
+
+                if (!res.ok) {
+                    throw new Error("Nao foi possivel carregar os eventos.");
+                }
+
+                const dataJson: EventsResponse = await res.json();
+
+                setData((previousData) => page === 1
+                    ? dataJson.data
+                    : [...previousData, ...dataJson.data]
+                );
+                setTotal(dataJson.total);
+                setHasMore(dataJson.hasMore);
+            } catch (error) {
+                if (!(error instanceof DOMException && error.name === "AbortError")) {
+                    console.error(error);
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                    setIsLoadingMore(false);
+                }
+            }
         };
+
         fetchData();
-    }, []);
+
+        return () => controller.abort();
+    }, [page, activeQuery]);
 
     if (isLoading) {
         return <LoadingPage message="Carregando eventos..." />;
     }
-
-    // Filtra os eventos com base no termo de busca (searchQuery)
-    const filteredData = data.filter((event) => {
-        const query = searchQuery.toLowerCase();
-
-        return (
-            event.eventName?.toLowerCase().includes(query) ||
-            event.eventDescription?.toLowerCase().includes(query) ||
-            (event._id && String(event._id).toLowerCase().includes(query))
-        );
-    });
-
 
     return (
         <main className="create-certificate-container" style={PoppinsFontLib.style}>
@@ -56,21 +106,35 @@ export default function Page() {
                         style={{ width: "100%" }}
                     />
                 </div>
-                {filteredData.length !== 0 && (
+                {data.length !== 0 && (
                     <h2 className="search-results-count">
-                        Foram encontrados <span>{filteredData.length}</span> resultados
+                        {activeQuery ? (
+                            <>Foram encontrados <span>{total}</span> resultados</>
+                        ) : (
+                            <>Mostrando <span>{data.length}</span> de <span>{total}</span> eventos</>
+                        )}
                     </h2>
                 )}
             </div>
             <div className="glass-container events-list" style={{ width: "100%", maxWidth: "1000px" }}>
-                {filteredData.length === 0 ? (
+                {data.length === 0 ? (
                     <div className="empty-state">Nenhum evento encontrado</div>
                 ) : (
-                    filteredData.map((event) => (
+                    data.map((event) => (
                         <EventComponent key={String(event._id)} event={event} />
                     ))
                 )}
             </div>
+            {hasMore && (
+                <button
+                    type="button"
+                    className="event-load-more-button"
+                    onClick={() => setPage((currentPage) => currentPage + 1)}
+                    disabled={isLoadingMore}
+                >
+                    {isLoadingMore ? "Carregando mais..." : "Carregar mais eventos"}
+                </button>
+            )}
         </main>
     );
 }
