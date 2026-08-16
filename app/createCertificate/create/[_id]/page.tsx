@@ -289,7 +289,6 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                             {activeView === "single" && "Criacao individual"}
                             {activeView === "bulk" && "Criacao em lote"}
                             {activeView === "verse-bulk" && "Certificado Solo e Verso"}
-
                         </span>
                         <h1 className="certificate-create-title">
                             {activeView === "overview" && "Escolha como deseja criar os certificados"}
@@ -757,8 +756,33 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                 const workbook = XLSX.read(arrayBuffer, { type: "array" });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                setData(jsonData);
+                let rawData: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+                if (rawData.length === 0) {
+                    setData([]);
+                    return;
+                }
+
+                // Filtrar linhas totalmente em branco
+                let cleanedData = rawData.filter(row => row.some(cell => String(cell).trim() !== ""));
+
+                // Filtrar colunas totalmente em branco
+                if (cleanedData.length > 0) {
+                    const maxCols = Math.max(...cleanedData.map(r => r.length));
+                    const colsToKeep = [];
+                    for (let c = 0; c < maxCols; c++) {
+                        let hasData = false;
+                        for (let r = 0; r < cleanedData.length; r++) {
+                            if (cleanedData[r][c] !== undefined && String(cleanedData[r][c]).trim() !== "") {
+                                hasData = true;
+                                break;
+                            }
+                        }
+                        if (hasData) colsToKeep.push(c);
+                    }
+                    cleanedData = cleanedData.map(row => colsToKeep.map(c => row[c] !== undefined ? row[c] : ""));
+                }
+                setData(cleanedData);
             }
         };
 
@@ -771,10 +795,26 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                 if (currentRowIndex !== rowIndex) {
                     return row;
                 }
-
                 return row.map((cell, currentCellIndex) => (currentCellIndex === cellIndex ? value : cell));
             }),
         );
+    };
+
+    const addRow = () => {
+        const numCols = data[0]?.length || 1;
+        setData([...data, new Array(numCols).fill("")]);
+    };
+
+    const removeRow = (rowIndex: number) => {
+        setData(data.filter((_, i) => i !== rowIndex));
+    };
+
+    const addColumn = () => {
+        setData(data.map(row => [...row, ""]));
+    };
+
+    const removeColumn = (colIndex: number) => {
+        setData(data.map(row => row.filter((_, i) => i !== colIndex)));
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -924,32 +964,72 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                             </div>
 
                             <div className="certificate-bulk-table-wrapper">
-                                <table className="certificate-bulk-table">
+                                <table className="certificate-bulk-table w-full relative">
+                                    <thead className="bg-black/20 text-gray-400">
+                                        <tr>
+                                            {data[0]?.map((_, cellIndex) => (
+                                                <th key={cellIndex} className="p-2 border-b border-white/10 font-medium">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span>Coluna {cellIndex + 1}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeColumn(cellIndex)}
+                                                            className="text-gray-500 hover:text-red-400"
+                                                            title="Remover Coluna"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </th>
+                                            ))}
+                                            <th className="p-2 border-b border-white/10 w-16 text-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={addColumn}
+                                                    className="text-blue-400 hover:text-blue-300"
+                                                    title="Adicionar Coluna"
+                                                >
+                                                    <Plus size={16} />
+                                                </button>
+                                            </th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        {data.map((row, rowIndex) =>
-                                            row.length ? (
-                                                <tr key={`${rowIndex}-${row.join("-")}`} className={rowIndex === 0 ? "is-header" : ""}>
-                                                    {row.map((cell, cellIndex) =>
-                                                        rowIndex === 0 ? (
-                                                            <td key={`${rowIndex}-${cellIndex}`}>{cell || "Sem titulo"}</td>
-                                                        ) : (
-                                                            <td key={`${rowIndex}-${cellIndex}`}>
-                                                                <input
-                                                                    type="text"
-                                                                    value={cell}
-                                                                    onChange={(event) =>
-                                                                        handleCellChange(rowIndex, cellIndex, event.target.value)
-                                                                    }
-                                                                    className="certificate-bulk-cell-input"
-                                                                />
-                                                            </td>
-                                                        ),
-                                                    )}
-                                                </tr>
-                                            ) : null,
-                                        )}
+                                        {data.map((row, rowIndex) => (
+                                            <tr key={rowIndex} className={rowIndex === 0 ? "is-header bg-white/5" : "hover:bg-white/[0.02]"}>
+                                                {row.map((cell, cellIndex) => (
+                                                    <td key={cellIndex} className="p-1">
+                                                        <input
+                                                            type="text"
+                                                            value={cell}
+                                                            onChange={(event) =>
+                                                                handleCellChange(rowIndex, cellIndex, event.target.value)
+                                                            }
+                                                            className="certificate-bulk-cell-input w-full bg-transparent border border-transparent hover:bg-white/5 focus:bg-black/20 focus:border-blue-500/50 rounded px-2 py-1 outline-none transition-all text-sm"
+                                                        />
+                                                    </td>
+                                                ))}
+                                                <td className="p-1 text-center align-middle">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeRow(rowIndex)}
+                                                        className="text-gray-500 hover:text-red-400"
+                                                        title="Remover Linha"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
+                                <button
+                                    type="button"
+                                    onClick={addRow}
+                                    className="w-full flex items-center justify-center gap-2 p-3 text-sm font-medium text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 border-t border-dashed border-white/10 transition-colors mt-2"
+                                >
+                                    <Plus size={16} /> Adicionar Nova Linha
+                                </button>
                             </div>
                         </div>
                     )}
@@ -1177,7 +1257,6 @@ const XLSXReader2: React.FC<{
     loading: boolean;
 }> = ({ eventId, eventName, onBack, setLoading, loading }) => {
     const [frontRows, setFrontRows] = useState<any[]>([]);
-    // Se a interface agora exige [string[]], inicializamos o state com [[]] (uma tupla com um array vazio) para casar a tipagem.
     const [verseData, setVerseData] = useState<{ headers: string[], rows: [string[]] | [] }>({ headers: [], rows: [] });
     const [activeTab, setActiveTab] = useState<'front' | 'verse'>('front');
 
@@ -1208,19 +1287,43 @@ const XLSXReader2: React.FC<{
             }
 
             // LEITURA COM VALOR PADRÃO
-            const data = XLSX.utils.sheet_to_json(ws, {
+            let rawData = XLSX.utils.sheet_to_json(ws, {
                 header: 1,
                 defval: ""
             }) as any[][];
 
-            if (data.length === 0) return;
+            if (rawData.length === 0) return;
 
-            // Helper para ignorar linhas 100% brancas da planilha
-            const isNotEmpty = (row: any[]) => row.some(cell => String(cell).trim() !== "");
+            // FILTRA LINHAS TOTALMENTE EM BRANCO
+            let cleanedData = rawData.filter(row => row.some(cell => String(cell).trim() !== ""));
+
+            if (cleanedData.length === 0) {
+                if (type === 'front') setFrontRows([]);
+                else setVerseData({ headers: [], rows: [] });
+                return;
+            }
+
+            // FILTRA COLUNAS TOTALMENTE EM BRANCO
+            const maxCols = Math.max(...cleanedData.map(r => r.length));
+            const colsToKeep = [];
+            for (let c = 0; c < maxCols; c++) {
+                let hasData = false;
+                for (let r = 0; r < cleanedData.length; r++) {
+                    if (cleanedData[r][c] !== undefined && String(cleanedData[r][c]).trim() !== "") {
+                        hasData = true;
+                        break;
+                    }
+                }
+                if (hasData) colsToKeep.push(c);
+            }
+            cleanedData = cleanedData.map(row => colsToKeep.map(c => row[c] !== undefined ? row[c] : ""));
+
+            // Aborta se ficar totalmente vazia
+            if (cleanedData.length === 0 || cleanedData[0].length === 0) return;
 
             if (type === 'front') {
-                const headers = data[0] as string[];
-                const validRows = data.slice(1).filter(isNotEmpty).map(row => {
+                const headers = cleanedData[0] as string[];
+                const validRows = cleanedData.slice(1).map(row => {
                     const obj: any = {};
                     headers.forEach((h, i) => obj[h] = row[i]);
                     return obj;
@@ -1228,9 +1331,8 @@ const XLSXReader2: React.FC<{
                 setFrontRows(validRows);
                 setActiveTab('front');
             } else {
-                const headers = data[0] as string[];
-                const validRows = data.slice(1).filter(isNotEmpty) as string[][];
-                // Força a tipagem como [string[]] na hora de setar o estado
+                const headers = cleanedData[0] as string[];
+                const validRows = cleanedData.slice(1) as string[][];
                 setVerseData({ headers, rows: validRows as unknown as [string[]] });
                 setActiveTab('verse');
             }
@@ -1245,7 +1347,6 @@ const XLSXReader2: React.FC<{
     };
 
     const updateVerseRow = (rowIndex: number, colIndex: number, value: string) => {
-        // Precisamos garantir que TypeScript saiba que estamos manipulando arrays
         const currentRows = [...verseData.rows] as string[][];
         if (!currentRows[rowIndex]) return;
 
@@ -1253,6 +1354,33 @@ const XLSXReader2: React.FC<{
         currentRows[rowIndex][colIndex] = value;
 
         setVerseData({ ...verseData, rows: currentRows as unknown as [string[]] });
+    };
+
+    const updateVerseHeader = (colIndex: number, value: string) => {
+        const newHeaders = [...verseData.headers];
+        newHeaders[colIndex] = value;
+        setVerseData({ ...verseData, headers: newHeaders });
+    };
+
+    const removeVerseColumn = (colIndex: number) => {
+        const newHeaders = verseData.headers.filter((_, i) => i !== colIndex);
+        const newRows = verseData.rows.map(row => row.filter((_, i) => i !== colIndex));
+        setVerseData({ headers: newHeaders, rows: newRows as unknown as [string[]] });
+    };
+
+    const addVerseColumn = () => {
+        const newHeader = `Nova Coluna ${verseData.headers.length + 1}`;
+        const newHeaders = [...verseData.headers, newHeader];
+        const newRows = verseData.rows.map(row => [...row, ""]);
+        setVerseData({ headers: newHeaders, rows: newRows as unknown as [string[]] });
+    };
+
+    const addVerseRow = () => {
+        const newRow = new Array(verseData.headers.length).fill("");
+        setVerseData({
+            ...verseData,
+            rows: [...verseData.rows, newRow] as unknown as [string[]]
+        });
     };
 
     const generateCertificates = async () => {
@@ -1271,7 +1399,7 @@ const XLSXReader2: React.FC<{
                 verse: {
                     showVerse: verseData.headers.length > 0,
                     headers: verseData.headers,
-                    rows: verseData.rows as unknown as [string[]] // para calar essa bomba desse TS
+                    rows: verseData.rows as unknown as [string[]]
                 }
             }));
 
@@ -1408,7 +1536,6 @@ const XLSXReader2: React.FC<{
                                 </tbody>
                             </table>
 
-                            {/* Botão de Adicionar Linha Estilizado */}
                             <button
                                 onClick={() => setFrontRows([...frontRows, { 'NOME COMPLETO': '', 'CPF': '', 'EMAIL': '', 'PRIMEIRO TEXTO': '', 'SEGUNDO TEXTO': '' }])}
                                 className="w-full flex items-center justify-center gap-2 p-4 text-sm font-medium text-blue-400/70 hover:text-blue-400 hover:bg-blue-500/10 border-t border-dashed border-white/10 transition-colors"
@@ -1424,9 +1551,33 @@ const XLSXReader2: React.FC<{
                                 <thead className="bg-black/20 text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
                                     <tr>
                                         {verseData.headers.map((h, i) => (
-                                            <th key={i} className="px-4 py-5 font-medium border-r border-white/5 last:border-0">{h}</th>
+                                            <th key={i} className="px-4 py-3 font-medium border-r border-white/5 last:border-0 relative group">
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        value={h}
+                                                        onChange={(e) => updateVerseHeader(i, e.target.value)}
+                                                        className="bg-transparent border-b border-transparent focus:border-emerald-500 outline-none w-full text-gray-200"
+                                                        placeholder={`Coluna ${i + 1}`}
+                                                    />
+                                                    <button
+                                                        onClick={() => removeVerseColumn(i)}
+                                                        className="text-gray-500 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-all"
+                                                        title="Remover Coluna"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </th>
                                         ))}
-                                        <th className="w-16"></th>
+                                        <th className="w-16 text-center align-middle">
+                                            <button
+                                                onClick={addVerseColumn}
+                                                className="text-emerald-500 hover:text-emerald-400 p-1 bg-emerald-500/10 hover:bg-emerald-500/20 rounded transition-colors"
+                                                title="Adicionar Coluna"
+                                            >
+                                                <Plus size={16} />
+                                            </button>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -1452,6 +1603,12 @@ const XLSXReader2: React.FC<{
                                     ))}
                                 </tbody>
                             </table>
+                            <button
+                                onClick={addVerseRow}
+                                className="w-full flex items-center justify-center gap-2 p-4 text-sm font-medium text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10 border-t border-dashed border-white/10 transition-colors"
+                            >
+                                <Plus size={16} /> Adicionar Nova Linha
+                            </button>
                         </div>
                     )}
                 </div>
@@ -1472,7 +1629,6 @@ const XLSXReader2: React.FC<{
                 >
                     {loading ? (
                         <>
-                            {/* Assumindo que você tem um LoadingSpinner importado */}
                             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
