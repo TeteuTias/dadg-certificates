@@ -41,7 +41,7 @@ import * as XLSX from "xlsx";
 import "./page.css";
 
 type ActiveView = "overview" | "single" | "bulk" | "verse-bulk";
-type CertificateDraft = Omit<ICertificate, "_id" | "eventId" | "eventName" | "verse">;
+type CertificateDraft = Omit<ICertificate, "_id" | "eventId" | "eventName" | "verse"> & { useClamFormat: boolean };
 type SimpleModalState = SimpleModalProps & { isOpen: boolean };
 type VerificationModalState = VerificationModalProps & { isOpen: boolean };
 
@@ -54,6 +54,7 @@ const createEmptyCertificateForm = (): CertificateDraft => ({
     frontTopperText: "",
     frontBottomText: "",
     isReady: false,
+    useClamFormat: false,
 });
 
 export default function Page({ params }: { params: Promise<{ _id: string }> }) {
@@ -179,6 +180,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
             update.append("certificatePath", formData.certificatePath || "");
             update.append("certificateHours", formData.certificateHours);
             update.append("isReady", String(formData.isReady));
+            update.append("useClamFormat", String(formData.useClamFormat));
 
             const response = await fetch("/api/put/createNewCertificate", {
                 method: "PUT",
@@ -527,6 +529,8 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                         placeholder="Mensagem complementar que aparecera abaixo do nome."
                                         textarea
                                     />
+                                    
+                                   
                                 </FormSection>
 
                                 <FormSection
@@ -728,6 +732,7 @@ const TextField: React.FC<{
     );
 };
 
+
 const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => void }> = ({
     eventId,
     eventName,
@@ -742,6 +747,7 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
     const [input3, setInput3] = useState("");
     const [input4, setInput4] = useState("");
     const [isReady, setIsReady] = useState(false);
+    const [useClamFormat, setUseClamFormat] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -755,8 +761,29 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
             if (arrayBuffer && typeof arrayBuffer !== "string") {
                 const workbook = XLSX.read(arrayBuffer, { type: "array" });
                 const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                let rawData: string[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                const ws = workbook.Sheets[firstSheetName];
+
+                // TRATAMENTO DE CÉLULAS MESCLADAS
+                if (ws['!merges']) {
+                    ws['!merges'].forEach((merge) => {
+                        const masterCellAddress = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
+                        const masterValue = ws[masterCellAddress];
+                        if (!masterValue) return;
+
+                        for (let r = merge.s.r; r <= merge.e.r; r++) {
+                            for (let c = merge.s.c; c <= merge.e.c; c++) {
+                                const targetAddr = XLSX.utils.encode_cell({ r, c });
+                                if (c === merge.s.c) {
+                                    ws[targetAddr] = { ...masterValue };
+                                } else {
+                                    ws[targetAddr] = { t: 's', v: '' }; 
+                                }
+                            }
+                        }
+                    });
+                }
+
+                let rawData: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
                 if (rawData.length === 0) {
                     setData([]);
@@ -769,6 +796,7 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                 // Filtrar colunas totalmente em branco
                 if (cleanedData.length > 0) {
                     const maxCols = Math.max(...cleanedData.map(r => r.length));
+                    //@ts-expect-error: ...
                     const colsToKeep = [];
                     for (let c = 0; c < maxCols; c++) {
                         let hasData = false;
@@ -780,8 +808,25 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                         }
                         if (hasData) colsToKeep.push(c);
                     }
+                    //@ts-expect-error: ...
                     cleanedData = cleanedData.map(row => colsToKeep.map(c => row[c] !== undefined ? row[c] : ""));
                 }
+
+                // --- REMOÇÃO DE LINHAS DUPLICADAS EXATAMENTE IGUAIS ---
+                // Para evitar que a expansão de mesclagens gere dezenas de certificados repetidos para a mesma pessoa
+                if (cleanedData.length > 0) {
+                    const seenRows = new Set();
+                    cleanedData = cleanedData.filter((row, idx) => {
+                        if (idx === 0) return true; // Sempre mantém a linha 0 (cabeçalho)
+                        const rowStr = JSON.stringify(row);
+                        if (seenRows.has(rowStr)) {
+                            return false; // Remove se já existe uma igualzinha
+                        }
+                        seenRows.add(rowStr);
+                        return true;
+                    });
+                }
+
                 setData(cleanedData);
             }
         };
@@ -846,6 +891,7 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
         setInput3("");
         setInput4("");
         setIsReady(false);
+        setUseClamFormat(false);
     };
 
     const pushCertificates = async () => {
@@ -864,6 +910,7 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                     hours: input3,
                     isReady: String(isReady),
                     path: input4,
+                    useClamFormat,
                 }),
             });
 
@@ -1074,8 +1121,9 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                             placeholder="ID ou caminho do template"
                         />
                     </div>
+                    
 
-                    <div className="certificate-status-panel">
+                    <div className="certificate-status-panel mt-4">
                         <div className="certificate-status-copy">
                             <span className="certificate-status-label">Disponibilizacao</span>
                             <p>Defina se os certificados gerados em lote ja sairao liberados para consulta.</p>
@@ -1249,6 +1297,7 @@ function formatCurrency(value?: number) {
         currency: "BRL",
     }).format(value);
 }
+
 const XLSXReader2: React.FC<{
     eventId: string;
     eventName: string;
@@ -1259,6 +1308,7 @@ const XLSXReader2: React.FC<{
     const [frontRows, setFrontRows] = useState<any[]>([]);
     const [verseData, setVerseData] = useState<{ headers: string[], rows: [string[]] | [] }>({ headers: [], rows: [] });
     const [activeTab, setActiveTab] = useState<'front' | 'verse'>('front');
+    const [useClamFormat, setUseClamFormat] = useState(false);
 
     const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, type: 'front' | 'verse') => {
         const file = e.target.files?.[0];
@@ -1280,7 +1330,11 @@ const XLSXReader2: React.FC<{
                     for (let r = merge.s.r; r <= merge.e.r; r++) {
                         for (let c = merge.s.c; c <= merge.e.c; c++) {
                             const targetAddr = XLSX.utils.encode_cell({ r, c });
-                            ws[targetAddr] = { ...masterValue };
+                            if (c === merge.s.c) {
+                                ws[targetAddr] = { ...masterValue };
+                            } else {
+                                ws[targetAddr] = { t: 's', v: '' }; 
+                            }
                         }
                     }
                 });
@@ -1305,6 +1359,7 @@ const XLSXReader2: React.FC<{
 
             // FILTRA COLUNAS TOTALMENTE EM BRANCO
             const maxCols = Math.max(...cleanedData.map(r => r.length));
+            //@ts-expect-error: ...
             const colsToKeep = [];
             for (let c = 0; c < maxCols; c++) {
                 let hasData = false;
@@ -1316,7 +1371,23 @@ const XLSXReader2: React.FC<{
                 }
                 if (hasData) colsToKeep.push(c);
             }
+            //@ts-expect-error: ...
             cleanedData = cleanedData.map(row => colsToKeep.map(c => row[c] !== undefined ? row[c] : ""));
+
+            // --- REMOÇÃO DE LINHAS DUPLICADAS EXATAMENTE IGUAIS ---
+            // Para evitar que a expansão de mesclagens gere dezenas de certificados repetidos para a mesma pessoa
+            if (cleanedData.length > 0) {
+                const seenRows = new Set();
+                cleanedData = cleanedData.filter((row, idx) => {
+                    if (idx === 0) return true; // Sempre mantém a linha 0 (cabeçalho)
+                    const rowStr = JSON.stringify(row);
+                    if (seenRows.has(rowStr)) {
+                        return false; // Remove se já existe uma igualzinha
+                    }
+                    seenRows.add(rowStr);
+                    return true;
+                });
+            }
 
             // Aborta se ficar totalmente vazia
             if (cleanedData.length === 0 || cleanedData[0].length === 0) return;
@@ -1386,7 +1457,7 @@ const XLSXReader2: React.FC<{
     const generateCertificates = async () => {
         setLoading(true);
         try {
-            const certificates: Omit<ICertificate, '_id'>[] = frontRows.map((row) => ({
+            const certificates = frontRows.map((row) => ({
                 ownerName: row['NOME COMPLETO'] || '',
                 ownerCpf: row['CPF'] || "",
                 ownerEmail: row['EMAIL'] || "",
@@ -1396,12 +1467,13 @@ const XLSXReader2: React.FC<{
                 frontBottomText: row['SEGUNDO TEXTO'] || '',
                 eventId: new ObjectId(eventId),
                 isReady: true,
+                useClamFormat,
                 verse: {
                     showVerse: verseData.headers.length > 0,
                     headers: verseData.headers,
                     rows: verseData.rows as unknown as [string[]]
                 }
-            }));
+            })) as (Omit<ICertificate, '_id'> & { useClamFormat: boolean })[];
 
             const payload = {
                 operationType: verseData.headers.length > 0 ? 'verse-bulk' : 'simple-bulk',
@@ -1614,33 +1686,35 @@ const XLSXReader2: React.FC<{
                 </div>
             </div>
 
-            {/* Footer de Ações */}
-            <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-white/10">
-                <button
-                    onClick={onBack}
-                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
-                >
-                    Cancelar
-                </button>
-                <button
-                    onClick={generateCertificates}
-                    disabled={frontRows.length === 0 || loading}
-                    className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.2)] disabled:opacity-50 disabled:shadow-none disabled:hover:bg-blue-600 transition-all"
-                >
-                    {loading ? (
-                        <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Processando...
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles size={18} /> Criar Certificados
-                        </>
-                    )}
-                </button>
+            {/* Footer de Ações com o Toggle */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-white/10">
+                <div className="flex gap-4 w-full md:w-auto justify-end">
+                    <button
+                        onClick={onBack}
+                        className="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={generateCertificates}
+                        disabled={frontRows.length === 0 || loading}
+                        className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 border border-blue-500/50 shadow-[0_0_20px_rgba(37,99,235,0.2)] disabled:opacity-50 disabled:shadow-none disabled:hover:bg-blue-600 transition-all min-w-[200px]"
+                    >
+                        {loading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Processando...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles size={18} /> Criar Certificados
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
     );

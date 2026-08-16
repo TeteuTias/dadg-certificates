@@ -16,6 +16,7 @@ export async function PUT(request: Request) {
     const maxParticipantsRaw = formData.get("maxParticipants");
     const isPaidRaw = formData.get("isPaid");
     const priceRaw = formData.get("price");
+    const templateForm = formData.get("templateForm") as string
 
     // Pegando dados do status
     const statusRaw = formData.get("status") as string;
@@ -28,6 +29,9 @@ export async function PUT(request: Request) {
     if (!eventName || typeof eventName !== "string") return NextResponse.json({ message: "Forneça o nome do evento." }, { status: 400 });
     if (!eventDescription || typeof eventDescription !== "string") return NextResponse.json({ message: "Forneça a descrição do evento." }, { status: 400 });
     if (!eventType || typeof eventType !== "string") return NextResponse.json({ message: "Forneça o tipo do evento." }, { status: 400 });
+    if (!eventType || typeof eventType !== "string") return NextResponse.json({ message: "Forneça o tipo do evento." }, { status: 400 });
+    if (!templateForm || typeof templateForm !== "string") return NextResponse.json({ message: "Forneça o formato do template do evento." }, { status: 400 });
+
 
     const maxParticipants = Number(maxParticipantsRaw);
     if (isNaN(maxParticipants) || maxParticipants <= 0) return NextResponse.json({ message: "Forneça uma quantidade máxima de participantes válida." }, { status: 400 });
@@ -59,36 +63,93 @@ export async function PUT(request: Request) {
         templateVersePath: templateVersePath || "",
         eventType: eventType,
         maxParticipants: maxParticipants,
-        styleContainer: {
-            width: "90%",
-            top: "-30px",
-            left: "55px",
-            textAlign: "center" as const,
-            color: "#02425A"
-        },
-        styleFrontTopperText: {
-            lineHeight: 1.6,
-            fontSize: "45.0px",
-            fontWeight: "400",
-            color: "#02425A"
-        },
-        styleFrontBottomText: {
-            lineHeight: 1.6,
-            fontSize: "45.0px",
-            fontWeight: "400",
-            color: "#02325A"
-        },
-        styleNameText: {
-            fontSize: "55.5px",
-            fontWeight: "800",
-            lineHeight: 1.5,
-            color: "#02425A"
-        },
-        styleContainerVerse: {
-            containerStyle: { border: "1.5px solid", width: "50%", color: "#02425A" },
-            rowsStyle: { textAlign: "center" as const, backgroundColor: "", padding: "25px", fontSize: "20px", border: "1.5px solid" },
-            headerStyle: { fontSize: "25px", border: "1.5px solid", padding: "30px" }
-        },
+        styleContainer:
+            templateForm === "default" ?
+                {
+                    width: "90%",
+                    top: "-30px",
+                    left: "55px",
+                    textAlign: "center" as const,
+                    color: "#02425A"
+                } :
+                {
+                    "width": "100%",
+                    "top": "100px",
+                    "left": "55px",
+                    textAlign: "center" as const,
+                    "color": "#00000"
+                }
+        ,
+        styleFrontTopperText:
+            templateForm === "default" ?
+                {
+                    lineHeight: 1.6,
+                    fontSize: "45.0px",
+                    fontWeight: "400",
+                    color: "#02425A"
+                } :
+                {
+                    "lineHeight": 1.6,
+                    "fontSize": "40.5px",
+                    "fontWeight": "400",
+                    "color": "black",
+                    textAlign: "center" as const,
+                }
+        ,
+        styleFrontBottomText:
+            templateForm === "default" ?
+                {
+                    lineHeight: 1.6,
+                    fontSize: "45.0px",
+                    fontWeight: "400",
+                    color: "#02325A"
+                } :
+                {
+                    "lineHeight": 1.6,
+                    "fontSize": "40.5px",
+                    "fontWeight": "400",
+                    "color": "black",
+                    textAlign: "center" as const,
+                }
+        ,
+        styleNameText:
+            templateForm == "default" ?
+                {
+                    fontSize: "55.5px",
+                    fontWeight: "800",
+                    lineHeight: 1.5,
+                    color: "#02425A"
+                } : {
+                    "fontSize": "55.5px",
+                    "fontWeight": "800",
+                    "lineHeight": 1.5,
+                    "color": "black"
+                },
+        styleContainerVerse: templateForm == "default" ?
+            {
+                containerStyle: { border: "1.5px solid", width: "50%", color: "#02425A" },
+                rowsStyle: { textAlign: "center" as const, backgroundColor: "", padding: "25px", fontSize: "20px", border: "1.5px solid" },
+                headerStyle: { fontSize: "25px", border: "1.5px solid", padding: "30px" }
+            }
+            : {
+                "containerStyle": {
+                    "border": "1.5px solid",
+                    "width": "90%",
+                    "color": "black"
+                },
+                "rowsStyle": {
+                    "backgroundColor": "",
+                    "padding": "25px",
+                    "fontSize": "15px",
+                    "border": "1.5px solid"
+                },
+                "headerStyle": {
+                    "fontSize": "25px",
+                    "border": "1.5px solid",
+                    "padding": "30px"
+                }
+            }
+        ,
         registrationCount: 0,
         documentVersion: "3.0",
         useStatementFormat: false,

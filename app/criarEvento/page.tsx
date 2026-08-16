@@ -11,6 +11,8 @@ import {
     ShieldCheck,
     Sparkles,
     Users,
+    Wand2,
+    CheckCircle2 // <-- Novo ícone para o estado ativado
 } from "lucide-react";
 import React, { useState } from "react";
 import "./page.css";
@@ -68,6 +70,9 @@ const CreateEventCertificateForm: React.FC = () => {
     const [price, setPrice] = useState<number | "">("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // --- NOVO ESTADO: Controla a animação e o status do botão CLAM ---
+    const [isClamFormatActive, setIsClamFormatActive] = useState(false);
+
     const [modalOpenProps, setModalOpenProps] = useState<ModalState>({
         title: "Atencao",
         emoji: "",
@@ -98,6 +103,12 @@ const CreateEventCertificateForm: React.FC = () => {
         setTemplateVersePath("");
         setPrice("");
         setIsPaid(false);
+        setIsClamFormatActive(false); // Reseta o botão do CLAM
+    };
+
+    // --- NOVA LÓGICA: Liga/Desliga a formatação com atualização de estado ---
+    const toggleClamFormat = () => {
+        setIsClamFormatActive((prev) => !prev);
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -117,6 +128,7 @@ const CreateEventCertificateForm: React.FC = () => {
             formData.append("registrationStartDate", registrationStartDate);
             formData.append("registrationEndDate", registrationEndDate);
             formData.append("timeLine", JSON.stringify(timeLine));
+            formData.append("templateForm", isClamFormatActive ? "CLAM" : "default")
             if (isPaid && price !== "") {
                 formData.append("price", price.toString());
             }
@@ -221,6 +233,58 @@ const CreateEventCertificateForm: React.FC = () => {
                             textarea
                             placeholder="Explique rapidamente o objetivo do evento e o que o participante vai receber."
                         />
+
+                        {/* --- SESSÃO ATUALIZADA: BOTÃO CLAM COM ANIMAÇÃO --- */}
+                        <div 
+                            className="glass-card" 
+                            style={{ 
+                                marginTop: "1rem", 
+                                padding: "1.25rem", 
+                                display: "flex", 
+                                alignItems: "center", 
+                                gap: "1.5rem",
+                                flexWrap: "wrap",
+                                transition: "all 0.3s ease-in-out",
+                                borderColor: isClamFormatActive ? "rgba(46, 204, 113, 0.4)" : "var(--border-color)",
+                                backgroundColor: isClamFormatActive ? "rgba(46, 204, 113, 0.05)" : "transparent"
+                            }}
+                        >
+                            <button
+                                type="button"
+                                onClick={toggleClamFormat}
+                                className="glass-button"
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem",
+                                    whiteSpace: "nowrap",
+                                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                    transform: isClamFormatActive ? "scale(1.02)" : "scale(1)",
+                                    backgroundColor: isClamFormatActive ? "rgba(46, 204, 113, 0.15)" : "",
+                                    borderColor: isClamFormatActive ? "rgba(46, 204, 113, 0.6)" : "",
+                                    color: isClamFormatActive ? "#27ae60" : "inherit",
+                                    boxShadow: isClamFormatActive ? "0 4px 12px rgba(46, 204, 113, 0.2)" : "none"
+                                }}
+                            >
+                                <div style={{ 
+                                    transition: "transform 0.4s ease-in-out", 
+                                    transform: isClamFormatActive ? "rotate(360deg)" : "rotate(0deg)",
+                                    display: "flex"
+                                }}>
+                                    {isClamFormatActive ? <CheckCircle2 size={16} /> : <Wand2 size={16} />}
+                                </div>
+                                
+                                {isClamFormatActive ? "Formatação CLAM Ativada" : "Usar formatação CLAM"}
+                            </button>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-color, inherit)", opacity: 0.85 }}>
+                                    <strong>Facilite seu trabalho:</strong> Este botão ajusta automaticamente o texto acima, 
+                                    deixando-o no tamanho e formato padrão que a equipe do CLAM mais gosta e aprova.
+                                </p>
+                            </div>
+                        </div>
+                        {/* --- FIM DA SESSÃO --- */}
+
                     </FormSection>
                     <FormSection
                         icon={<Sparkles size={18} />}
@@ -257,8 +321,6 @@ const CreateEventCertificateForm: React.FC = () => {
                         </div>
 
                         <div className="create-event-toggle-grid">
-
-
                             <ToggleCard
                                 id="isPaid"
                                 checked={isPaid}
@@ -332,6 +394,7 @@ const CreateEventCertificateForm: React.FC = () => {
     );
 };
 
+// ... O restante dos componentes continuam inalterados (FeatureCard, FormSection, FieldGroup, ToggleCard)
 const FeatureCard: React.FC<{
     icon: React.ReactNode;
     title: string;
