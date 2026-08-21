@@ -1,428 +1,110 @@
-import { ObjectId } from "bson";
-/**
- * Temos aqui a política de acesso para TODAS as rotas da API, utilizando o sistema Gateway Pattern. Ela utiliza o conceito de:
- * "Secure by Default", isso significa que, caso a rota não esteja especificada aqui, ela será
- * BLOQUEADA por padrão!
- */
+export type ProtectedAuthType = "student" | "admin";
 
 export type RouteConfig = {
-  path: string;          // O caminho da rota (pode ser uma string ou REGEX);
-  authType?: 'both' | 'cookie' | 'bearer'; // Tipo de auth exigida
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" // Especifica o tipo de método permitido. Caso não especificado, permite acesso a TODOS!
-  allowedOrigins?: string[]; // (Opcional) Quem pode acessar. Caso especificado, permite apenas as rotas especificadas. Caso não exista, permite TODAS
+  path: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+  allowedOrigins?: string[];
 } & (
-    | {
-      isPublic: true;
-    }
-    | {
-      isPublic: false;
-      allowedUsers?: ObjectId[]; // Como o Id do usuário é retirado exclusivamente quando há login, isPublic deve ser obrigatoriamente falso!
-    }
-  )
+  | { isPublic: true; authType?: never }
+  | { isPublic: false; authType: ProtectedAuthType }
+);
 
+const compactOrigins = (...values: Array<string | undefined>) =>
+  [...new Set(values.filter((value): value is string => Boolean(value)).map((value) => value.replace(/\/$/, "")))];
+
+const ADMIN_ORIGINS = compactOrigins(
+  "http://localhost:3000",
+  "https://certificados.dadg.com.br",
+  process.env.APP_BASE_URL,
+  ...(process.env.ADMIN_ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()),
+);
+
+const STUDENT_ORIGINS = compactOrigins(
+  "http://localhost:3001",
+  "https://dadg.com.br",
+  "https://dadg.imepac.edu.br",
+  ...(process.env.STUDENT_ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()),
+);
+
+const admin = (path: string, method?: RouteConfig["method"]): RouteConfig => ({
+  path,
+  method,
+  isPublic: false,
+  authType: "admin",
+  allowedOrigins: ADMIN_ORIGINS,
+});
+
+const student = (path: string, method?: RouteConfig["method"]): RouteConfig => ({
+  path,
+  method,
+  isPublic: false,
+  authType: "student",
+  allowedOrigins: STUDENT_ORIGINS,
+});
+
+const publicGet = (path: string): RouteConfig => ({ path, method: "GET", isPublic: true });
+
+/**
+ * Rotas ordenadas do contrato mais específico para o mais abrangente.
+ * Qualquer rota ausente continua negada por padrão no GateKeeper.
+ */
 export const API_ROUTE_MAP: RouteConfig[] = [
-  //
-  // >>> TESTE NAO DEIXE NADA DE IMPORTANTE AQUI PLMDS !!! ESTA ABERTO PARA TODOS!!!<<< 
-  {
-    path: '^/api/v1/test$',
-    isPublic: false,
-  },
-  {
-    path: '^/teste$',
-    isPublic: false,
-  },
-  //
-  //
-  //
-  // >>> SISTEMA PÚBLICO <<<
-  //
-  {
-    path: '/_next/',
-    isPublic: true,
-  },
-  //
-  // >>>> ROTAS JÁ EXISTENTES [TEMPORÁRIAS] <<<
-  // >>>> Como a mudança é brusca, POR ENQUANTO VAI CONTINUAR FUNCIONADO. APENAS NO PRÓPRIO APP
-  //
-  {
-    path: "/todosCertificados/allCertificates",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/delete/eventAndAllCertificates$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/get/allCertificates$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/get/allEvents$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/get/allModificationHistory$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/get/CertificateWithPopulateByEvent/[^/]+$", // Dinâmico: [certificateId]
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/get/eventById/[^/]+$", // Dinâmico: [eventId]
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/get/events/[^/]+/participants$", // Dinâmico: [eventId] no meio da rota
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/createManyCertificates$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/createNewCertificate$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/createNewEvent$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/updateCertificate$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/updateEvent$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/createNewCertificate$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/createNewEvent$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/v1/certificates/[^/]+/delete$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/updateCertificate$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/updateEvent$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/put/uploadCertificateTemplate$",
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: "^/api/v1/warnings$",
-    isPublic: false,
-    authType: 'both',
-    method: "POST",
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  //
-  // >>>> ROTAS NÃO API <<<<
-  //
-  {
-    path: '^/$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/createCertificate(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/criarEvento(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/historicoDeModificacoes(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/Avisos$',
-    isPublic: false,
-    authType: 'cookie',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/todosCertificados(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/todosEventos(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/Silvio(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  {
-    path: '^/configuracoes(/.*)?$',
-    isPublic: false,
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
-  // >>>> CERTIFICADOS <<<<
-  {
-    // Acesso ao PDF final do certificado
-    path: '^/api/v1/certificates/[^/]+/download$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // Leitura do QR Code de validação
-    path: '^/api/v1/certificates/[^/]+/scan$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // Proxy do template (bypass do Cloudflare R2)
-    path: '^/api/v1/certificates/[^/]+/template$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // Visualizar detalhes técnicos de 1 certificado específico
-    path: '^/api/v1/certificates/[^/]+$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // Pesquisa/Listagem de certificados (Livre, como você mencionou)
-    path: '^/api/v1/certificates$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // PROTEÇÃO GLOBAL DE CERTIFICADOS: Qualquer POST, PUT ou DELETE será barrado
-    // Se não for GET (pego pelas regras acima), cai aqui e exige autenticação e é necessário vir do próprio app.
-    path: '^/api/v1/certificates',
-    isPublic: false,
-    authType: 'both',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"]
-  },
+  { path: "^/_next/", isPublic: true },
+  { path: "^/auth(/.*)?$", isPublic: true },
+  { path: "^/not-allowed$", isPublic: true },
 
-  // ========================================================================
-  // >>>> LIGAS ACADÊMICAS (Leagues) <<<<
-  // ========================================================================
-  {
-    // Visualizar página de uma liga específica
-    path: '^/api/v1/leagues/[^/]+$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // Listar nomes e siglas para selects/dropdowns
-    path: '^/api/v1/leagues$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // PROTEÇÃO: Criação ou edição de Ligas
-    path: '^/api/v1/leagues',
-    isPublic: false,
-    authType: 'both',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
+  // Autosserviço autenticado do aluno.
+  student("^/api/v1/user/profile/summary$", "GET"),
+  student("^/api/v1/user/profile$", "GET"),
+  student("^/api/v1/user/profile$", "PUT"),
+  student("^/api/v1/events/[0-9a-fA-F]{24}/registration/?$", "GET"),
+  student("^/api/v1/events/[0-9a-fA-F]{24}/registration/?$", "POST"),
+  student("^/api/v1/events/[0-9a-fA-F]{24}/registration/?$", "DELETE"),
+  student("^/api/v1/events/user/[0-9a-fA-F]{24}$", "GET"),
+  student("^/api/v1/blog/bookmarks$", "GET"),
+  student("^/api/v1/blog/posts/[^/]+/interactions/me$", "GET"),
+  student("^/api/v1/blog/posts/[^/]+/(like|bookmark)$", "POST"),
+  student("^/api/v1/blog/posts/[^/]+/comments$", "POST"),
 
-  // ========================================================================
-  // 3. EVENTOS (Events)
-  // ========================================================================
-  {
-    path: '^/api/v1/events/(?:id/)?([0-9a-fA-F]{24})/registration/?$', // Dinâmico: [eventId]
-    isPublic: false,
-    authType: 'both',
-    //method: 'POST', Vou permitir tudo, mas sempre logado!
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  },
-  {
-    path: '^/api/v1/events/(user/)?([0-9a-fA-F]{24})$',
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
-    path: '^/api/v1/events/closedForRegistration/[0-9]{4}-[0-9]{2}$', // Dinâmico: "YYYY-MM"
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
-    path: '^/api/v1/events/openForRegistration/[0-9]{4}-[0-9]{2}$', // Dinâmico: "YYYY-MM"
-    isPublic: true,
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
-    // Visualizar detalhes de um evento
-    path: '^/api/v1/events/[0-9a-fA-F]{24}$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    // Listar eventos por data
-    path: '^/api/v1/events$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    path: '^/api/v1/user/profile$',
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br","https://dadg.com.br"],
-  },
-  // ── Novas rotas do sistema de inscrição / check-in / certificado ──────────
-  {
-    // Lista de participantes inscritos num evento (admin)
-    path: '^/api/v1/events/[0-9a-fA-F]{24}/participants$',
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
-    // Validação do QR Code do ingresso (scan)
-    path: '^/api/v1/events/[0-9a-fA-F]{24}/checkin/scan$',
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
-    // Confirmar presença de um participante (check-in manual ou pós-scan)
-    path: '^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/checkin$',
-    isPublic: false,
-    authType: 'both',
-    method: 'PATCH',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  {
-    // Adicionar participante walk-in (sem inscrição prévia)
-    path: '^/api/v1/events/[0-9a-fA-F]{24}/walkin$',
-    isPublic: false,
-    authType: 'both',
-    method: 'POST',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  // ─────────────────────────────────────────────────────────────────────────
-  {
-    path: "^/api/v1/events/openForRegistration",
-    isPublic: true,
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
+  // Gestão de perfis e operações administrativas.
+  admin("^/api/v1/admin/profiles/query$", "POST"),
+  admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "GET"),
+  admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "PATCH"),
+  admin("^/api/v1/events/[0-9a-fA-F]{24}/participants$", "GET"),
+  admin("^/api/v1/events/[0-9a-fA-F]{24}/checkin/scan$", "GET"),
+  admin("^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/checkin$", "PATCH"),
+  admin("^/api/v1/events/[0-9a-fA-F]{24}/walkin$", "POST"),
+  admin("^/api/v1/events/closedForRegistration/[0-9]{4}-[0-9]{2}$", "GET"),
+  admin("^/api/v1/blog/admin(/.*)?$"),
+  admin("^/api/v1/warnings$", "POST"),
+  admin("^/api/v1/settings$", "PUT"),
+  admin("^/api/v1/test$"),
 
-  //
-  // PUBLIC
-  {
-    path: '^/Silvio.png$',
-    isPublic: false,
-    authType: 'both',
-    allowedOrigins: ["http://localhost:3000", "https://certificados.dadg.com.br"],
-  },
-  // >>>> BLOG PÚBLICO E INTERAÇÕES <<<<
-  {
-    path: '^/api/v1/blog/posts$',
-    isPublic: true,
-    method: 'GET',
-  },
-  {
-    path: '^/api/v1/blog/posts/[^/]+$',
-    isPublic: true,
-    method: 'GET',
-  },
-  {
-    path: '^/api/v1/blog/posts/by-slug/[^/]+$',
-    isPublic: true,
-    method: 'GET',
-  },
-  {
-    path: '^/api/v1/blog/posts/[^/]+/comments$',
-    isPublic: true,
-    method: 'GET',
-  },
-  {
-    path: '^/api/v1/blog/bookmarks$',
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  },
-  {
-    path: '^/api/v1/blog/posts/[^/]+/interactions/me$',
-    isPublic: false,
-    authType: 'both',
-    method: 'GET',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  },
-  {
-    path: '^/api/v1/blog/posts/[^/]+/(like|bookmark)$',
-    isPublic: false,
-    authType: 'both',
-    method: 'POST',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  },
-  {
-    path: '^/api/v1/blog/posts/[^/]+/comments$',
-    isPublic: false,
-    authType: 'both',
-    method: 'POST',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  },
-  // >>>> BLOG ADMIN <<<<
-  {
-    path: '^/api/v1/blog/admin(/.*)?$',
-    isPublic: false,
-    authType: 'both',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  },
-  // >>>> SETTINGS <<<<
-  {
-    path: '^/api/v1/settings$',
-    isPublic: true,
-    method: 'GET'
-  },
-  {
-    path: '^/api/v1/settings$',
-    isPublic: false,
-    authType: 'both',
-    method: 'PUT',
-    allowedOrigins: ["http://localhost:3000", "http://localhost:3001", "https://certificados.dadg.com.br"],
-  }
+  // Leitura pública preservada.
+  publicGet("^/api/v1/certificates/[^/]+/(download|scan|template)$"),
+  publicGet("^/api/v1/certificates/[^/]+$"),
+  publicGet("^/api/v1/certificates$"),
+  publicGet("^/api/v1/leagues/[^/]+$"),
+  publicGet("^/api/v1/leagues$"),
+  publicGet("^/api/v1/events/openForRegistration/[0-9]{4}-[0-9]{2}$"),
+  publicGet("^/api/v1/events/calendar$"),
+  publicGet("^/api/v1/events/[0-9a-fA-F]{24}$"),
+  publicGet("^/api/v1/events$"),
+  publicGet("^/api/v1/blog/posts$"),
+  publicGet("^/api/v1/blog/posts/by-slug/[^/]+$"),
+  publicGet("^/api/v1/blog/posts/[^/]+$"),
+  publicGet("^/api/v1/blog/posts/[^/]+/comments$"),
+  publicGet("^/api/v1/settings$"),
+
+  // Fallbacks de escrita/gestão, posicionados depois das leituras públicas.
+  admin("^/api/v1/certificates"),
+  admin("^/api/v1/leagues"),
+  admin("^/api/v1/events"),
+
+  // APIs legadas e páginas do aplicativo administrativo.
+  admin("^/api/(get|put|delete)/.*$"),
+  admin("^/$"),
+  admin("^/(createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
+  admin("^/teste$"),
+  admin("^/Silvio\\.png$"),
 ];

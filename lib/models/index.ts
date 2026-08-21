@@ -4,4 +4,7 @@ import "./ScanTemplate"
 import "./EventParticipant"
 import "./BlogPostModel"
 import "./BlogInteractionModel"
+import "./UserProfileModel"
+import "./PrivacyAcceptanceModel"
+import "./ProfileAuditModel"
 // Continue importando os demais modelos...

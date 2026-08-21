@@ -1,137 +1,133 @@
-import { ObjectId } from "bson";
-import { NextRequest } from "next/server"
-import { RouteConfig } from "./route-policies";
-import { User } from "@auth0/nextjs-auth0/types";
-import { verifyToken } from "./verifyToken";
-import { JWTPayload } from "jose";
-import { API_ROUTE_MAP } from "./route-policies";
+import type { User } from "@auth0/nextjs-auth0/types";
+import type { JWTPayload } from "jose";
+import type { NextRequest } from "next/server";
 import { auth0 } from "../auth0";
+import { isAdmin } from "./isAdmin";
+import { API_ROUTE_MAP, type RouteConfig } from "./route-policies";
+import { AuthConfigurationError, verifyStudentToken } from "./verifyToken";
+import { authorizePrincipal } from "./authorization";
+
+type Principal = {
+  kind: "student" | "admin";
+  user: User;
+};
+
+export type AccessDecision = {
+  authorized: boolean;
+  status?: number;
+  code?: string;
+  message?: string;
+  principal?: Principal;
+};
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function requestOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get("origin");
+  if (origin) return origin.replace(/\/$/, "");
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return null;
+  }
+}
 
 export default class GateKeeper {
-    private origin: string;
-    private path: string;
-    private method: string;
-    private apiRouteMap: RouteConfig[];
-    private request: NextRequest
-    constructor(request: NextRequest) {
-        this.request = request
-        this.path = this.request.nextUrl.pathname; //  Não uso o new URL pq o nextUrl é ótimo    
-        // Extraindo method e padronizando como maiúsuclo
-        this.method = this.request.method.toUpperCase();
+  private readonly path: string;
+  private readonly method: string;
+  private readonly request: NextRequest;
+  private principalPromise: Promise<Principal | null> | null = null;
 
-        // O 'origin' é enviado pelo browser em chamadas CORS. 
-        // O 'referer' é um fallback caso a chamada venha de um link direto.
-        // Já limpamos a barra final aqui para evitar erros de string.
-        this.origin = this.request.nextUrl.origin
-            .replace(/\/$/, "");
-        this.apiRouteMap = API_ROUTE_MAP;
-    }
+  constructor(request: NextRequest) {
+    this.request = request;
+    this.path = request.nextUrl.pathname;
+    this.method = request.method.toUpperCase();
+  }
 
-    /**
-     * Executa a verificação baseada no mapa de rotas injetado.
-     * Ele apenas verifica autenticidade de token se, somente se, isPublic for falso!
-     */
-    public async validate() {
-        const policy = this.apiRouteMap.find(route => {
-            const isPathMatch = new RegExp(route.path).test(this.path);
-            const isMethodMatch = !route.method || route.method === this.method;
-            return isPathMatch && isMethodMatch;
-        });
+  private findPolicy(): RouteConfig | undefined {
+    return API_ROUTE_MAP.find((route) => {
+      const pathMatches = new RegExp(route.path).test(this.path);
+      return pathMatches && (!route.method || route.method === this.method);
+    });
+  }
 
+  private async identifyPrincipal(): Promise<Principal | null> {
+    if (this.principalPromise) return this.principalPromise;
+    this.principalPromise = (async () => {
+      const authorization = this.request.headers.get("authorization");
+      if (authorization) {
+        const payload = await verifyStudentToken(authorization);
+        return payload?.sub ? { kind: "student", user: payload as User } : null;
+      }
 
-        // Caso a rota não exista no mapa (Secure by Default)
-        if (!policy) {
-            return { authorized: false, status: 403, message: "Bloqueio: Rota não mapeada." };
-        }
-
-        // Se não for pública, o primeiro passo é verificar a autenticação
-        if (policy?.isPublic === false) {
-            const s = await this.identifySession();
-
-            if (!s) {
-                return { authorized: false, status: 401, message: "Sessão não identificada." };
-            }
-
-            // Validando 'allowedUsers'
-            if (policy.allowedUsers && policy.allowedUsers.length > 0) {
-                // Usamos o 'id' que já vem normalizado (sem prefixos tipo auth0|)
-                const userId = s.sub.replace("auth0|", "");
-
-                if (!ObjectId.isValid(userId)) {
-                    return { authorized: false, status: 403, message: "O usuário não possui um identificador válido." };
-                }
-
-                // A FORMA CORRETA DE COMPARAR OBJECTIDS EM ARRAYS:
-                const isAllowed = policy.allowedUsers.some(allowedId =>
-                    allowedId.toString() === userId
-                );
-
-                if (!isAllowed) {
-                    return {
-                        authorized: false,
-                        status: 403,
-                        message: "O usuário não tem autorização para acessar essa rota."
-                    };
-                }
-            }
-        }
-        // Validação de Origem (Somente se a policy exigir)
-        if (policy.allowedOrigins && policy.allowedOrigins.length > 0) {
-            const isAllowed = policy.allowedOrigins.some(allowed =>
-                allowed.replace(/\/$/, "") === this.origin
-            );
-            if (!isAllowed) {
-                return { authorized: false, status: 403, message: "Origem não autorizada." };
-            }
-        }
-
-        // Se for pública, libera. Caso contrário, sinaliza que precisa de Auth.
-        if (policy.isPublic) {
-            return { authorized: true };
-        }
-
-        return {
-            authorized: true,
-            requiresAuth: true,
-            authType: policy.authType
-        };
-    }
-
-    private normalize(user: JWTPayload): User {
-        /**
-         * Serve apenas para normalizar o Token. É algo simples, mas deve ser centralizado para caso faça algo complexo com ele depois
-         * ele já vai estar centralizado.
-         */
-        const normalUser = user as User
-        return normalUser
-    }
-    /**
-     * @description Resolve e normaliza a identidade do usuário a partir de múltiplas fontes (Cookie/Bearer).
-     * @important Esta função NÃO realiza verificações de autorização ou política de acesso.
-     */
-    public async identifySession(): Promise<User | null> {
-        // Verificando se o usuário enviou um Bearer Token (API Clients)
-        // Caso sim, verificamos o token e, se válido, normalizamos o payload para o formato User do Auth0
-        // Caso ele tenha enviado um Token NÃO vamos tentar buscar a sessão de cookie, mesmo que seja uma chamada de navegador
-        // Isso é importante para evitar confusão e garantir que o token seja a fonte de verdade quando fornecido.
-        const authHeader = this.request.headers.get("authorization");
-        if (authHeader?.startsWith("Bearer ")) {
-            const payload = await verifyToken(authHeader);
-            if (payload) return this.normalize(payload);
-            return null
-        }
-        // Tenta identificar via Cookie (Sessão de Navegador)
-        // No App Router, getSession pode ser chamado sem o 'req' para usar o contexto global
-        try {
-            const session = await auth0.getSession(this.request);
-
-            if (session?.user) {
-                return this.normalize(session.user);
-            }
-        } catch (e) {
-            console.error(">>> GateKeeper: Erro ao buscar sessão de cookie", e);
-        }
-
+      try {
+        const session = await auth0.getSession(this.request);
+        return session?.user ? { kind: "admin", user: session.user } : null;
+      } catch {
         return null;
+      }
+    })();
+    return this.principalPromise;
+  }
+
+  public async validate(): Promise<AccessDecision> {
+    const policy = this.findPolicy();
+    if (!policy) {
+      return { authorized: false, status: 403, code: "ROUTE_NOT_MAPPED", message: "Rota não autorizada." };
     }
+    if (policy.isPublic) return { authorized: true };
+
+    try {
+      const principal = await this.identifyPrincipal();
+      const authType = policy.authType;
+      const decision = authorizePrincipal(authType, principal?.kind || null, principal?.kind === "admin" && isAdmin(principal.user));
+      if (!decision.authorized) {
+        return { ...decision, message: decision.status === 401 ? "Autenticação necessária." : "Acesso não autorizado." };
+      }
+
+      const origin = requestOrigin(this.request);
+      const declaredOrigins = policy.allowedOrigins?.map((value) => value.replace(/\/$/, "")) || [];
+      const sameOrigin = origin === this.request.nextUrl.origin.replace(/\/$/, "");
+      const declaredOrigin = origin ? declaredOrigins.includes(origin) : false;
+
+      if (principal?.kind === "admin" && !SAFE_METHODS.has(this.method) && (!origin || (!sameOrigin && !declaredOrigin))) {
+        return { authorized: false, status: 403, code: "INVALID_REQUEST_ORIGIN", message: "Origem da requisição não autorizada." };
+      }
+      if (origin && declaredOrigins.length && !sameOrigin && !declaredOrigin) {
+        return { authorized: false, status: 403, code: "INVALID_REQUEST_ORIGIN", message: "Origem da requisição não autorizada." };
+      }
+
+      return { authorized: true, principal: principal || undefined };
+    } catch (error) {
+      if (error instanceof AuthConfigurationError) {
+        return { authorized: false, status: 503, code: "AUTH_CONFIGURATION_ERROR", message: "Autenticação temporariamente indisponível." };
+      }
+      return { authorized: false, status: 401, code: "NOT_AUTHENTICATED", message: "Autenticação necessária." };
+    }
+  }
+
+  public async identifyStudent(): Promise<(User & JWTPayload) | null> {
+    try {
+      const principal = await this.identifyPrincipal();
+      return principal?.kind === "student" ? principal.user as User & JWTPayload : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public async identifyAdmin(): Promise<User | null> {
+    const principal = await this.identifyPrincipal();
+    return principal?.kind === "admin" && isAdmin(principal.user) ? principal.user : null;
+  }
+
+  /** Compatibilidade com handlers; a política da rota já foi aplicada pelo proxy. */
+  public async identifySession(): Promise<User | null> {
+    try {
+      return (await this.identifyPrincipal())?.user || null;
+    } catch {
+      return null;
+    }
+  }
 }
