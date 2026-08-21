@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Eye, FolderOpen, Menu, Plus, Sparkles, X } from "lucide-react";
+import { ChevronDown, Eye, FolderOpen, Menu, Plus, Sparkles, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import "./Header.css";
 
@@ -265,6 +265,10 @@ export default function Header() {
 
             <Link href="/Avisos" className="header-link" onClick={closeNavigation}>
               Avisos
+            </Link>
+
+            <Link href="/usuarios" className="header-link" onClick={closeNavigation}>
+              <UsersRound size={16} /> Usuários
             </Link>
 
             <Link href="/historicoDeModificacoes" className="header-link" onClick={closeNavigation}>

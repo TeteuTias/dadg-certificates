@@ -1,58 +1,57 @@
-import { jwtVerify, createRemoteJWKSet, JWTPayload, decodeJwt } from 'jose'
+import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyOptions } from "jose";
 
-// Configura o conjunto de chaves remotas da Auth0
-const JWKS = createRemoteJWKSet(
-    new URL(`https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`)
-)
-// ---
-function logTokenTimeGap(token: string) {
-    try {
-        const payload = decodeJwt(token);
-        if (payload.exp) {
-            const agora = Math.floor(Date.now() / 1000);
-            const expiraEm = payload.exp;
-            const gapSegundos = expiraEm - agora;
-
-            if (gapSegundos < 0) {
-                console.warn(`[DEBUG AUTH] Token expirado há ${Math.abs(gapSegundos)} segundos.`);
-            } else {
-                console.log(`[DEBUG AUTH] Token ainda é válido por ${gapSegundos} segundos.`);
-            }
-        }
-    } catch (e) {
-        console.error("[DEBUG AUTH] Não foi possível decodificar o payload para debug.");
-    }
+export class AuthConfigurationError extends Error {
+  constructor(message = "Student authentication is not configured") {
+    super(message);
+    this.name = "AuthConfigurationError";
+  }
 }
-// ---
-/**
- * 
- * @param token O token CRÚ
- * @returns  JWTPayload ou null
- */
-export async function verifyToken(token: string): Promise<JWTPayload | null> {
-    try {
-        // Lembre-se, ele espera algo no formato: "Bearer <token>"
-        // Assim, devemos limpa-lo.
-        if (!token.startsWith("Bearer ")) {
-            return {
-                authorized: false,
-                message: "Tipo de autenticação inválido. Use o formato: Bearer <token>"
-            };
-        }
-        const tokenLimpo = token.startsWith("Bearer ")
-            ? token.split(" ")[1]
-            : token;
 
-        logTokenTimeGap(tokenLimpo);
-        const { payload } = await jwtVerify(tokenLimpo, JWKS, {
-            clockTolerance: 30,
-            issuer: `https://${process.env.AUTH0_DOMAIN}/`,
-            // O Audience é o Identifier da sua API que você criou no painel da Auth0
-            // audience: process.env.AUTH0_AUDIENCE,
-        })
-        return payload
-    } catch (error) {
-        console.error('Erro na validação do token:', error)
-        return null
-    }
+let cachedIssuer = "";
+let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+export function getStudentAuthConfiguration() {
+  const rawIssuer = process.env.AUTH0_DOMAIN?.trim();
+  const audience = process.env.AUTH0_AUDIENCE?.trim();
+  if (!rawIssuer || !audience) {
+    throw new AuthConfigurationError("AUTH0_DOMAIN and AUTH0_AUDIENCE are required");
+  }
+
+  let issuer: string;
+  try {
+    const parsed = new URL(rawIssuer.startsWith("http") ? rawIssuer : `https://${rawIssuer}`);
+    parsed.pathname = parsed.pathname.replace(/\/?$/, "/");
+    issuer = parsed.toString();
+  } catch {
+    throw new AuthConfigurationError("AUTH0_DOMAIN is invalid");
+  }
+
+  if (!cachedJwks || cachedIssuer !== issuer) {
+    cachedIssuer = issuer;
+    cachedJwks = createRemoteJWKSet(new URL(".well-known/jwks.json", issuer));
+  }
+
+  return { issuer, audience, jwks: cachedJwks };
 }
+
+export function studentJwtVerifyOptions(issuer: string, audience: string): JWTVerifyOptions {
+  return { algorithms: ["RS256"], clockTolerance: 30, issuer, audience };
+}
+
+export async function verifyStudentToken(authorization: string): Promise<JWTPayload | null> {
+  if (!authorization.startsWith("Bearer ")) return null;
+  const token = authorization.slice("Bearer ".length).trim();
+  if (!token) return null;
+
+  const { issuer, audience, jwks } = getStudentAuthConfiguration();
+  try {
+    const { payload } = await jwtVerify(token, jwks, studentJwtVerifyOptions(issuer, audience));
+    return payload;
+  } catch {
+    // Não registrar o token nem claims pessoais em falhas de autenticação.
+    return null;
+  }
+}
+
+/** Compatibilidade temporária para handlers existentes. */
+export const verifyToken = verifyStudentToken;

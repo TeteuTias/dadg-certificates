@@ -23,19 +23,21 @@ export async function proxy(request: NextRequest) {
   const access = await keeper.validate();
   // Negado
   if (!access.authorized) {
-    console.log(`Acesso negado para ${request.nextUrl.pathname} ${access.message}`);
     // Se for uma chamada de API, devolvemos JSON (401 ou 403)
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json(
-        { success: false, message: access.message },
-        { status: access.status || 401 }
+        { success: false, error: access.message, code: access.code },
+        { status: access.status || 401, headers: { "Cache-Control": "private, no-store" } }
       );
     }
 
-    // Se for acesso via navegador em página protegida, manda pro Login
-    return NextResponse.redirect(new URL("/auth/login", request.nextUrl.origin));
+    const destination = access.status === 403 ? "/not-allowed" : "/auth/login";
+    const response = NextResponse.redirect(new URL(destination, request.nextUrl.origin));
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
   }
 
   // 4. SE CHEGOU AQUI: Está validado, autenticado e (se necessário) autorizado.
+  if (access.principal) authRes.headers.set("Cache-Control", "private, no-store");
   return authRes;
 }
