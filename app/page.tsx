@@ -10,6 +10,7 @@ import {
   FileText,
   FolderOpen,
   GraduationCap,
+  UsersRound,
   Plus,
   Sparkles,
   X,
@@ -44,6 +45,15 @@ export default function Home() {
             <Card title="Ver Certificados" path="/todosCertificados/allCertificates" icon={<Eye size={24} />} />
             <Card title="Criar Certificado" path="/createCertificate" icon={<Plus size={24} />} />
           </ExpansiveCard>
+
+          <Link href="/usuarios" prefetch className="group block">
+            <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl h-full flex flex-col items-center justify-center text-center transition-all hover:bg-slate-800/80 hover:border-blue-500/50 hover:shadow-[0_8px_30px_rgba(59,130,246,0.15)] hover:-translate-y-1">
+              <div className="w-16 h-16 bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><UsersRound size={32} className="text-blue-400" /></div>
+              <h3 className="text-xl font-bold text-white mb-3">Usuários</h3>
+              <p className="text-slate-400 text-sm mb-6 flex-grow">Consulte e corrija perfis criados pelos alunos no site DADG.</p>
+              <ArrowRight className="text-blue-500 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            </div>
+          </Link>
 
           <Link href="/Avisos" prefetch className="group block">
             <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl h-full flex flex-col items-center justify-center text-center transition-all hover:bg-slate-800/80 hover:border-blue-500/50 hover:shadow-[0_8px_30px_rgba(59,130,246,0.15)] hover:-translate-y-1">

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
-import EventCertificateModel from "@/lib/models/EventCertificateModel";
 import GateKeeper from "@/lib/security/gatekeeper";
 import EventParticipant from "@/lib/models/EventParticipant";
 //  export async function GET(req: NextRequest, { params }: { params: { search: string } }) {
@@ -25,7 +24,7 @@ export async function GET(req: NextRequest, {
     const keeper = new GateKeeper(req);
     // NOVAMENTE, ELE NÃO VAI VERIFICAR A SESSÃO, APENAS NORMALIZAR O USUÁRIO PARA O FORMATO PADRÃO DO AUTH0.
     // ASSIM,ESSA ROTA, TEM QUE ESTAR AUTENTICADA PREVIAMENTE VIA PROXY!
-    const user = await keeper.identifySession();
+    const user = await keeper.identifyStudent();
     if (!user) {
         return Response.json({ message: "Usuário não autenticado." }, { status: 401 });
     }
@@ -35,7 +34,10 @@ export async function GET(req: NextRequest, {
     if (userId !== userIdToken) {
         return NextResponse.json({ message: "ID do usuário não corresponde ao token de autenticação." }, { status: 403 });
     }
-    const userInscription = await EventParticipant.find({ owner: new mongoose.Types.ObjectId(userId) }).populate("eventId").lean()
+    const userInscription = await EventParticipant.find({ owner: new mongoose.Types.ObjectId(userId) })
+        .select({ ownerCpf: 0, ownerEmail: 0, qrToken: 0 })
+        .populate("eventId")
+        .lean()
 
-    return NextResponse.json({ "data": userInscription })
+    return NextResponse.json({ "data": userInscription }, { headers: { "Cache-Control": "private, no-store" } })
 }

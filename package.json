@@ -6,7 +6,10 @@
     "dev": "next dev --webpack --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "tsx --test tests/**/*.test.ts",
+    "profile:maintenance": "tsx scripts/profile-maintenance.ts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.0.0-beta.0",
@@ -33,6 +36,7 @@
     "eslint-config-next": "15.1.7",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }
