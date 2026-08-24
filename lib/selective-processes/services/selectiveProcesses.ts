@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { Application } from '../models/ApplicationModel';
 import { Exam } from '../models/ExamModel';
 import { PricingTier } from '../models/PricingTierModel';
+import { ApplicationLeagueSelection } from '../models/ApplicationLeagueSelectionModel';
 import { Ticket, type TicketPaymentStatus } from '../models/TicketModel';
 import {
   SelectionProcess,
@@ -118,6 +119,85 @@ export async function getExamsBySelectionProcess(selectionProcessId: string) {
   return exams.map((e) => ({ id: String(e._id), ...e }));
 }
 
+export async function updateExamForProcess(
+  selectionProcessId: string,
+  examId: string,
+  input: { examStartDate: Date; examEndDate: Date }
+) {
+  await connectToDatabase();
+  const updated = await Exam.findOneAndUpdate(
+    { _id: examId, selectionProcessId },
+    { $set: { examStartDate: input.examStartDate, examEndDate: input.examEndDate } },
+    { new: true }
+  ).lean();
+  if (!updated) return null;
+  return { id: String(updated._id), ...updated };
+}
+
+export async function deleteExamForProcess(selectionProcessId: string, examId: string) {
+  await connectToDatabase();
+
+  const processObjectId = new mongoose.Types.ObjectId(selectionProcessId);
+  const examObjectId = new mongoose.Types.ObjectId(examId);
+
+  const exam = await Exam.findOne({ _id: examObjectId, selectionProcessId: processObjectId }).lean();
+  if (!exam) return null;
+
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const affectedApplications = await Application.find({
+      selectionProcessId: processObjectId,
+      exams: examObjectId,
+    }).session(session);
+
+    for (const appDoc of affectedApplications) {
+      const application = appDoc;
+
+      // Remove the exam from the user's selection
+      const currentExamIds = application.get('exams') as mongoose.Types.ObjectId[];
+
+      application.set(
+        'exams',
+        currentExamIds.filter((id) => !id.equals(examObjectId))
+      );
+
+      // Remove locks for that exam
+      await ApplicationLeagueSelection.deleteMany(
+        { applicationId: application._id, examId: examObjectId },
+        { session }
+      );
+
+      // Adjust ticket leagueAllowanceCount (refund 1 credit) if the user has a PAID ticket
+      const ticket = await Ticket.findOne({
+        applicationId: application._id,
+        selectionProcessId: processObjectId,
+      }).session(session);
+
+      const typedTicket = ticket as unknown as { paymentStatus?: TicketPaymentStatus; leagueAllowanceCount?: number } | null;
+
+      if (typedTicket && typedTicket.paymentStatus === 'PAID') {
+        typedTicket.leagueAllowanceCount = (typedTicket.leagueAllowanceCount ?? 0) - 1;
+        ticket?.set('leagueAllowanceCount', typedTicket.leagueAllowanceCount);
+      }
+
+      await application.save({ session });
+      if (ticket) await ticket.save({ session });
+    }
+
+    await Exam.deleteOne({ _id: examObjectId, selectionProcessId: processObjectId }).session(session);
+
+    await session.commitTransaction();
+    return { id: examId };
+  } catch (e) {
+    await session.abortTransaction();
+    throw e;
+  } finally {
+    session.endSession();
+  }
+}
+
 function computeTotalByPricingTiers(pricingTiers: Array<{ examsCount: number; unitTotalPrice: number }>, examsCount: number) {
   // Regra simples: usar a tier que casa exatamente com examsCount.
   // (Você pode depois estender para combos/promoção encadeada)
@@ -186,6 +266,7 @@ export async function createApplicationAndTicketMock(params: {
     selectionProcessId: new mongoose.Types.ObjectId(selectionProcessId),
     paymentStatus: 'PENDING',
     totalAmount,
+    leagueAllowanceCount: exams.length,
   });
 
   const typedTicket = ticket as unknown as {
@@ -232,12 +313,26 @@ export async function setTicketPaymentStatus(params: {
       const process = await SelectionProcess.findById(application.get('selectionProcessId')).session(session);
       if (!process) throw new Error('SELECTION_PROCESS_NOT_FOUND');
 
-      // Occupação/vagas contam somente tickets PAID no mesmo SelectionProcess.
-      // Como a opção 1 é “sempre permitir PAID”, não travamos a transição.
-      await Ticket.countDocuments({
-        paymentStatus: 'PAID',
-        selectionProcessId: process._id,
-      }).session(session);
+      const typedCurrentTicket = currentTicket as unknown as {
+        leagueAllowanceCount: number;
+      };
+
+      if (application.get('exams').length !== typedCurrentTicket.leagueAllowanceCount) {
+        throw new Error('EXAMS_COUNT_MISMATCH');
+      }
+
+      const selectionProcessId = process._id;
+      const examIds = application.get('exams') as unknown as mongoose.Types.ObjectId[];
+
+      await Promise.all(
+        examIds.map(async (examId: mongoose.Types.ObjectId) => {
+          await ApplicationLeagueSelection.updateOne(
+            { applicationId: currentTicket.get('applicationId'), selectionProcessId, examId },
+            { $setOnInsert: { lockedAt: new Date(), selectionProcessId } },
+            { upsert: true, session }
+          );
+        })
+      );
 
       currentTicket.set('paymentStatus', 'PAID');
     } else {

@@ -7,6 +7,7 @@ type TicketSchemaType = InferSchemaType<{
   selectionProcessId: mongoose.Types.ObjectId;
   paymentStatus: TicketPaymentStatus;
   totalAmount: number;
+  leagueAllowanceCount: number;
 }>;
 
 export interface ITicket {
@@ -14,6 +15,7 @@ export interface ITicket {
   selectionProcessId: mongoose.Types.ObjectId;
   paymentStatus: TicketPaymentStatus;
   totalAmount: number;
+  leagueAllowanceCount: number;
 }
 
 const TicketSchema: Schema<ITicket> = new mongoose.Schema(
@@ -27,6 +29,7 @@ const TicketSchema: Schema<ITicket> = new mongoose.Schema(
       default: 'PENDING',
     },
     totalAmount: { type: Number, required: true, min: 0 },
+    leagueAllowanceCount: { type: Number, required: true, min: 1 },
   },
   { timestamps: true }
 );
