@@ -238,7 +238,7 @@ export default function SelectiveProcessesPage() {
                     href={`/selective-processes/${p.id}`}
                     className="rounded bg-slate-900 px-3 py-2 text-white text-sm"
                   >
-                    Abrir
+                    Gerenciar ligas
                   </Link>
 
                   <button

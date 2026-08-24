@@ -101,11 +101,12 @@ export async function updateSelectionProcess(
 
 export async function createExamForProcess(
   selectionProcessId: string,
-  input: { examStartDate: Date; examEndDate: Date }
+  input: { name: string; examStartDate: Date; examEndDate: Date }
 ) {
   await connectToDatabase();
   const created = new Exam({
     selectionProcessId: new mongoose.Types.ObjectId(selectionProcessId),
+    name: input.name,
     examStartDate: input.examStartDate,
     examEndDate: input.examEndDate,
   });
@@ -122,12 +123,12 @@ export async function getExamsBySelectionProcess(selectionProcessId: string) {
 export async function updateExamForProcess(
   selectionProcessId: string,
   examId: string,
-  input: { examStartDate: Date; examEndDate: Date }
+  input: { name: string; examStartDate: Date; examEndDate: Date }
 ) {
   await connectToDatabase();
   const updated = await Exam.findOneAndUpdate(
     { _id: examId, selectionProcessId },
-    { $set: { examStartDate: input.examStartDate, examEndDate: input.examEndDate } },
+    { $set: { name: input.name, examStartDate: input.examStartDate, examEndDate: input.examEndDate } },
     { new: true }
   ).lean();
   if (!updated) return null;

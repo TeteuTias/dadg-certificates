@@ -37,12 +37,14 @@ export async function POST(request: NextRequest, { params }: Context) {
 
   const examStartDate = body?.examStartDate;
   const examEndDate = body?.examEndDate;
+  const name = body?.name;
 
-  if (!examStartDate || !examEndDate) {
+  if (!examStartDate || !examEndDate || !name) {
     return NextResponse.json({ success: false, error: 'INVALID_BODY' }, { status: 400 });
   }
 
   const created = await createExamForProcess(id, {
+    name,
     examStartDate: new Date(examStartDate),
     examEndDate: new Date(examEndDate),
   });
