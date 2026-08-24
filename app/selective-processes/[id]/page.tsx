@@ -170,6 +170,7 @@ export default function SelectionProcessDetailPage({
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ paymentStatus: newStatus }),
                   }
+                );
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data?.error || "Falha ao atualizar ticket.");
                 const updated = data?.data as TicketUpdateResponse | undefined;
