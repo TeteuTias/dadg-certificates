@@ -60,7 +60,32 @@ export async function getSelectionProcess(id: string) {
   await connectToDatabase();
   const doc = await SelectionProcess.findById(id).lean();
   if (!doc) return null;
-  return { id: String(doc._id), ...doc };
+
+  const selectionProcessId = doc._id as mongoose.Types.ObjectId;
+  const occupancy = await getSelectionProcessOccupancy(selectionProcessId);
+
+  return {
+    id: String(doc._id),
+    ...doc,
+    ...occupancy,
+  };
+}
+
+export async function getSelectionProcessOccupancy(selectionProcessId: mongoose.Types.ObjectId) {
+  const paidCount = await Ticket.countDocuments({
+    paymentStatus: 'PAID',
+    selectionProcessId,
+  });
+
+  const process = await SelectionProcess.findById(selectionProcessId).lean();
+  const typedProcess = process as unknown as { maxCapacity?: number } | null;
+  const maxCapacity = typedProcess?.maxCapacity ?? 0;
+
+  return {
+    paidCount,
+    maxCapacity,
+    remainingCapacity: maxCapacity - paidCount,
+  };
 }
 
 export async function updateSelectionProcess(
@@ -158,6 +183,7 @@ export async function createApplicationAndTicketMock(params: {
 
   const ticket = await Ticket.create({
     applicationId: appDoc._id,
+    selectionProcessId: new mongoose.Types.ObjectId(selectionProcessId),
     paymentStatus: 'PENDING',
     totalAmount,
   });
@@ -206,16 +232,12 @@ export async function setTicketPaymentStatus(params: {
       const process = await SelectionProcess.findById(application.get('selectionProcessId')).session(session);
       if (!process) throw new Error('SELECTION_PROCESS_NOT_FOUND');
 
-      const typedProcess = process as unknown as { maxCapacity: number };
-
-      const paidCount = await Ticket.countDocuments({
+      // Occupação/vagas contam somente tickets PAID no mesmo SelectionProcess.
+      // Como a opção 1 é “sempre permitir PAID”, não travamos a transição.
+      await Ticket.countDocuments({
         paymentStatus: 'PAID',
-        applicationId: { $in: await Application.find({ selectionProcessId: process._id }).select({ _id: 1 }).lean().then((apps) => apps.map((a) => a._id)) },
+        selectionProcessId: process._id,
       }).session(session);
-
-      if (paidCount >= typedProcess.maxCapacity) {
-        throw new Error('CAPACITY_FULL');
-      }
 
       currentTicket.set('paymentStatus', 'PAID');
     } else {
@@ -223,8 +245,26 @@ export async function setTicketPaymentStatus(params: {
     }
 
     await currentTicket.save({ session });
+
+    const finalStatus = currentTicket.get('paymentStatus');
+    const process = await SelectionProcess.findById(
+      (await Application.findById(currentTicket.get('applicationId')).session(session))?.get('selectionProcessId')
+    ).session(session);
+
+    if (process) {
+      const occupancy = await getSelectionProcessOccupancy(process._id);
+      await session.commitTransaction();
+      return {
+        ticketId,
+        paymentStatus: finalStatus,
+        paidCount: occupancy.paidCount,
+        maxCapacity: occupancy.maxCapacity,
+        remainingCapacity: occupancy.remainingCapacity,
+      };
+    }
+
     await session.commitTransaction();
-    return { ticketId, paymentStatus: currentTicket.get('paymentStatus') };
+    return { ticketId, paymentStatus: finalStatus };
   } catch (e) {
     await session.abortTransaction();
     throw e;

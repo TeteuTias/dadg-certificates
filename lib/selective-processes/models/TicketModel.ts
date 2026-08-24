@@ -4,12 +4,14 @@ export type TicketPaymentStatus = 'PENDING' | 'PAID' | 'CANCELED';
 
 type TicketSchemaType = InferSchemaType<{
   applicationId: mongoose.Types.ObjectId;
+  selectionProcessId: mongoose.Types.ObjectId;
   paymentStatus: TicketPaymentStatus;
   totalAmount: number;
 }>;
 
 export interface ITicket {
   applicationId: mongoose.Types.ObjectId;
+  selectionProcessId: mongoose.Types.ObjectId;
   paymentStatus: TicketPaymentStatus;
   totalAmount: number;
 }
@@ -17,6 +19,7 @@ export interface ITicket {
 const TicketSchema: Schema<ITicket> = new mongoose.Schema(
   {
     applicationId: { type: Schema.Types.ObjectId, required: true, ref: 'Application' },
+    selectionProcessId: { type: Schema.Types.ObjectId, required: true, ref: 'SelectionProcess' },
     paymentStatus: {
       type: String,
       required: true,
