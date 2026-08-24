@@ -103,6 +103,12 @@ export const API_ROUTE_MAP: RouteConfig[] = [
 
   // APIs legadas e páginas do aplicativo administrativo.
   admin("^/api/(get|put|delete)/.*$"),
+
+  // selective-processes (ADM) - garante autorização para endpoints desse módulo
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$"),
+
+  // selective-processes (páginas) - protege a UI do ADM
+  admin("^/selective-processes(/.*)?$"),
   admin("^/$"),
   admin("^/(createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
   admin("^/teste$"),

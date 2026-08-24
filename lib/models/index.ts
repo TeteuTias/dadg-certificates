@@ -7,4 +7,10 @@ import "./BlogInteractionModel"
 import "./UserProfileModel"
 import "./PrivacyAcceptanceModel"
 import "./ProfileAuditModel"
-// Continue importando os demais modelos...
+
+// selective-processes (ADM)
+import "../selective-processes/models/SelectionProcessModel"
+import "../selective-processes/models/ExamModel"
+import "../selective-processes/models/PricingTierModel"
+import "../selective-processes/models/ApplicationModel"
+import "../selective-processes/models/TicketModel"

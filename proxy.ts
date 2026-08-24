@@ -10,7 +10,6 @@ import GateKeeper from "./lib/security/gatekeeper"
  */
 export async function proxy(request: NextRequest) {
   const authRes = await auth0.middleware(request);
-
   // Regra de bypass para as rotas do próprio Auth0
   if (request.nextUrl.pathname.startsWith("/auth")) {
     return authRes;
