@@ -1,6 +1,5 @@
 import { loadEnvConfig } from "@next/env";
 import mongoose from "mongoose";
-import { connectToDatabase } from "../lib/mongodb";
 import UserProfileModel from "../lib/models/UserProfileModel";
 import PrivacyAcceptanceModel from "../lib/models/PrivacyAcceptanceModel";
 import ProfileAuditModel from "../lib/models/ProfileAuditModel";
@@ -111,6 +110,9 @@ async function auditAndRotate() {
 
 async function main() {
   try {
+    // lib/mongodb valida a URI durante a importação. Importe somente depois
+    // que o .env.local tiver sido carregado para o comando funcionar fora do Next.js.
+    const { connectToDatabase } = await import("../lib/mongodb");
     assertProfileCryptoConfigured();
     console.log("Configuração criptográfica válida (segredos não exibidos).");
     await connectToDatabase();
