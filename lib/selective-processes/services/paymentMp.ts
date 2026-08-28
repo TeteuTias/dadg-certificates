@@ -47,7 +47,9 @@ export async function createCheckoutProPreference(
       first_name: input.payer.first_name,
       last_name: input.payer.last_name,
     },
-    notification_url: process.env.MERCADOPAGO_WEBHOOK_URL,
+    notification_url:
+      process.env.MERCADOPAGO_WEBHOOK_URL ||
+      `${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/admin/selective-processes/payments/webhook`,
     back_urls: {
       success: input.backUrls?.success,
       pending: input.backUrls?.pending,

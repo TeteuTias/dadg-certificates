@@ -36,8 +36,8 @@ function mapMpStatusToAttributionStatus(mpStatus: string):
 }
 
 export async function POST(request: NextRequest) {
-  // Mercado Pago recomenda responder 200/201 rapidamente.
-  // Então validamos o mínimo e processamos em try/catch.
+  // Requisito Mercado Pago: responder 200 rapidamente.
+  // Então, parseamos e validamos o mínimo; a parte pesada segue em try/catch.
   let body: any;
   try {
     body = await request.json();
@@ -47,31 +47,32 @@ export async function POST(request: NextRequest) {
 
   const type = body?.type;
   const dataId = body?.data?.id ?? body?.id;
-
-  // Ignora notificações não relacionadas a payment.
   if (type !== 'payment' || !dataId) {
     return NextResponse.json({ ok: true }, { status: 200 });
   }
 
+  const checkoutIdFromMp = String(dataId);
+
+  // Processing em bloco separado (mas ainda dentro do request).
+  // Se quiser, dá pra mover para background job, mas aqui mantemos simples e robusto.
   try {
     await connectToDatabase();
 
     const mp = getMpClient();
 
     // GET /v1/payments/{id}
-    const response = await mp.payments.get({ id: String(dataId) });
+    const response = await mp.payments.get({ id: checkoutIdFromMp });
     const payment = response?.body?.response ?? response?.body ?? response;
 
     const mpStatus: string | undefined = payment?.status;
     const externalReferenceRaw = payment?.external_reference;
 
-    // Contrato: external_reference contém o _id da sessão.
-    const externalReference =
-      typeof externalReferenceRaw === 'string'
-        ? externalReferenceRaw
-        : typeof externalReferenceRaw === 'number'
-          ? String(externalReferenceRaw)
-          : null;
+    // No contrato que você passou: external_reference contém o _id da sessão.
+    const externalReference = typeof externalReferenceRaw === 'string'
+      ? externalReferenceRaw
+      : typeof externalReferenceRaw === 'number'
+        ? String(externalReferenceRaw)
+        : null;
 
     if (!mpStatus || !externalReference) {
       return NextResponse.json({ ok: true }, { status: 200 });
@@ -83,11 +84,13 @@ export async function POST(request: NextRequest) {
     const mpSessionId = new mongoose.Types.ObjectId(externalReference);
 
     if (mpStatus.toLowerCase() === 'approved') {
+      // Atualiza sessão
       await PaymentSession.updateOne(
         { _id: mpSessionId },
         { $set: { status: 'PAGO' as any } }
       );
 
+      // Atualiza atribuição (compraId == externalReference)
       await PaymentAttribution.updateMany(
         { compraId: mpSessionId },
         { $set: { status: 'PAGAMENTO_APROVADO' } }
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
         { $set: { status: 'PAGAMENTO_CANCELADO' } }
       );
     } else {
+      // fallback: mantém pendente ou atualiza conforme necessidade
       await PaymentSession.updateOne(
         { _id: mpSessionId },
         { $set: { status: sessionStatus } }
@@ -120,7 +124,8 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch {
-    // Não propagar erros para evitar retentativas massivas.
+    // Compatibilidade Mercado Pago: não gerar retentativas por erro.
+    // Sem log aqui para manter comportamento minimalista.
   }
 
   return NextResponse.json({ ok: true }, { status: 200 });
