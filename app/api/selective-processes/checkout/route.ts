@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { createCheckoutProPaymentForInscription } from '@/lib/selective-processes/payment-service';
+import { ObjectId } from "bson"
 
 export const dynamic = 'force-dynamic';
 
@@ -33,17 +34,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'INVALID_TYPE' }, { status: 400 });
   }
 
-  const externalReference = body?.externalReference;
+  const externalReference = `${new ObjectId()}`;
   const items = body?.items;
   const payer = body?.payer;
   const paymentConfig = body?.paymentConfig;
 
-  if (typeof externalReference !== 'string') {
-    return NextResponse.json(
-      { success: false, error: 'INVALID_EXTERNAL_REFERENCE' },
-      { status: 400 }
-    );
-  }
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ success: false, error: 'INVALID_ITEMS' }, { status: 400 });
   }
@@ -85,7 +80,6 @@ export async function POST(request: NextRequest) {
       valoresCentavos: body?.valoresCentavos,
       metodosPagamentoPermitidos: body?.metodosPagamentoPermitidos,
     });
-
     return NextResponse.json({ success: true, data: result }, { status: 200 });
   } catch (e: any) {
     const code = e?.code;

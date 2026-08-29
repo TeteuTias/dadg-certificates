@@ -13,8 +13,8 @@ import { createCheckoutProPreference } from './services/paymentMp';
 const SESSION_VALIDITY_MINUTES = 15;
 const ACTIVE_ATTRI_STATUS = ['PAGAMENTO_PENDENTE'];
 
-function expiresAtPlusMinutes(min: number) {
-  return new Date(Date.now() + min * 60 * 1000);
+function expiresAtPlusMinutes(min: number): string {
+  return new Date(Date.now() + min * 60 * 1000).toISOString();
 }
 
 function isPendingWithinValidity(expiresAt: Date) {
@@ -24,7 +24,7 @@ function isPendingWithinValidity(expiresAt: Date) {
 export type CheckoutProPaymentResult = {
   init_point: string;
   sessionId: string;
-  expiresAt: Date;
+  expiresAt: string;
 };
 
 export type CreateCheckoutProPaymentInput = {
@@ -102,7 +102,7 @@ export async function createCheckoutProPaymentForInscription(
     })
       .sort({ createdAt: -1 })
       .lean();
-
+    //
     if (pendingAttr?.compraId) {
       const foundSession = await PaymentSession.findById((pendingAttr as any).compraId).lean();
       if (foundSession && foundSession.expiresAt && isPendingWithinValidity(new Date(foundSession.expiresAt))) {
@@ -112,7 +112,7 @@ export async function createCheckoutProPaymentForInscription(
           return {
             init_point,
             sessionId: String(foundSession._id),
-            expiresAt: new Date(foundSession.expiresAt),
+            expiresAt: foundSession.expiresAt,
           };
         }
       }
@@ -219,7 +219,7 @@ export async function createCheckoutProPaymentForInscription(
     return {
       init_point: pref.init_point,
       sessionId: String((createdSession as any)._id),
-      expiresAt,
+      expiresAt: pref.expiresAt,
     };
   } catch (e) {
     await session.abortTransaction();

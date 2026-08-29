@@ -1,8 +1,5 @@
-import mercadopago from 'mercadopago';
-
 export type CreateMpPreferenceInput = {
-  // Campos livres que você pode mapear conforme o fluxo de inscrição.
-  externalReference: string; // ex: session compraId
+  externalReference: string;
   items: Array<{
     title: string;
     quantity: number;
@@ -27,7 +24,34 @@ export type CreateMpPreferenceInput = {
 export type CreateMpPreferenceOutput = {
   init_point: string;
   checkoutId: string;
+  expiresAt: string;
 };
+
+async function postJson<T>(url: string, body: unknown, accessToken: string): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const msg = json?.message || json?.error || text || `HTTP_${res.status}`;
+    throw new Error(`MERCADOPAGO_PREFERENCE_CREATE_FAILED: ${msg}`);
+  }
+
+  return json as T;
+}
 
 export async function createCheckoutProPreference(
   input: CreateMpPreferenceInput
@@ -35,12 +59,17 @@ export async function createCheckoutProPreference(
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
   if (!accessToken) throw new Error('MERCADOPAGO_ACCESS_TOKEN_NOT_SET');
 
-  mercadopago.configure({ access_token: accessToken });
+  // Endpoint oficial (preferencias de checkout)
+  const url = `${process.env.MERCADOPAGO_BASE_API || ""}/checkout/preferences`;
+  // Soma 15 minutos para o FIM
 
-  // A SDK do Mercado Pago varia conforme versão; mantemos um formato genérico.
+
   const preferenceData: any = {
-    external_reference: input.externalReference,
-    items: input.items,
+    items: input.items.map((i) => ({
+      title: i.title,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+    })),
     payer: {
       email: input.payer.email,
       identification: input.payer.identification,
@@ -56,17 +85,40 @@ export async function createCheckoutProPreference(
       failure: input.backUrls?.failure,
     },
     auto_return: 'approved',
+    external_reference: input.externalReference,
+    //expiration_date_from: expiration_date_from,
+    expires: true,
+    expiration_date_to: getExpirationDateTo(15),
   };
 
-  const response = await (mercadopago.preferences as any).create(preferenceData);
-
-  const pref = response?.body?.response ?? response?.body;
-  const init_point = pref?.init_point;
-  const checkoutId = pref?.id;
+  const response = await postJson<any>(url, preferenceData, accessToken);
+  // Shape esperado no retorno:
+  // { init_point: string, id: string, ... }
+  const init_point: string | undefined = response?.init_point;
+  const checkoutId: string | undefined = response?.id;
 
   if (!init_point || !checkoutId) {
     throw new Error('MERCADOPAGO_PREFERENCE_CREATE_FAILED');
   }
 
-  return { init_point, checkoutId };
+  return { init_point, checkoutId, expiresAt: response.expiration_date_to };
+}
+
+function getExpirationDateTo(minutesAhead = 15) {
+  const date = new Date(Date.now() + minutesAhead * 60 * 1000);
+
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    hour12: false,
+  });
+
+  const formatted = formatter.format(date).replace(' ', 'T').replace(',', '.');
+  return `${formatted}-03:00`;
 }
