@@ -31,5 +31,5 @@ const SelectionProcessSchema: Schema<ISelectionProcess> = new mongoose.Schema(
 );
 
 export const SelectionProcess =
-  (mongoose.models.SelectionProcess as mongoose.Model<SelectionProcessSchemaType>) ||
-  mongoose.model<SelectionProcessSchemaType>('SelectionProcess', SelectionProcessSchema);
+  (mongoose.models.selectionprocesses as mongoose.Model<SelectionProcessSchemaType>) ||
+  mongoose.model<SelectionProcessSchemaType>('selectionprocesses', SelectionProcessSchema);

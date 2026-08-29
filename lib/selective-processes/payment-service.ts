@@ -63,7 +63,7 @@ export async function createCheckoutProPaymentForInscription(
   const ownerObjectId = new mongoose.Types.ObjectId(input.usuarioId);
 
   // 1) Validação do Processo Seletivo
-  const selectionProcess = await SelectionProcess.findOne({ id: input.edicaoId }).lean();
+  const selectionProcess = await SelectionProcess.findOne({ _id: input.edicaoId }).lean();
   if (!selectionProcess) {
     throw Object.assign(new Error('PROCESS_NOT_FOUND'), { code: 'PROCESS_NOT_FOUND' });
   }
@@ -202,10 +202,10 @@ export async function createCheckoutProPaymentForInscription(
           },
           valorSelecionadoCentavos: input.valoresCentavos
             ? {
-                original: input.valoresCentavos.original?.PIX ?? 0,
-                desconto: input.valoresCentavos.desconto?.PIX ?? 0,
-                final: input.valoresCentavos.final?.PIX ?? 0,
-              }
+              original: input.valoresCentavos.original?.PIX ?? 0,
+              desconto: input.valoresCentavos.desconto?.PIX ?? 0,
+              final: input.valoresCentavos.final?.PIX ?? 0,
+            }
             : undefined,
         },
       ],
