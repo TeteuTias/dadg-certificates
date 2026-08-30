@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await createOrGetPaymentSession({
+    const result = (await createOrGetPaymentSession({
       owner,
       edicaoId,
       type,
@@ -76,19 +76,22 @@ export async function POST(request: NextRequest) {
       codigoRastreio: body?.codigoRastreio,
       valoresCentavos: body?.valoresCentavos,
       metodosPagamentoPermitidos: body?.metodosPagamentoPermitidos,
-    });
+    }))
+
 
     return NextResponse.json({
       success: true,
       data: {
-        status: result.session.status,
-        init_point: result.init_point,
-        expiresAt: result.expiresAt,
-        sessionId: result.session._id.toString(),
-        compraId: result.session._id.toString(),
+        status: (result as any).session.status,
+        init_point: (result as any).init_point,
+        expiresAt: (result as any).expiresAt,
+        sessionId: (result as any).session._id.toString(),
+        compraId: (result as any).session._id.toString(),
       },
     });
   } catch (e: any) {
+    const result: any = null;
+
     return NextResponse.json(
       { success: false, error: e?.message || 'PAYMENT_SESSION_FAILED' },
       { status: 500 }

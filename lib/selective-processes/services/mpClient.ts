@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, Payments } from 'mercadopago';
+import { MercadoPagoConfig, Payment } from 'mercadopago';
 
 export function getMpClient() {
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -13,6 +13,6 @@ export function getMpClient() {
 
   return {
     config: client,
-    payments: new Payments(client),
+    payments: new Payment(client),
   };
 }

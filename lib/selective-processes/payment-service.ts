@@ -103,8 +103,10 @@ export async function createCheckoutProPaymentForInscription(
       .sort({ createdAt: -1 })
       .lean();
     //
-    if (pendingAttr?.compraId) {
-      const foundSession = await PaymentSession.findById((pendingAttr as any).compraId).lean();
+    const pendingCompraId: any = (pendingAttr as any)?.compraId;
+
+    if (pendingCompraId) {
+      const foundSession = (await PaymentSession.findById(pendingCompraId).lean()) as any;
       if (foundSession && foundSession.expiresAt && isPendingWithinValidity(new Date(foundSession.expiresAt))) {
         const init_point = (foundSession as any).paymentUrl;
         if (typeof init_point === 'string' && init_point.length > 0) {

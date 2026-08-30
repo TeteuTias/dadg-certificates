@@ -5,9 +5,9 @@ export type RouteConfig = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
   allowedOrigins?: string[];
 } & (
-  | { isPublic: true; authType?: never }
-  | { isPublic: false; authType: ProtectedAuthType }
-);
+    | { isPublic: true; authType?: never }
+    | { isPublic: false; authType: ProtectedAuthType }
+  );
 
 const compactOrigins = (...values: Array<string | undefined>) =>
   [...new Set(values.filter((value): value is string => Boolean(value)).map((value) => value.replace(/\/$/, "")))];
@@ -52,7 +52,13 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   { path: "^/_next/", isPublic: true },
   { path: "^/auth(/.*)?$", isPublic: true },
   { path: "^/not-allowed$", isPublic: true },
-
+  {
+    path: "^/api/selective-processes/checkout$",
+    method: "POST",
+    isPublic: false,
+    authType: "student",
+    allowedOrigins: STUDENT_ORIGINS,
+  },
   // Autosserviço autenticado do aluno.
   student("^/api/v1/user/profile/summary$", "GET"),
   student("^/api/v1/user/profile$", "GET"),
@@ -109,6 +115,9 @@ export const API_ROUTE_MAP: RouteConfig[] = [
 
   // selective-processes (páginas) - protege a UI do ADM
   admin("^/selective-processes(/.*)?$"),
+
+  // selective-processes (checkout) - liberado para user e admin
+  // Permite que usuários logados (student) e admin acessem o endpoint de checkout.
   admin("^/$"),
   admin("^/(createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
   admin("^/teste$"),

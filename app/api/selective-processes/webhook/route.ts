@@ -62,10 +62,9 @@ export async function POST(request: NextRequest) {
 
     // GET /v1/payments/{id}
     const response = await mp.payments.get({ id: checkoutIdFromMp });
-    const payment = response?.body?.response ?? response?.body ?? response;
 
-    const mpStatus: string | undefined = payment?.status;
-    const externalReferenceRaw = payment?.external_reference;
+    const mpStatus: string | undefined = response.status;
+    const externalReferenceRaw = response.external_reference;
 
     // No contrato que você passou: external_reference contém o _id da sessão.
     const externalReference = typeof externalReferenceRaw === 'string'
