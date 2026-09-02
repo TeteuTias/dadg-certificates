@@ -59,6 +59,11 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     authType: "student",
     allowedOrigins: STUDENT_ORIGINS,
   },
+  // Processos seletivos - autosservico do candidato no site do aluno.
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/me$", "GET"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout$", "POST"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/leagues$", "POST"),
+
   // Autosserviço autenticado do aluno.
   student("^/api/v1/user/profile/summary$", "GET"),
   student("^/api/v1/user/profile$", "GET"),
@@ -100,6 +105,8 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   publicGet("^/api/v1/blog/posts/by-slug/[^/]+$"),
   publicGet("^/api/v1/blog/posts/[^/]+$"),
   publicGet("^/api/v1/blog/posts/[^/]+/comments$"),
+  publicGet("^/api/v1/selective-processes$"),
+  publicGet("^/api/v1/selective-processes/[0-9a-fA-F]{24}$"),
   publicGet("^/api/v1/settings$"),
 
   // Fallbacks de escrita/gestão, posicionados depois das leituras públicas.

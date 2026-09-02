@@ -7,6 +7,10 @@ import {
 } from '@/lib/selective-processes/models/PaymentSessionModel';
 import { PaymentAttribution } from '@/lib/selective-processes/models/PaymentAttributionModel';
 import { getMpClient } from '@/lib/selective-processes/services/mpClient';
+import {
+  confirmEnrollmentForPaymentSession,
+  resolvePaymentSessionId,
+} from '@/lib/selective-processes/services/enrollment';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +84,12 @@ export async function POST(request: NextRequest) {
     const sessionStatus = mapMpStatusToSessionStatus(mpStatus);
     const attributionStatus = mapMpStatusToAttributionStatus(mpStatus);
 
-    const mpSessionId = new mongoose.Types.ObjectId(externalReference);
+    const resolvedSessionId = await resolvePaymentSessionId(externalReference);
+    if (!resolvedSessionId) {
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
+    const mpSessionId = resolvedSessionId;
 
     if (mpStatus.toLowerCase() === 'approved') {
       // Atualiza sessão
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
         { $set: { status: 'PAGAMENTO_APROVADO' } }
       );
 
-      // TODO: Chamar função para efetivar a inscrição do candidato no processo seletivo.
+      await confirmEnrollmentForPaymentSession(mpSessionId);
     } else if (
       mpStatus.toLowerCase() === 'rejected' ||
       mpStatus.toLowerCase() === 'cancelled' ||
