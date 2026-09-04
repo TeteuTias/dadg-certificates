@@ -45,6 +45,13 @@ const student = (path: string, method?: RouteConfig["method"]): RouteConfig => (
 const publicGet = (path: string): RouteConfig => ({ path, method: "GET", isPublic: true });
 
 /**
+ * Notificacoes de servicos externos (Mercado Pago). Nao ha sessao nem token do
+ * nosso Auth0 nessas chamadas; a autenticidade e verificada dentro do handler,
+ * que confere a assinatura e consulta o pagamento na API do Mercado Pago.
+ */
+const publicWebhook = (path: string): RouteConfig => ({ path, method: "POST", isPublic: true });
+
+/**
  * Rotas ordenadas do contrato mais específico para o mais abrangente.
  * Qualquer rota ausente continua negada por padrão no GateKeeper.
  */
@@ -59,6 +66,10 @@ export const API_ROUTE_MAP: RouteConfig[] = [
     authType: "student",
     allowedOrigins: STUDENT_ORIGINS,
   },
+  // Webhooks do Mercado Pago - precisam responder sem autenticacao.
+  publicWebhook("^/api/selective-processes/webhook$"),
+  publicWebhook("^/api/admin/selective-processes/payments/webhook$"),
+
   // Processos seletivos - autosservico do candidato no site do aluno.
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/me$", "GET"),
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout$", "POST"),

@@ -7,6 +7,7 @@ import {
 } from '@/lib/selective-processes/models/PaymentSessionModel';
 import { PaymentAttribution } from '@/lib/selective-processes/models/PaymentAttributionModel';
 import { getMpClient } from '@/lib/selective-processes/services/mpClient';
+import { verifyMercadoPagoSignature } from '@/lib/selective-processes/services/webhookSignature';
 import {
   confirmEnrollmentForPaymentSession,
   resolvePaymentSessionId,
@@ -17,12 +18,12 @@ export const dynamic = 'force-dynamic';
 function mapMpStatusToSessionStatus(mpStatus: string): PaymentSessionStatus {
   const s = mpStatus.toLowerCase();
 
-  if (s === 'approved') return 'PAGO' as any;
-  if (s === 'rejected') return 'CANCELED' as any;
-  if (s === 'cancelled') return 'CANCELED' as any;
-  if (s === 'refunded') return 'CANCELED' as any;
+  if (s === 'approved') return 'PAID';
+  if (s === 'rejected') return 'CANCELED';
+  if (s === 'cancelled') return 'CANCELED';
+  if (s === 'refunded') return 'CANCELED';
 
-  return 'MP_PENDING' as any;
+  return 'MP_PENDING';
 }
 
 function mapMpStatusToAttributionStatus(mpStatus: string):
@@ -53,6 +54,10 @@ export async function POST(request: NextRequest) {
   const dataId = body?.data?.id ?? body?.id;
   if (type !== 'payment' || !dataId) {
     return NextResponse.json({ ok: true }, { status: 200 });
+  }
+
+  if (!verifyMercadoPagoSignature(request, String(dataId))) {
+    return NextResponse.json({ ok: false, error: 'INVALID_SIGNATURE' }, { status: 401 });
   }
 
   const checkoutIdFromMp = String(dataId);
@@ -95,7 +100,7 @@ export async function POST(request: NextRequest) {
       // Atualiza sessão
       await PaymentSession.updateOne(
         { _id: mpSessionId },
-        { $set: { status: 'PAGO' as any } }
+        { $set: { status: 'PAID' } }
       );
 
       // Atualiza atribuição (compraId == externalReference)
@@ -112,7 +117,7 @@ export async function POST(request: NextRequest) {
     ) {
       await PaymentSession.updateOne(
         { _id: mpSessionId },
-        { $set: { status: 'CANCELED' as any } }
+        { $set: { status: 'CANCELED' } }
       );
 
       await PaymentAttribution.updateMany(
