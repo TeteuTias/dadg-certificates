@@ -20,6 +20,9 @@ import {
 
 const SP = process.argv[2] || '6a92fab72fd46137ff827a87';
 const EXAMS_COUNT = Number(process.argv[3] || 2);
+// Email do comprador. Nao pode ser o do vendedor: o Mercado Pago bloqueia
+// pagamento para a propria conta e o botao de pagar fica desabilitado.
+const PAYER_EMAIL = process.argv[4] || 'comprador.teste@testuser.com';
 const USER = String(new mongoose.Types.ObjectId());
 
 async function main() {
@@ -57,7 +60,7 @@ async function main() {
       neighborhood: 'Centro',
       complement: '',
       phone: '34999999999',
-      email: 'test_user_1057474477@testuser.com',
+      email: PAYER_EMAIL,
     },
     paymentConfig: { examsCount: EXAMS_COUNT, totalAmount: total },
   });
