@@ -73,7 +73,9 @@ const PaymentSessionSchema: Schema<PaymentSessionSchemaType> = new mongoose.Sche
       street: { type: String, required: true },
       number: { type: String, required: true },
       neighborhood: { type: String, required: true },
-      complement: { type: String, required: true },
+      // Complemento e opcional no formulario de inscricao; exigir aqui fazia a
+      // criacao da sessao falhar para quem mora em casa sem complemento.
+      complement: { type: String, required: false, default: '' },
       phone: { type: String, required: true },
       email: { type: String, required: true },
     },
