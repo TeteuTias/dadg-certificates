@@ -1,3 +1,4 @@
+import { clamFailure } from '@/lib/selective-processes/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
 import {
@@ -10,6 +11,8 @@ export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, { params }: Context) {
+  try {
+
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -21,9 +24,13 @@ export async function GET(request: NextRequest, { params }: Context) {
   const { id } = await params;
   const created = await getExamsBySelectionProcess(id);
   return NextResponse.json({ success: true, data: created });
+
+  } catch (error) { return clamFailure(error); }
 }
 
 export async function POST(request: NextRequest, { params }: Context) {
+  try {
+
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -50,4 +57,6 @@ export async function POST(request: NextRequest, { params }: Context) {
   });
 
   return NextResponse.json({ success: true, data: created }, { status: 201 });
+
+  } catch (error) { return clamFailure(error); }
 }

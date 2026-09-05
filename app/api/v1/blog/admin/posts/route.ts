@@ -8,17 +8,21 @@ export async function GET(request: NextRequest) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
-    
+
     if (!isAdmin(user)) {
       return NextResponse.json({ success: false, error: "Acesso Negado. Privilégios insuficientes." }, { status: 403 });
     }
 
     await connectToDatabase();
-    
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-    const skip = parseInt(searchParams.get("skip") || "0", 10);
 
+    const { searchParams } = new URL(request.url);
+    const limit = Number(searchParams.get("limit") || "50");
+    const skip = Number(searchParams.get("skip") || "0");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(skip) || skip < 0) {
+      return NextResponse.json({ success: false, error: "Paginação inválida." }, { status: 400 });
+    }
+
+    await connectToDatabase();
     // O admin pode ver TODOS os posts, independentemente do status
     const posts = await BlogPostModel.find({})
       .sort({ createdAt: -1 })
@@ -36,7 +40,7 @@ export async function GET(request: NextRequest) {
       skip,
     }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao listar posts admin:", error);
     return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
   }
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
-    
+
     if (!isAdmin(user)) {
       return NextResponse.json({ success: false, error: "Acesso Negado. Privilégios insuficientes." }, { status: 403 });
     }
@@ -82,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: newPost }, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao criar post:", error);
     return NextResponse.json({ success: false, error: "Erro interno ao salvar o artigo" }, { status: 500 });
   }

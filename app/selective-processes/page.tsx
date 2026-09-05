@@ -111,9 +111,10 @@ export default function SelectiveProcessesPage() {
               </label>
 
               <label>
-                <div className="text-xs text-muted-foreground">maxExamsPerApplication</div>
+                <div className="text-xs text-muted-foreground">Máximo de ligas por inscrição (1 a 4)</div>
                 <input
                   className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                  min={1} max={4} step={1}
                   value={form.maxExamsPerApplication}
                   onChange={(e) => setForm((f) => ({ ...f, maxExamsPerApplication: e.target.value }))}
                   placeholder="3"
@@ -252,7 +253,7 @@ export default function SelectiveProcessesPage() {
                           { method: "DELETE" }
                         );
                         const data = await res.json().catch(() => ({}));
-                        if (!res.ok) throw new Error(data?.error || "Falha ao deletar.");
+                        if (!res.ok) throw new Error(data?.error === "PROCESS_HAS_ENROLLMENTS" ? "Este processo possui inscrições ou cobranças vinculadas e não pode ser excluído." : data?.error || "Falha ao deletar.");
                         setItems((prev) => (prev ? prev.filter((x) => x.id !== p.id) : prev));
                         setFeedback({ type: "success", text: "Processo deletado." });
                       } catch (e) {

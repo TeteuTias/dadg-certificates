@@ -1,35 +1,13 @@
-import mongoose, { InferSchemaType, Schema } from 'mongoose';
-
-export type SelectionProcessFinalStatus =
-  | 'APPROVED'
-  | 'WAITLIST'
-  | 'REJECTED'
-  | 'PENDING_RESULTS';
-
+import mongoose, { Schema } from 'mongoose';
 export interface ISelectionProcess {
-  registrationStartDate: Date;
-  registrationEndDate: Date;
-  maxExamsPerApplication: number;
-  maxCapacity: number;
+  registrationStartDate: Date; registrationEndDate: Date; maxExamsPerApplication: number;
+  maxCapacity: number; allocatedCount: number; accountingVersion: number; revision: number;
 }
-
-type SelectionProcessSchemaType = InferSchemaType<{
-  registrationStartDate: Date;
-  registrationEndDate: Date;
-  maxExamsPerApplication: number;
-  maxCapacity: number;
-}>;
-
-const SelectionProcessSchema: Schema<ISelectionProcess> = new mongoose.Schema(
-  {
-    registrationStartDate: { type: Date, required: true },
-    registrationEndDate: { type: Date, required: true },
-    maxExamsPerApplication: { type: Number, required: true, min: 1 },
-    maxCapacity: { type: Number, required: true, min: 0 },
-  },
-  { timestamps: true }
-);
-
-export const SelectionProcess =
-  (mongoose.models.selectionprocesses as mongoose.Model<SelectionProcessSchemaType>) ||
-  mongoose.model<SelectionProcessSchemaType>('selectionprocesses', SelectionProcessSchema);
+const schema = new Schema<ISelectionProcess>({
+  registrationStartDate: { type: Date, required: true }, registrationEndDate: { type: Date, required: true },
+  maxExamsPerApplication: { type: Number, required: true, min: 1, max: 4, validate: Number.isInteger },
+  maxCapacity: { type: Number, required: true, min: 0, validate: Number.isInteger },
+  allocatedCount: { type: Number, default: 0, min: 0 }, accountingVersion: { type: Number, default: 1 },
+  revision: { type: Number, default: 0 },
+}, { timestamps: true, autoIndex: false, autoCreate: false });
+export const SelectionProcess = (mongoose.models.selectionprocesses as mongoose.Model<ISelectionProcess>) || mongoose.model<ISelectionProcess>('selectionprocesses', schema);

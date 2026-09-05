@@ -1,4 +1,4 @@
-import mongoose, { InferSchemaType, Schema } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 export type ApplicationFinalStatus =
   | 'APPROVED'
@@ -13,18 +13,6 @@ export interface IScoreSubdoc {
   updatedAt?: Date;
 }
 
-type ApplicationSchemaType = InferSchemaType<{
-  selectionProcessId: mongoose.Types.ObjectId;
-  userId: mongoose.Types.ObjectId;
-  exams: mongoose.Types.ObjectId[];
-  finalStatus: ApplicationFinalStatus;
-  scores: Array<{
-    examId: mongoose.Types.ObjectId;
-    scoreValue: number;
-    graderUserId?: mongoose.Types.ObjectId;
-    updatedAt?: Date;
-  }>;
-}>;
 
 export interface IApplication {
   selectionProcessId: mongoose.Types.ObjectId;
@@ -65,9 +53,11 @@ const ApplicationSchema: Schema<IApplication> = new mongoose.Schema(
     },
     scores: { type: [ScoreSubdocSchema], required: true, default: [] },
   },
-  { timestamps: true }
+  { timestamps: true, autoIndex: false, autoCreate: false }
 );
 
+ApplicationSchema.index({ selectionProcessId: 1, userId: 1 }, { unique: true });
+
 export const Application =
-  (mongoose.models.Application as mongoose.Model<ApplicationSchemaType>) ||
-  mongoose.model<ApplicationSchemaType>('Application', ApplicationSchema);
+  (mongoose.models.Application as mongoose.Model<IApplication>) ||
+  mongoose.model<IApplication>('Application', ApplicationSchema);

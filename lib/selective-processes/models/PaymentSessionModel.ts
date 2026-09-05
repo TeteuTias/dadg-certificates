@@ -1,119 +1,37 @@
-import mongoose, { InferSchemaType, Schema } from 'mongoose';
-
-export type PaymentSessionMethod = 'CHECKOUT_PRO' | 'PIX' | 'BOLETO' | 'CARD';
-export type PaymentSessionStatus =
-  | 'PENDING'
-  | 'EXPIRED'
-  | 'CANCELED'
-  | 'PAID'
-  | 'MP_PENDING'
-  | 'MP_APPROVED';
-
-export type PaymentAmountsSnapshot = {
-  original: Record<string, number>;
-  final: Record<string, number>;
-  desconto: Record<string, number>;
-};
-
-export type PaymentCodeSnapshot = {
-  code?: string | null;
-  type?: string | null;
-};
-
-export type ILoteAutomatico = {
-  // Mantém compatibilidade com o projeto.
-  [key: string]: unknown;
-};
-
+import mongoose, { Schema } from 'mongoose';
+import type { Contract, Payer } from '../domain';
+export type PaymentSessionStatus = 'CREATING' | 'PENDING' | 'CANCELING' | 'CANCELED' | 'PAID' | 'REVERSED' | 'REVIEW_REQUIRED' | 'EXPIRED' | 'MP_PENDING' | 'MP_APPROVED';
 export type PaymentTicketType = 'ticket' | 'course';
-
-type PaymentSessionSchemaType = InferSchemaType<{
-  orderId?: string | null;
-  owner: mongoose.Types.ObjectId;
-  edicaoId?: string;
-  pixCode?: string | null;
-  userProps: {
-    name: string;
-    cpf: string;
-    zipCode: string;
-    street: string;
-    number: string;
-    neighborhood: string;
-    complement: string;
-    phone: string;
-    email: string;
-  };
-  paymentConfig: ILoteAutomatico;
-  paymentConfigOriginal?: ILoteAutomatico;
-  codigoDesconto?: PaymentCodeSnapshot;
-  codigoRastreio?: PaymentCodeSnapshot;
-  valoresCentavos?: PaymentAmountsSnapshot;
-  metodosPagamentoPermitidos?: string[];
-  metodoPagamento?: PaymentSessionMethod | null;
-  type: PaymentTicketType;
-  status: PaymentSessionStatus;
-  paymentUrl?: string | null;
-  expiresAt: Date;
-  checkoutExpiresAt?: Date | null;
-  previousSessionId?: mongoose.Types.ObjectId;
-}>;
-
-const PaymentSessionSchema: Schema<PaymentSessionSchemaType> = new mongoose.Schema(
-  {
-    orderId: { type: String, required: false, default: null },
-    owner: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
-    edicaoId: { type: String, required: false },
-
-    pixCode: { type: String, required: false, default: null },
-
-    userProps: {
-      name: { type: String, required: true },
-      cpf: { type: String, required: true },
-      zipCode: { type: String, required: true },
-      street: { type: String, required: true },
-      number: { type: String, required: true },
-      neighborhood: { type: String, required: true },
-      // Complemento e opcional no formulario de inscricao; exigir aqui fazia a
-      // criacao da sessao falhar para quem mora em casa sem complemento.
-      complement: { type: String, required: false, default: '' },
-      phone: { type: String, required: true },
-      email: { type: String, required: true },
-    },
-
-    paymentConfig: { type: Schema.Types.Mixed, required: true },
-    paymentConfigOriginal: { type: Schema.Types.Mixed, required: false },
-
-    codigoDesconto: { type: Schema.Types.Mixed, required: false },
-    codigoRastreio: { type: Schema.Types.Mixed, required: false },
-    valoresCentavos: { type: Schema.Types.Mixed, required: false },
-
-    metodosPagamentoPermitidos: { type: [String], required: false },
-    metodoPagamento: { type: String, required: false, default: null },
-
-    type: { type: String, required: true, enum: ['ticket', 'course'] },
-    status: {
-      type: String,
-      required: true,
-      enum: ['PENDING', 'EXPIRED', 'CANCELED', 'PAID', 'MP_PENDING', 'MP_APPROVED'],
-      default: 'PENDING',
-    },
-
-    paymentUrl: { type: String, required: false, default: null },
-    expiresAt: { type: Date, required: true },
-
-    checkoutExpiresAt: { type: Date, required: false, default: null },
-
-    previousSessionId: { type: Schema.Types.ObjectId, required: false },
+export type IPaymentSession = {
+  owner: mongoose.Types.ObjectId; edicaoId: string; orderId: string;
+  contract?: Contract; userProps: Payer; paymentConfig: { examsCount: number; totalAmount: number };
+  status: PaymentSessionStatus; type: PaymentTicketType; paymentUrl?: string | null;
+  settledAt?: Date; reversedAt?: Date; replacementAttempts: Array<{ key: string; hash: string }>;
+  preferenceId?: string; paymentIds: string[]; expiresAt: Date;
+  previousSessionId?: mongoose.Types.ObjectId; operationKey?: string; requestHash?: string;
+  operationKind?: 'create' | 'replace'; reviewReason?: string; providerClosed: boolean;
+};
+const schema = new Schema<IPaymentSession>({
+  owner: { type: Schema.Types.ObjectId, required: true, immutable: true },
+  edicaoId: { type: String, required: true, immutable: true },
+  orderId: { type: String, required: true, immutable: true },
+  contract: {
+    type: new Schema({ examsCount: { type: Number, required: true, min: 1, max: 4 },
+      amountCents: { type: Number, required: true, min: 1 }, currency: { type: String, enum: ['BRL'], required: true } }, { _id: false }),
+    immutable: true,
   },
-  { timestamps: true }
-);
-
-PaymentSessionSchema.index({ owner: 1, edicaoId: 1 });
-PaymentSessionSchema.index({ expiresAt: 1 });
-PaymentSessionSchema.index({ status: 1 });
-
-export type IPaymentSession = PaymentSessionSchemaType;
-
-export const PaymentSession =
-  (mongoose.models.PaymentSession as mongoose.Model<PaymentSessionSchemaType>) ||
-  mongoose.model<PaymentSessionSchemaType>('PaymentSession', PaymentSessionSchema);
+  userProps: { type: Schema.Types.Mixed, required: true },
+  paymentConfig: { type: Schema.Types.Mixed, required: true, immutable: true },
+  status: { type: String, required: true, default: 'CREATING' },
+  type: { type: String, enum: ['ticket', 'course'], required: true },
+  paymentUrl: String, preferenceId: String, paymentIds: { type: [String], default: [] },
+  expiresAt: { type: Date, required: true }, previousSessionId: Schema.Types.ObjectId,
+  operationKey: String, requestHash: String, operationKind: String, reviewReason: String,
+  settledAt: Date, reversedAt: Date, replacementAttempts: { type: [new Schema({ key: String, hash: String }, { _id: false })], default: [] },
+  providerClosed: { type: Boolean, default: false },
+}, { timestamps: true, autoIndex: false, autoCreate: false });
+schema.index({ orderId: 1 }, { unique: true, partialFilterExpression: { orderId: { $type: 'string' } } });
+schema.index({ owner: 1, edicaoId: 1, operationKey: 1 }, { unique: true, partialFilterExpression: { operationKey: { $type: 'string' } } });
+schema.index({ preferenceId: 1 }, { unique: true, partialFilterExpression: { preferenceId: { $type: 'string' } } });
+schema.index({ paymentIds: 1 }, { unique: true, partialFilterExpression: { 'paymentIds.0': { $exists: true } } });
+export const PaymentSession = (mongoose.models.PaymentSession as mongoose.Model<IPaymentSession>) || mongoose.model<IPaymentSession>('PaymentSession', schema);

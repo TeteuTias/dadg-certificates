@@ -1,141 +1,115 @@
-# Inscrição em processos seletivos — API do candidato
+# CLAM: inscrição, pagamento e operação
 
-Rotas consumidas pelo site do aluno (`dadg.com.br`) para listar processos
-seletivos da CLAM, pagar a inscrição e escolher as ligas acadêmicas.
+Esta implementação integra as PRs #35, #36 e #37 nessa ordem. O site do aluno deve usar a branch complementar baseada na PR #34. A quantidade é de 1 a 4 ligas, limitada também pelo processo e pelas ligas disponíveis. Após o primeiro pagamento confirmado, não há alteração de quantidade nem compra complementar, inclusive após estorno.
 
-As rotas administrativas (`/api/admin/selective-processes/...`) continuam como
-estavam e não são usadas pelo site do aluno.
+## Contrato HTTP
 
-## Fluxo
+Todas as rotas do aluno usam a identidade do token validado no servidor. Campos de preço ou identidade enviados pelo navegador são rejeitados. O pagador é validado separadamente da identidade do candidato.
 
-1. O candidato abre a listagem e escolhe um processo seletivo.
-2. O site consulta a situação dele (`/me`) e decide o destino:
-   - sem inscrição e período aberto → tela de pagamento;
-   - pagamento pendente → volta para o link do Mercado Pago já gerado;
-   - pagamento confirmado → painel de escolha das ligas.
-3. O webhook do Mercado Pago confirma o pagamento, cria a `Application` e o
-   `Ticket` com status `PAID`.
-4. O candidato escolhe as ligas até o limite pago (`leagueAllowanceCount`).
+- `POST /api/v1/selective-processes/:id/checkout`: criação ou retomada da mesma contratação.
+- `POST /api/v1/selective-processes/:id/checkout/replace`: substituição explícita de uma sessão pendente.
+- Ambos exigem `Idempotency-Key` com 16–128 caracteres alfanuméricos, hífen ou sublinhado. O frontend encaminha esse header.
+- Corpo: `{ examsCount, payer }`; substituição acrescenta `previousSessionId`. Pagador: nome, CPF, CEP, rua, número, bairro, complemento opcional, telefone e e-mail.
+- Sucesso: `{ success: true, data: { sessionId, init_point, expiresAt, examsCount, totalAmount } }`. O valor e a quantidade vêm do contrato persistido.
+- Quantidade diferente sem substituição explícita: 409 `PAYMENT_REPLACEMENT_REQUIRED`.
+- Reutilização da chave com outro conteúdo: 409 `IDEMPOTENCY_CONFLICT`.
+- Operação concorrente: 409 `PAYMENT_PROCESSING`. Falha transitória: 503, com identificador de diagnóstico.
+- Pagamento anterior aprovado durante a troca: 409 `ALREADY_ENROLLED`, com a contratação original efetivada.
+- Cancelamento inconclusivo: `PAYMENT_CANCELLATION_PENDING`; não gera outra preferência.
+- Contrato divergente, criação ambígua, pagamento antigo inesperado ou disputa: revisão. O cliente não deve tratar uma falha HTTP como autorização para emitir outra cobrança.
 
-## Rotas
+`GET .../:id/me` inclui quantidade, valor, URL quando disponível, prazo, situação da sessão e permissão de substituição. Estados adicionais: `PAYMENT_PROCESSING`, `PAYMENT_REVIEW_REQUIRED` e `PAYMENT_REVERSED`. A expiração local apenas informa o prazo; não libera capacidade nem autoriza uma cobrança nova.
 
-### `GET /api/v1/selective-processes` — pública
+## Consistência
 
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "65f21a9b3c4d5e0012345678",
-      "registrationStartDate": "2026-09-01T00:00:00.000Z",
-      "registrationEndDate": "2026-09-30T23:59:59.000Z",
-      "maxExamsPerApplication": 3,
-      "maxCapacity": 500,
-      "paidCount": 120,
-      "remainingCapacity": 380,
-      "examsCount": 14,
-      "hasStarted": true,
-      "hasEnded": false,
-      "isRegistrationOpen": true
-    }
-  ]
-}
+A sessão guarda o contrato imutável: candidato, processo, quantidade, valor em centavos, BRL e referência externa. Preferência, pagamentos, solicitações de substituição e marcos de aprovação/reversão ficam associados a ela.
+
+Uma reserva com ID determinístico por candidato/processo serializa criação, cancelamento, confirmação e escolha de ligas. Transações escrevem a reserva com token de bloqueio e atualizam a revisão do processo. A criação reserva uma vaga atomicamente antes de chamar o provedor. A substituição preserva a vaga; pagamento consome a reserva sem contar uma segunda vaga.
+
+A assinatura HMAC do Mercado Pago é obrigatória e tem janela de cinco minutos. Os dois webhooks usam o mesmo serviço. O estado é consultado novamente no provedor: referência, valor e moeda devem coincidir. Pagamentos listados são consultados individualmente por ID. Notificações repetidas não criam outra inscrição/ticket e tentativas rejeitadas não apagam uma aprovação.
+
+Aprovação, inscrição, ticket e reserva são persistidos na mesma transação. Estorno integral/chargeback revoga o ticket e libera uma vaga uma única vez. Estorno parcial, mediação ou pagamentos múltiplos exigem revisão e conservam a ocupação. Uma aprovação inesperada de sessão substituída ou cuja reserva já foi liberada bloqueia a inscrição para análise, sem atribuir automaticamente direitos a outra contratação.
+
+A escolha de ligas é transacional e idempotente; não excede o crédito pago. Excluir uma liga remove a escolha e a nota, conservando a quantidade contratada.
+
+## Mercado Pago
+
+Configurar no ambiente correspondente:
+
+- `MERCADOPAGO_ACCESS_TOKEN`
+- `MERCADOPAGO_WEBHOOK_SECRET`
+- `MERCADOPAGO_WEBHOOK_URL`, ou `APP_BASE_URL` HTTPS para formar a URL
+- `MERCADOPAGO_BACK_URL_SUCCESS`, `MERCADOPAGO_BACK_URL_PENDING`, `MERCADOPAGO_BACK_URL_FAILURE`
+
+A substituição confere a referência da preferência, atualiza sua expiração e verifica o resultado. Em seguida cancela os pagamentos canceláveis e consulta novamente seu estado. Se a aprovação vencer a corrida, efetiva a contratação original. Timeout ou resposta ambígua conserva a reserva e exige reconciliação. Uma criação com resposta perdida é procurada por referência; não se repete cegamente o POST de criação.
+
+APIs oficiais utilizadas:
+
+- [Atualizar preferência](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-pro-preferences/update-preference/put)
+- [Cancelar pagamento](https://www.mercadopago.com.br/developers/pt/reference/online-payments/checkout-api-payments/create-cancellation/put)
+
+A expiração da preferência não equivale ao cancelamento de um PIX/boleto já emitido. É necessária homologação na conta de testes do provedor para os meios de pagamento habilitados, inclusive latência das consultas, validade da preferência e cancelamento concorrente. Os testes locais usam um provedor simulado e não comprovam funcionamento da conta de produção.
+
+## Administração
+
+O painel ativo permanece em `dadg-certificates`. Os acessos administrativos aposentados do frontend permanecem bloqueados.
+
+- Processo: GET/POST na coleção; GET/PUT/DELETE por ID.
+- Ligas: GET/POST na coleção; PUT/DELETE por ID.
+- Preços: GET/PUT, com substituição integral dentro de transação.
+- Notas e resultado: PUT em `applications/:applicationId/scores` e `.../final-status`.
+- Reconciliação: POST em `/api/admin/selective-processes/payments/:sessionId/reconcile`. Exige administrador, consulta o Mercado Pago e repete o mesmo serviço de confirmação. Sessão expirada só libera a reserva depois da confirmação de encerramento no provedor.
+- Exclusão de processo com qualquer inscrição/sessão vinculada: 409 `PROCESS_HAS_ENROLLMENTS`.
+- Endpoints antigos de checkout com preço/usuário livres, sessões financeiras de demonstração, criação manual de inscrição/ticket e mudança manual de status retornam 410.
+
+O painel do blog pagina em lotes de 20 artigos; o editor consulta `GET /api/v1/blog/admin/posts/:id` diretamente. Horários de provas são convertidos para horário local ao preencher o editor.
+
+## Preparação explícita do banco
+
+**Não há migração automática. Antes de qualquer consulta ou escrita, apresentar ambiente, banco, coleções, comando e efeitos e obter aprovação. Escritas também exigem backup recuperável confirmado.**
+
+Usar replica set/cluster com suporte a transações. Executar manutenção com o tráfego CLAM suspenso. O script não carrega `.env` e não usa `MONGODB_URI`; exige `CLAM_MAINTENANCE_URI` e `CLAM_MAINTENANCE_DB` explícitos.
+
+Coleções: `selectionprocesses`, `exams`, `pricingtiers`, `paymentsessions`, `paymentattributions`, `applications`, `tickets`, `applicationleagueselections`, `clam_reservations`.
+
+Somente após aprovação de leitura:
+
+```powershell
+npx tsx scripts/clam-storage.ts --approved
 ```
 
-### `GET /api/v1/selective-processes/:id` — pública
+Somente após aprovação de escrita e identificação do backup em `CLAM_RECOVERABLE_BACKUP`:
 
-Mesmos campos acima, mais `exams` (ligas com nome e datas da prova) e
-`pricingTiers` (faixas de preço por quantidade de ligas).
-
-### `GET /api/v1/selective-processes/:id/me` — candidato autenticado
-
-```json
-{
-  "success": true,
-  "data": {
-    "status": "PAID_PENDING_LEAGUES",
-    "canCheckout": false,
-    "canSelectLeagues": true,
-    "application": { "id": "...", "finalStatus": "PENDING_RESULTS" },
-    "ticket": { "id": "...", "paymentStatus": "PAID", "totalAmount": 100, "leagueAllowanceCount": 2 },
-    "payment": null,
-    "selectedExamIds": ["..."],
-    "remainingSelections": 2
-  }
-}
+```powershell
+npx tsx scripts/clam-storage.ts --approved --apply
 ```
 
-`status` assume um de: `REGISTRATION_NOT_OPEN`, `REGISTRATION_CLOSED`,
-`SOLD_OUT`, `NOT_REGISTERED`, `PAYMENT_PENDING`, `PAID_PENDING_LEAGUES`,
-`ENROLLED`.
+O audit identifica duplicidades antes de criar índices. O apply cria as coleções ausentes e os índices declarados, convertendo índices não únicos conflitantes em únicos somente após a verificação. Não exclui documentos. Garante unicidade de inscrição por candidato/processo, ticket por inscrição, referência externa, preferência, pagamentos, chave de operação e escolha de liga.
 
-### `POST /api/v1/selective-processes/:id/checkout` — candidato autenticado
+Apenas processos antigos sem qualquer vínculo financeiro/inscrição/reserva recebem contadores iniciais zerados. Processos com dados legados são relatados para análise e permanecem bloqueados; o script não deduz direitos a partir de registros de demonstração. Também não é possível inicializá-los implicitamente pela edição administrativa. Reconstrução desses registros exige um procedimento específico, com backup e aprovação separados.
 
-```json
-{
-  "examsCount": 2,
-  "payer": {
-    "name": "João Silva",
-    "cpf": "12345678900",
-    "zipCode": "01001000",
-    "street": "Rua Exemplo",
-    "number": "123",
-    "neighborhood": "Centro",
-    "complement": "Apto 45",
-    "phone": "34999999999",
-    "email": "joao@email.com"
-  }
-}
+Sessões sem contrato verificável, preferência que não pode ser localizada ou aprovação inesperada após substituição/liberação exigem análise dos registros e do provedor. A reconciliação não inventa valores nem libera automaticamente bloqueios que envolvam contratações diferentes.
+
+## Verificação local
+
+Sem banco:
+
+```powershell
+$env:NODE_OPTIONS='--require="./scripts/no-database.cjs"'
+npm test
+npm run typecheck
 ```
 
-O valor **não** é aceito do cliente: o total sai das faixas de preço
-(`PricingTier`) do processo seletivo. Sem faixa cadastrada a rota devolve
-`PRICING_NOT_CONFIGURED` (409).
+Integração (somente após aprovação do banco descartável e confirmação da base vazia recuperável):
 
-Resposta: `init_point` (URL do Checkout Pro), `sessionId`, `expiresAt`,
-`examsCount` e `totalAmount`.
-
-Erros: `REGISTRATION_CLOSED`, `SOLD_OUT`, `ALREADY_ENROLLED`,
-`EXAMS_EXCEED_MAX_PER_APPLICATION`, `PRICING_NOT_CONFIGURED`.
-
-### `POST /api/v1/selective-processes/:id/leagues` — candidato autenticado
-
-```json
-{ "examIds": ["65f2...", "65f3..."] }
+```powershell
+Remove-Item Env:NODE_OPTIONS -ErrorAction SilentlyContinue
+$env:CLAM_RECOVERABLE_BACKUP='empty-baseline'
+npx tsx scripts/qa-clam-integration.ts --approved
 ```
 
-Só funciona com o pagamento confirmado. As escolhas são definitivas: cada liga
-vira um registro em `ApplicationLeagueSelection` e não pode ser trocada.
+O teste inicia Mongo em 127.0.0.1, banco `clam_integration_test`, com diretório novo por execução. Não carrega `.env`; substitui a URI dentro do processo. Salva manifesto da base vazia antes de iniciar. Cria índices e fixtures, simula o Mercado Pago, testa transações e preserva o diretório após encerrar a instância.
 
-Erros: `PAYMENT_NOT_CONFIRMED` (409), `LEAGUE_ALLOWANCE_EXCEEDED` (409),
-`LEAGUES_ALREADY_SELECTED` (409), `EXAMS_INVALID_FOR_PROCESS` (400).
+Resultados desta entrega: 26 testes sem banco e 19 cenários de integração aprovados, usando MongoDB 8.2.6 local. Cobertura inclui quantidades 1–4, adulteração de entrada, idempotência, troca 1→4, cancelamento recusado/timeout, aprovação durante troca, resposta perdida, última vaga, webhook repetido/fora de ordem, estorno, seleção concorrente, devolução de crédito, exclusão com vínculos e rollback financeiro/de preços. TypeScript e lint pertinente foram executados nos dois repositórios; builds usam configuração fictícia. A inspeção de interface usa APIs interceptadas, em 1440×1000 e 390×844, e verificou acesso ao artigo 65.
 
-### `GET|PUT /api/admin/selective-processes/selection-processes/:id/pricing-tiers` — admin
-
-Tabela de preços por quantidade de ligas. O `PUT` substitui a tabela inteira:
-
-```json
-{
-  "pricingTiers": [
-    { "examsCount": 1, "unitTotalPrice": 60 },
-    { "examsCount": 2, "unitTotalPrice": 100 },
-    { "examsCount": 3, "unitTotalPrice": 130 }
-  ]
-}
-```
-
-Quando não existe faixa exata para a quantidade escolhida, o preço é o da faixa
-de 1 liga multiplicado pela quantidade.
-
-## Confirmação de pagamento
-
-O webhook do Mercado Pago recebe o `external_reference` gerado no checkout.
-Esse valor passou a ser gravado em `PaymentSession.orderId`, e é por ele que a
-sessão é reencontrada (com fallback por `_id` para sessões antigas) — antes a
-busca era feita por `_id` usando um ObjectId que nunca era o da sessão, então o
-pagamento nunca chegava a ser efetivado.
-
-Com o pagamento aprovado, `confirmEnrollmentForPaymentSession` cria a
-`Application` e o `Ticket` pago com `leagueAllowanceCount` igual à quantidade de
-ligas contratadas (`paymentConfig.examsCount`). A função é idempotente, porque o
-Mercado Pago pode reenviar a mesma notificação.
+A preparação foi aplicada apenas nas instâncias descartáveis autorizadas. Nenhum banco configurado nos arquivos de ambiente do projeto foi acessado. Permanecem externas a esta validação a configuração real de Auth0/Mercado Pago, a instalação aprovada de índices no ambiente de destino e a homologação de cobranças nesse ambiente.

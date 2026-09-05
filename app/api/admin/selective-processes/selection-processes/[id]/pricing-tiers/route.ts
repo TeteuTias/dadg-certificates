@@ -1,7 +1,9 @@
+import { clamFailure } from '@/lib/selective-processes/errors';
 import mongoose from 'mongoose';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import GateKeeper from '@/lib/security/gatekeeper';
+import { replacePricingTiers } from '@/lib/selective-processes/services/selectiveProcesses';
 import { PricingTier } from '@/lib/selective-processes/models/PricingTierModel';
 
 export const dynamic = 'force-dynamic';
@@ -14,6 +16,8 @@ type Context = { params: Promise<{ id: string }> };
  * uma faixa cadastrada as inscrições ficam bloqueadas.
  */
 export async function GET(request: NextRequest, { params }: Context) {
+  try {
+
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -41,10 +45,14 @@ export async function GET(request: NextRequest, { params }: Context) {
       unitTotalPrice: tier.unitTotalPrice,
     })),
   });
+
+  } catch (error) { return clamFailure(error); }
 }
 
 /** Substitui a tabela inteira de preços do processo seletivo. */
 export async function PUT(request: NextRequest, { params }: Context) {
+  try {
+
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -73,9 +81,9 @@ export async function PUT(request: NextRequest, { params }: Context) {
   const invalid = parsed.some(
     (tier) =>
       !Number.isInteger(tier.examsCount) ||
-      tier.examsCount < 1 ||
+      tier.examsCount < 1 || tier.examsCount > 4 ||
       !Number.isFinite(tier.unitTotalPrice) ||
-      tier.unitTotalPrice < 0,
+      tier.unitTotalPrice <= 0,
   );
   if (invalid) {
     return NextResponse.json({ success: false, error: 'INVALID_BODY' }, { status: 400 });
@@ -87,9 +95,9 @@ export async function PUT(request: NextRequest, { params }: Context) {
 
   await connectToDatabase();
 
-  const selectionProcessId = new mongoose.Types.ObjectId(id);
-  await PricingTier.deleteMany({ selectionProcessId });
-  await PricingTier.insertMany(parsed.map((tier) => ({ ...tier, selectionProcessId })));
+  await replacePricingTiers(id, parsed);
 
   return NextResponse.json({ success: true, data: parsed });
+
+  } catch (error) { return clamFailure(error); }
 }

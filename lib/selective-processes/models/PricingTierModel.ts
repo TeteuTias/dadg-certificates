@@ -22,7 +22,7 @@ const PricingTierSchema: Schema<IPricingTier> = new mongoose.Schema(
     examsCount: { type: Number, required: true, min: 1 },
     unitTotalPrice: { type: Number, required: true, min: 0 },
   },
-  { timestamps: true }
+  { timestamps: true, autoIndex: false, autoCreate: false }
 );
 
 export const PricingTier =

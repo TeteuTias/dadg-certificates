@@ -17,3 +17,5 @@ import "../selective-processes/models/TicketModel"
 import "../selective-processes/models/ApplicationLeagueSelectionModel"
 import "../selective-processes/models/PaymentSessionModel"
 import "../selective-processes/models/PaymentAttributionModel"
+
+import "../selective-processes/models/ReservationModel"

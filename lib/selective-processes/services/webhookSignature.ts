@@ -1,45 +1,18 @@
 import crypto from 'node:crypto';
 import type { NextRequest } from 'next/server';
-
-/**
- * Validacao da assinatura das notificacoes do Mercado Pago.
- *
- * O endpoint de webhook precisa ser publico (o Mercado Pago nao envia sessao
- * nem token do nosso Auth0), entao a assinatura e a unica barreira contra
- * alguem disparar notificacoes falsas.
- *
- * Enquanto MERCADOPAGO_WEBHOOK_SECRET nao estiver configurado a validacao fica
- * desligada, para nao derrubar o fluxo de quem ainda nao gerou o segredo no
- * painel do Mercado Pago (Suas integracoes > Webhooks).
- *
- * Formato do cabecalho x-signature: "ts=<timestamp>,v1=<hmac_sha256>"
- * Manifesto assinado: "id:<data.id>;request-id:<x-request-id>;ts:<ts>;"
- */
 export function verifyMercadoPagoSignature(request: NextRequest, dataId: string): boolean {
   const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET?.trim();
-  if (!secret) return true;
-
-  const signature = request.headers.get('x-signature');
-  if (!signature) return false;
-
-  const parts = new Map(
-    signature.split(',').map((part) => {
-      const [key, ...rest] = part.split('=');
-      return [key.trim(), rest.join('=').trim()] as const;
-    }),
-  );
-
-  const timestamp = parts.get('ts');
-  const hash = parts.get('v1');
-  if (!timestamp || !hash) return false;
-
-  const requestId = request.headers.get('x-request-id') || '';
-  const manifest = `id:${dataId};request-id:${requestId};ts:${timestamp};`;
-  const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
-
-  const expectedBuffer = Buffer.from(expected, 'hex');
-  const receivedBuffer = Buffer.from(hash, 'hex');
-  if (expectedBuffer.length !== receivedBuffer.length) return false;
-
-  return crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+  if (!secret) return false;
+  const parts = new Map((request.headers.get('x-signature') || '').split(',').map(part => {
+    const [key, ...value] = part.split('='); return [key.trim(), value.join('=').trim()];
+  }));
+  const ts = parts.get('ts'), hash = parts.get('v1');
+  const requestId = request.headers.get('x-request-id');
+  if (!ts || !/^\d+$/.test(ts) || !hash || !/^[0-9a-fA-F]{64}$/.test(hash) || !requestId) return false;
+  // MP retries generate a fresh signature. Support seconds and milliseconds.
+  const time = Number(ts) < 1e12 ? Number(ts) * 1000 : Number(ts);
+  if (!Number.isFinite(time) || Math.abs(Date.now() - time) > 5 * 60_000) return false;
+  const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`;
+  const expected = crypto.createHmac('sha256', secret).update(manifest).digest();
+  return crypto.timingSafeEqual(expected, Buffer.from(hash, 'hex'));
 }

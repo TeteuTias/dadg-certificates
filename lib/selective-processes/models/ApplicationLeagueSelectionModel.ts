@@ -33,7 +33,7 @@ const ApplicationLeagueSelectionSchema: Schema<IApplicationLeagueSelection> = ne
     },
     lockedAt: { type: Date, required: true },
   },
-  { timestamps: true }
+  { timestamps: true, autoIndex: false, autoCreate: false }
 );
 
 ApplicationLeagueSelectionSchema.index({ applicationId: 1, examId: 1 }, { unique: true });

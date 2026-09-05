@@ -25,7 +25,7 @@ const ExamSchema: Schema<IExam> = new mongoose.Schema(
     examStartDate: { type: Date, required: true },
     examEndDate: { type: Date, required: true },
   },
-  { timestamps: true }
+  { timestamps: true, autoIndex: false, autoCreate: false }
 );
 
 export const Exam =

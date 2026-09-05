@@ -21,12 +21,16 @@ export default function BlogAdminPage() {
   const [error, setError] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
+
   const loadPosts = useCallback(async () => {
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/v1/blog/admin/posts", { cache: "no-store" });
+      const response = await fetch(`/api/v1/blog/admin/posts?limit=${pageSize}&skip=${page * pageSize}`, { cache: "no-store" });
       if (response.status === 401 || response.status === 403) {
         setError("Acesso negado. Apenas administradores do DADG podem gerenciar o blog.");
         return;
@@ -35,12 +39,14 @@ export default function BlogAdminPage() {
 
       const body = await response.json();
       setPosts(Array.isArray(body?.data) ? body.data : []);
+      setTotal(Number(body.total) || 0);
+      if (page > 0 && !body.data?.length) setPage(previous => previous - 1);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Erro inesperado ao carregar os artigos.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     void loadPosts();
@@ -169,6 +175,11 @@ export default function BlogAdminPage() {
           </div>
         </div>
       )}
+      <nav aria-label="Paginação dos artigos" className="mt-6 flex items-center justify-between gap-4">
+        <button disabled={page === 0 || isLoading} onClick={() => setPage(p => p - 1)} className="rounded-xl border px-4 py-2 disabled:opacity-40">Anterior</button>
+        <span className="text-sm">Página {page + 1} de {Math.max(1, Math.ceil(total / pageSize))} · {total} artigos</span>
+        <button disabled={(page + 1) * pageSize >= total || isLoading} onClick={() => setPage(p => p + 1)} className="rounded-xl border px-4 py-2 disabled:opacity-40">Próxima</button>
+      </nav>
     </main>
   );
 }

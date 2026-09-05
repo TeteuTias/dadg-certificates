@@ -73,6 +73,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   // Processos seletivos - autosservico do candidato no site do aluno.
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/me$", "GET"),
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout$", "POST"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout/replace$", "POST"),
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/leagues$", "POST"),
 
   // Autosserviço autenticado do aluno.
@@ -132,7 +133,15 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   admin("^/api/(get|put|delete)/.*$"),
 
   // selective-processes (ADM) - garante autorização para endpoints desse módulo
-  admin("^/api/admin/selective-processes/selection-processes(/.*)?$"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "GET"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "POST"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "PUT"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "DELETE"),
+  admin("^/api/admin/selective-processes/applications/[0-9a-fA-F]{24}/(scores|final-status)$", "PUT"),
+  admin("^/api/admin/selective-processes/payments/[0-9a-fA-F]{24}/reconcile$", "POST"),
+  admin("^/api/admin/selective-processes/payments/session$", "POST"),
+  admin("^/api/admin/selective-processes/applications/[0-9a-fA-F]{24}/ticket$", "POST"),
+  admin("^/api/admin/selective-processes/tickets/[0-9a-fA-F]{24}/payment-status$", "PUT"),
 
   // selective-processes (páginas) - protege a UI do ADM
   admin("^/selective-processes(/.*)?$"),

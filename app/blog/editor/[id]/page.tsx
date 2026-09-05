@@ -55,13 +55,13 @@ export default function BlogEditorPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/v1/blog/admin/posts", { cache: "no-store" });
+      const response = await fetch(`/api/v1/blog/admin/posts/${postId}`, { cache: "no-store" });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body?.success) {
         throw new Error(body?.error || "Não foi possível carregar o artigo.");
       }
 
-      const post = (body.data as Array<Record<string, unknown>>).find((item) => String(item._id) === postId);
+      const post = body.data as Record<string, unknown> | null;
       if (!post) throw new Error("Artigo não encontrado.");
 
       setForm({

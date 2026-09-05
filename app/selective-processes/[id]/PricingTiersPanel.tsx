@@ -75,9 +75,9 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
       parsed.some(
         (tier) =>
           !Number.isInteger(tier.examsCount) ||
-          tier.examsCount < 1 ||
+          tier.examsCount < 1 || tier.examsCount > 4 ||
           !Number.isFinite(tier.unitTotalPrice) ||
-          tier.unitTotalPrice < 0,
+          tier.unitTotalPrice <= 0,
       )
     ) {
       setFeedback({ type: "error", text: "Quantidade precisa ser inteira (mín. 1) e o valor não pode ser negativo." });
@@ -165,7 +165,7 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
                   <div className="text-xs text-muted-foreground">Quantidade de ligas</div>
                   <input
                     type="number"
-                    min={1}
+                    min={1} max={4}
                     step={1}
                     value={row.examsCount}
                     onChange={(e) => updateRow(index, { examsCount: e.target.value })}
@@ -178,7 +178,7 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
                   <div className="text-xs text-muted-foreground">Valor total (R$)</div>
                   <input
                     type="number"
-                    min={0}
+                    min={0.01}
                     step="0.01"
                     value={row.unitTotalPrice}
                     onChange={(e) => updateRow(index, { unitTotalPrice: e.target.value })}
