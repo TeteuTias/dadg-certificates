@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as LucideIcons from "lucide-react";
+import PricingTiersPanel from "./PricingTiersPanel";
 
 const { Loader2, RefreshCw, Plus, Trash2, Pencil } = LucideIcons;
 
@@ -463,8 +464,7 @@ export default function SelectionProcessDetailPage({
         </div>
       )}
 
-
-
+      {!loading && process?.id && <PricingTiersPanel selectionProcessId={process.id} />}
 
     </main>
   );

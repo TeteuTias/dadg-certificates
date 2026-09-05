@@ -154,6 +154,9 @@ export async function createCheckoutProPaymentForInscription(
     const createdSessionDoc = await PaymentSession.create(
       [
         {
+          // O Mercado Pago devolve o externalReference no webhook; guardamos aqui
+          // para conseguir reencontrar a sessao quando a notificacao chegar.
+          orderId: input.externalReference,
           owner: ownerObjectId,
           edicaoId: input.edicaoId,
           pixCode: null,
