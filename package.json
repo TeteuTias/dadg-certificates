@@ -19,6 +19,7 @@
     "html2canvas": "^1.4.1",
     "jose": "^6.2.1",
     "lucide-react": "^0.577.0",
+    "mercadopago": "^3.6.0",
     "mongodb": "^6.13.1",
     "mongoose": "^8.10.1",
     "next": "^16.0.10",
