@@ -1,6 +1,6 @@
 /** Pure CLAM rules: no database, environment, or gateway access. */
 export class ClamError extends Error {
-  constructor(public readonly code: string, public readonly status = 409) {
+  constructor(public readonly code: string, public readonly status = 409, public readonly missingFields?: string[]) {
     super(code);
     this.name = 'ClamError';
   }

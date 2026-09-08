@@ -2,6 +2,10 @@ export type ProfileInput = {
   name: string;
   cpf: string;
   period: number;
+  registrationNumber?: string;
+  birthDate?: string;
+  phone?: string;
+  contactEmail?: string;
 };
 
 export type ProfileValidationErrors = Partial<
@@ -81,6 +85,8 @@ export function validateProfileInput(value: unknown): {
   const period =
     typeof body.period === "number" ? body.period : Number(body.period);
   const errors: ProfileValidationErrors = {};
+  const extra = validateAcademicContact(body);
+  Object.assign(errors, extra.errors);
 
   const nameError = validateName(name);
   if (nameError) errors.name = nameError;
@@ -89,7 +95,40 @@ export function validateProfileInput(value: unknown): {
   if (periodError) errors.period = periodError;
 
   return {
-    data: Object.keys(errors).length ? null : { name, cpf, period },
+    data: Object.keys(errors).length ? null : { name, cpf, period, ...extra.data },
     errors,
   };
+}
+
+export const academicFields = ['registrationNumber', 'birthDate', 'phone', 'contactEmail'] as const;
+export function validBirthDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T12:00:00Z');
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value && value >= '1900-01-01' && value <= new Date().toISOString().slice(0, 10);
+}
+export function validateAcademicContact(body: Record<string, unknown>) {
+  const data: Partial<Record<typeof academicFields[number], string>> = {};
+  const errors: ProfileValidationErrors = {};
+  for (const field of academicFields) {
+    if (!(field in body)) continue; // Older clients preserve existing optional fields.
+    if (typeof body[field] !== 'string') { errors[field] = 'Informe um texto válido.'; continue; }
+    const value = String(body[field]).trim();
+    data[field] = field === 'phone' ? value.replace(/\D/g, '') : value;
+    if (!value) continue;
+    if (field === 'registrationNumber' && !/^[A-Za-z0-9.-]{1,40}$/.test(value)) errors[field] = 'Use até 40 letras, números, pontos ou hífens.';
+    if (field === 'birthDate' && !validBirthDate(value)) errors[field] = 'Informe uma data de nascimento válida.';
+    if (field === 'phone' && !/^\d{10,13}$/.test(data[field]!)) errors[field] = 'Informe o telefone com DDD.';
+    if (field === 'contactEmail' && (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) errors[field] = 'Informe um e-mail válido.';
+  }
+  return { data, errors };
+}
+export function missingClamFields(profile: Record<string, unknown> | null) {
+  if (!profile) return ['name', 'cpf', 'period', ...academicFields];
+  const missing: string[] = [];
+  if (validateName(profile.name)) missing.push('name');
+  if (!profile.cpfEncrypted || !profile.cpfLookup) missing.push('cpf');
+  if (validatePeriod(profile.period)) missing.push('period');
+  const checked = validateAcademicContact(profile);
+  for (const field of academicFields) if (!checked.data[field] || checked.errors[field]) missing.push(field);
+  return missing;
 }

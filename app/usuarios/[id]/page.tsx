@@ -6,14 +6,14 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ArrowLeft, LoaderCircle, Save, ShieldCheck } from "lucide-react";
 import "../usuarios.css";
 
-type Detail = { id:string; name:string; cpf:string; period:number; updatedAt:string; privacy:{accepted:boolean;noticeVersion:string;acceptedAt:string|null} };
+type Detail = { id:string; name:string; cpf:string; period:number; registrationNumber?:string; birthDate?:string; phone?:string; contactEmail?:string; updatedAt:string; privacy:{accepted:boolean;noticeVersion:string;acceptedAt:string|null} };
 type Audit = { id:string; action:string; changedFields:string[]; actorSubject:string; createdAt:string };
 
 export default function UsuarioDetalhePage() {
   const params = useParams<{ id: string }>();
   const [profile, setProfile] = useState<Detail | null>(null);
   const [audit, setAudit] = useState<Audit[]>([]);
-  const [form, setForm] = useState({ name:"", cpf:"", period:"" });
+  const [form, setForm] = useState({ name:"", cpf:"", period:"", registrationNumber:'', birthDate:'', phone:'', contactEmail:'' });
   const [status, setStatus] = useState<"loading"|"idle"|"saving"|"saved"|"error">("loading");
   const [message, setMessage] = useState("");
 
@@ -23,13 +23,13 @@ export default function UsuarioDetalhePage() {
     const data = await response.json();
     if (!response.ok) { setMessage(data.error || "Não foi possível carregar o perfil."); setStatus("error"); return; }
     setProfile(data.profile); setAudit(data.audit || []);
-    setForm({ name:data.profile.name, cpf:data.profile.cpf, period:String(data.profile.period) }); setStatus("idle");
+    setForm({ name:data.profile.name, cpf:data.profile.cpf, period:String(data.profile.period), registrationNumber:data.profile.registrationNumber || '', birthDate:data.profile.birthDate || '', phone:data.profile.phone || '', contactEmail:data.profile.contactEmail || '' }); setStatus("idle");
   }, [params.id]);
   useEffect(() => { void load(); }, [load]);
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setStatus("saving"); setMessage("");
-    const response = await fetch(`/api/v1/admin/profiles/${params.id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ name:form.name, cpf:form.cpf, period:Number(form.period) }) });
+    const response = await fetch(`/api/v1/admin/profiles/${params.id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ ...form, period:Number(form.period) }) });
     const data = await response.json();
     if (!response.ok) { setMessage(data.error || Object.values(data.fields || {})[0] || "Não foi possível salvar."); setStatus("error"); return; }
     setStatus("saved"); setMessage("Alterações salvas e registradas na auditoria."); await load();
@@ -38,7 +38,7 @@ export default function UsuarioDetalhePage() {
   return <main className="users-admin-shell">
     <section className="users-admin-hero">
       <Link href="/usuarios" className="users-admin-link"><ArrowLeft size={16} /> Voltar para usuários</Link>
-      <div className="users-admin-title-row"><div><h1>Detalhe do perfil</h1><p>Correções afetam apenas novas inscrições. Certificados e participações anteriores permanecem como snapshots.</p></div></div>
+      <div className="users-admin-title-row"><div><h1>Detalhe do perfil</h1><p>Correções serão usadas nas próximas exportações da CLAM. Certificados e participações anteriores preservam seus registros.</p></div></div>
     </section>
     {status === "loading" && !profile ? <section className="users-admin-panel users-admin-empty"><LoaderCircle className="animate-spin" />Carregando...</section> : null}
     {profile ? <div className="users-detail-grid">
@@ -48,6 +48,7 @@ export default function UsuarioDetalhePage() {
           <label><span>Nome completo</span><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} minLength={5} maxLength={120} required /></label>
           <label><span>CPF</span><input value={form.cpf} onChange={e=>setForm({...form,cpf:e.target.value})} inputMode="numeric" required /></label>
           <label><span>Período</span><select value={form.period} onChange={e=>setForm({...form,period:e.target.value})} required>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{i+1}º período</option>)}</select></label>
+          {([['registrationNumber','Matrícula / RA','text'], ['birthDate','Nascimento','date'], ['phone','Telefone','tel'], ['contactEmail','E-mail de contato','email']] as const).map(([key,label,type]) => <label key={key}><span>{label}</span><input type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})} /></label>)}
           {message ? <div role={status==="error"?"alert":"status"} className={status==="error"?"users-admin-error":"users-detail-success"}>{message}</div> : null}
           <button type="submit" disabled={status==="saving"} className="users-detail-save">{status==="saving"?<LoaderCircle className="animate-spin" size={18}/>:<Save size={18}/>} {status==="saving"?"Salvando...":"Salvar correção"}</button>
         </form>

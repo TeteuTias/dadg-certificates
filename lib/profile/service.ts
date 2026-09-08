@@ -8,7 +8,7 @@ import {
   PROFILE_PRIVACY_NOTICE_HASH,
   PROFILE_PRIVACY_NOTICE_VERSION,
 } from "./privacy-notice";
-import { maskCpf, type ProfileInput } from "./validation";
+import { academicFields, maskCpf, missingClamFields, type ProfileInput } from "./validation";
 
 export type ProfileIdentity = { authIssuer: string; authSubject: string };
 type LeanProfile = UserProfileDocument & { _id: Types.ObjectId };
@@ -54,6 +54,7 @@ export async function profileSummary(identity: ProfileIdentity) {
   return {
     displayName: profile?.name?.trim() || "Aluno DADG",
     complete: Boolean(profile),
+    clamMissingFields: missingClamFields(profile),
     privacyNoticeRequired: !privacyAccepted,
   };
 }
@@ -68,6 +69,8 @@ export async function serializeOwnProfile(identity: ProfileIdentity) {
       cpf: null,
       cpfMasked: "Não informado",
       period: null,
+      registrationNumber: '', birthDate: '', phone: '', contactEmail: '',
+      clamMissingFields: missingClamFields(null),
       complete: false,
       privacyNoticeRequired: true,
       updatedAt: null,
@@ -80,6 +83,9 @@ export async function serializeOwnProfile(identity: ProfileIdentity) {
     cpf,
     cpfMasked: maskCpf(cpf),
     period: profile.period,
+    registrationNumber: profile.registrationNumber || '', birthDate: profile.birthDate || '',
+    phone: profile.phone || '', contactEmail: profile.contactEmail || '',
+    clamMissingFields: missingClamFields(profile),
     complete: true,
     privacyNoticeRequired: !privacyAccepted,
     updatedAt: profile.updatedAt.toISOString(),
@@ -105,13 +111,15 @@ export async function saveOwnProfile(args: {
   }
 
   const lookup = cpfLookup(data.cpf);
-  const changedFields: Array<"name" | "cpf" | "period"> = existing
+  const extras = Object.fromEntries(academicFields.filter(field => data[field] !== undefined).map(field => [field, data[field]]));
+  const changedFields: Array<keyof ProfileInput> = existing
     ? [
         ...(existing.name !== data.name ? ["name" as const] : []),
         ...(existing.cpfLookup !== lookup ? ["cpf" as const] : []),
         ...(existing.period !== data.period ? ["period" as const] : []),
       ]
     : ["name", "cpf", "period"];
+  for (const field of academicFields) if (data[field] !== undefined && data[field] !== existing?.[field]) changedFields.push(field);
 
   try {
     if (existing) {
@@ -122,6 +130,7 @@ export async function saveOwnProfile(args: {
             name: data.name,
             period: data.period,
             cpfLookup: lookup,
+            ...extras,
             ...(existing.cpfLookup === lookup ? {} : { cpfEncrypted: encryptCpf(data.cpf) }),
           },
         },
@@ -133,6 +142,7 @@ export async function saveOwnProfile(args: {
         name: data.name,
         period: data.period,
         cpfLookup: lookup,
+        ...extras,
         cpfEncrypted: encryptCpf(data.cpf),
       });
     }
@@ -180,6 +190,9 @@ export async function saveOwnProfile(args: {
     cpf: data.cpf,
     cpfMasked: maskCpf(data.cpf),
     period: data.period,
+    registrationNumber: saved.registrationNumber || '', birthDate: saved.birthDate || '',
+    phone: saved.phone || '', contactEmail: saved.contactEmail || '',
+    clamMissingFields: missingClamFields(saved),
     complete: true,
     privacyNoticeRequired: false,
     updatedAt: saved.updatedAt.toISOString(),

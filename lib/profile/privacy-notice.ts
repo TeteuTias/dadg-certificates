@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const PROFILE_PRIVACY_NOTICE_VERSION = "dadg-profile-privacy-v1";
+export const PROFILE_PRIVACY_NOTICE_VERSION = "dadg-profile-privacy-v2";
 
 export const PROFILE_PRIVACY_NOTICE = {
   version: PROFILE_PRIVACY_NOTICE_VERSION,
@@ -10,7 +10,7 @@ export const PROFILE_PRIVACY_NOTICE = {
   sections: [
     {
       title: "1. Finalidade do tratamento",
-      text: "Os dados fornecidos neste perfil — nome completo, CPF e período, além do e-mail associado à conta autenticada — serão utilizados exclusivamente para identificar o usuário e manter seu cadastro; viabilizar inscrições e participação em eventos e atividades do DADG; emitir, localizar e validar certificados e documentos relacionados; enviar comunicações operacionais importantes; e gerar informações estatísticas anonimizadas.",
+      text: "Nome completo, CPF, período, matrícula/RA, data de nascimento, telefone, e-mail de contato e e-mail da conta serão utilizados para identificação, cadastro, inscrições, participação em atividades, comunicação operacional, certificados e organização dos processos seletivos da CLAM. Os dados necessários constarão nas listas de participantes, provas e correção disponibilizadas aos organizadores responsáveis.",
     },
     {
       title: "2. Compartilhamento de dados",

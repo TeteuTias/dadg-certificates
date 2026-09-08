@@ -6,5 +6,5 @@ export function clamFailure(error: unknown) {
   const status = error instanceof ClamError ? error.status : 503;
   const diagnosticId = randomUUID();
   if (status >= 500) console.error('[clam:request]', { diagnosticId, code, kind: error instanceof Error ? error.name : 'unknown' });
-  return NextResponse.json({ success: false, error: code, diagnosticId }, { status, headers: { 'Cache-Control': 'private, no-store' } });
+  return NextResponse.json({ success: false, error: code, diagnosticId, ...(error instanceof ClamError && error.missingFields ? { missingFields: error.missingFields } : {}) }, { status, headers: { 'Cache-Control': 'private, no-store' } });
 }

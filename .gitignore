@@ -44,3 +44,4 @@ next-env.d.ts
 /.cache/
 /.playwright-cli/
 /output/playwright/
+/output/clam-relatorios-exemplos/

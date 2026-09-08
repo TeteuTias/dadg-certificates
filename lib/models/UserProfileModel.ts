@@ -7,6 +7,10 @@ export type UserProfileDocument = {
   authSubject: string;
   name: string;
   period: number;
+  registrationNumber?: string;
+  birthDate?: string;
+  phone?: string;
+  contactEmail?: string;
   cpfEncrypted: EncryptedCpf;
   cpfLookup: string;
   createdAt: Date;
@@ -18,6 +22,10 @@ const UserProfileSchema = new Schema<UserProfileDocument>({
   authSubject: { type: String, required: true, immutable: true },
   name: { type: String, required: true },
   period: { type: Number, required: true, min: 1, max: 12 },
+  registrationNumber: String,
+  birthDate: String,
+  phone: String,
+  contactEmail: String,
   cpfEncrypted: {
     ciphertext: { type: String, required: true },
     iv: { type: String, required: true },

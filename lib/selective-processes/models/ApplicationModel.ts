@@ -8,7 +8,7 @@ export type ApplicationFinalStatus =
 
 export interface IScoreSubdoc {
   examId: mongoose.Types.ObjectId;
-  scoreValue: number;
+  scoreValue: number | null;
   graderUserId?: mongoose.Types.ObjectId;
   updatedAt?: Date;
 }
@@ -17,6 +17,7 @@ export interface IScoreSubdoc {
 export interface IApplication {
   selectionProcessId: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
+  candidateProfileId?: mongoose.Types.ObjectId;
   exams: mongoose.Types.ObjectId[];
   finalStatus: ApplicationFinalStatus;
   scores: IScoreSubdoc[];
@@ -29,7 +30,7 @@ const ScoreSubdocSchema: Schema<IScoreSubdoc> = new mongoose.Schema(
       required: true,
       ref: 'Exam',
     },
-    scoreValue: { type: Number, required: true },
+    scoreValue: { type: Number, default: null },
     graderUserId: { type: Schema.Types.ObjectId, required: false },
     updatedAt: { type: Date, required: false },
   },
@@ -44,6 +45,7 @@ const ApplicationSchema: Schema<IApplication> = new mongoose.Schema(
       ref: 'SelectionProcess',
     },
     userId: { type: Schema.Types.ObjectId, required: true },
+    candidateProfileId: Schema.Types.ObjectId,
     exams: [{ type: Schema.Types.ObjectId, required: true, ref: 'Exam' }],
     finalStatus: {
       type: String,
