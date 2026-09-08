@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { auth0 } from "../auth0";
 import { isAdmin } from "./isAdmin";
 import { API_ROUTE_MAP, type RouteConfig } from "./route-policies";
-import { AuthConfigurationError, verifyStudentToken } from "./verifyToken";
+import { AuthConfigurationError, StudentTokenError, verifyStudentToken } from "./verifyToken";
 import { authorizePrincipal } from "./authorization";
 
 type Principal = {
@@ -17,6 +17,7 @@ export type AccessDecision = {
   status?: number;
   code?: string;
   message?: string;
+  authDiagnostic?: string;
   principal?: Principal;
 };
 
@@ -59,7 +60,8 @@ export default class GateKeeper {
       const authorization = this.request.headers.get("authorization");
       if (authorization) {
         const payload = await verifyStudentToken(authorization);
-        return payload?.sub ? { kind: "student", user: payload as User } : null;
+        if (!payload?.sub) throw new StudentTokenError("TOKEN_IDENTITY_MISSING");
+        return { kind: "student", user: payload as User };
       }
 
       try {
@@ -84,7 +86,12 @@ export default class GateKeeper {
       const authType = policy.authType;
       const decision = authorizePrincipal(authType, principal?.kind || null, principal?.kind === "admin" && isAdmin(principal.user));
       if (!decision.authorized) {
-        return { ...decision, message: decision.status === 401 ? "Autenticação necessária." : "Acesso não autorizado." };
+        return {
+          ...decision,
+          message: decision.status === 401 ? "Autenticação necessária." : "Acesso não autorizado.",
+          ...(decision.status === 401 && policy.authType === "student" && !this.request.headers.get("authorization")
+            ? { authDiagnostic: "AUTHORIZATION_MISSING" } : {}),
+        };
       }
 
       const origin = requestOrigin(this.request);
@@ -101,10 +108,13 @@ export default class GateKeeper {
 
       return { authorized: true, principal: principal || undefined };
     } catch (error) {
+      if (error instanceof StudentTokenError) {
+        return { authorized: false, status: 401, code: "NOT_AUTHENTICATED", message: "Autenticação necessária.", authDiagnostic: error.diagnostic };
+      }
       if (error instanceof AuthConfigurationError) {
         return { authorized: false, status: 503, code: "AUTH_CONFIGURATION_ERROR", message: "Autenticação temporariamente indisponível." };
       }
-      return { authorized: false, status: 401, code: "NOT_AUTHENTICATED", message: "Autenticação necessária." };
+      return { authorized: false, status: 401, code: "NOT_AUTHENTICATED", message: "Autenticação necessária.", authDiagnostic: "AUTH_RUNTIME_ERROR" };
     }
   }
 
