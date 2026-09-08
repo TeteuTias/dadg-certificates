@@ -101,6 +101,9 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   admin("^/api/v1/leagues"),
   admin("^/api/v1/events"),
 
+  // Painel administrativo do blog (paginas) - restrito a administradores.
+  admin("^/blog(/.*)?$"),
+
   // APIs legadas e páginas do aplicativo administrativo.
   admin("^/api/(get|put|delete)/.*$"),
   admin("^/$"),
