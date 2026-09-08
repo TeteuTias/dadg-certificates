@@ -4,7 +4,11 @@ import type { NextRequest } from "next/server";
 import { auth0 } from "../auth0";
 import { isAdmin } from "./isAdmin";
 import { API_ROUTE_MAP, type RouteConfig } from "./route-policies";
-import { AuthConfigurationError, verifyStudentToken } from "./verifyToken";
+import {
+  AuthConfigurationError,
+  verifyStudentTokenDetailed,
+  type StudentTokenFailure,
+} from "./verifyToken";
 import { authorizePrincipal } from "./authorization";
 
 type Principal = {
@@ -18,6 +22,10 @@ export type AccessDecision = {
   code?: string;
   message?: string;
   principal?: Principal;
+  /** Categoria tecnica da falha de credencial do aluno. Sem token nem claims. */
+  reason?: StudentTokenFailure;
+  /** issuer/audience que o backend espera. Valores publicos. */
+  expected?: { issuer: string; audience: string };
 };
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -39,6 +47,8 @@ export default class GateKeeper {
   private readonly method: string;
   private readonly request: NextRequest;
   private principalPromise: Promise<Principal | null> | null = null;
+  private tokenFailure: StudentTokenFailure | null = null;
+  private tokenExpectation: { issuer: string; audience: string } | null = null;
 
   constructor(request: NextRequest) {
     this.request = request;
@@ -58,8 +68,11 @@ export default class GateKeeper {
     this.principalPromise = (async () => {
       const authorization = this.request.headers.get("authorization");
       if (authorization) {
-        const payload = await verifyStudentToken(authorization);
-        return payload?.sub ? { kind: "student", user: payload as User } : null;
+        const result = await verifyStudentTokenDetailed(authorization);
+        if (result.payload?.sub) return { kind: "student", user: result.payload as User };
+        this.tokenFailure = result.failure ?? "invalid_claims";
+        this.tokenExpectation = result.expected ?? null;
+        return null;
       }
 
       try {
@@ -84,7 +97,12 @@ export default class GateKeeper {
       const authType = policy.authType;
       const decision = authorizePrincipal(authType, principal?.kind || null, principal?.kind === "admin" && isAdmin(principal.user));
       if (!decision.authorized) {
-        return { ...decision, message: decision.status === 401 ? "Autenticação necessária." : "Acesso não autorizado." };
+        return {
+          ...decision,
+          message: decision.status === 401 ? "Autenticação necessária." : "Acesso não autorizado.",
+          ...(this.tokenFailure ? { reason: this.tokenFailure } : {}),
+          ...(this.tokenExpectation ? { expected: this.tokenExpectation } : {}),
+        };
       }
 
       const origin = requestOrigin(this.request);
