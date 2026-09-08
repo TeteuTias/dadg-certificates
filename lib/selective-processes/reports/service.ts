@@ -2,7 +2,7 @@ import mongoose, { type ClientSession, Schema } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import UserProfile from "@/lib/models/UserProfileModel";
 import { decryptCpf } from "@/lib/profile/crypto";
-import { missingClamFields } from "@/lib/profile/validation";
+import { missingClamFields, onlyDigits } from "@/lib/profile/validation";
 import { SelectionProcess } from "../models/SelectionProcessModel";
 import { Application } from "../models/ApplicationModel";
 import { Ticket } from "../models/TicketModel";
@@ -176,10 +176,10 @@ export async function reportSnapshot(
       id: String(app._id),
       profileId: profile ? String(profile._id) : "",
       name: profile?.name || `Cadastro pendente (${String(app._id).slice(-6)})`,
-      registrationNumber: profile?.registrationNumber || "",
+      registrationNumber: onlyDigits(profile?.registrationNumber || ""),
       birthDate: profile?.birthDate || "",
       period: profile?.period ?? null,
-      phone: profile?.phone || "",
+      phone: onlyDigits(profile?.phone || ""),
       contactEmail: profile?.contactEmail || "",
       cpf,
       missingFields: missing,

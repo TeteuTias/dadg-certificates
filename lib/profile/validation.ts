@@ -100,6 +100,8 @@ export function validateProfileInput(value: unknown): {
   };
 }
 
+export function onlyDigits(value: string) { return value.replace(/\D/g, ''); }
+
 export const academicFields = ['registrationNumber', 'birthDate', 'phone', 'contactEmail'] as const;
 export function validBirthDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -113,9 +115,9 @@ export function validateAcademicContact(body: Record<string, unknown>) {
     if (!(field in body)) continue; // Older clients preserve existing optional fields.
     if (typeof body[field] !== 'string') { errors[field] = 'Informe um texto válido.'; continue; }
     const value = String(body[field]).trim();
-    data[field] = field === 'phone' ? value.replace(/\D/g, '') : value;
+    data[field] = field === 'phone' || field === 'registrationNumber' ? onlyDigits(value) : value;
     if (!value) continue;
-    if (field === 'registrationNumber' && !/^[A-Za-z0-9.-]{1,40}$/.test(value)) errors[field] = 'Use até 40 letras, números, pontos ou hífens.';
+    if (field === 'registrationNumber' && (!/^[0-9.\s-]+$/.test(value) || !/^\d{1,40}$/.test(data[field]!))) errors[field] = 'Informe a matrícula / RA com até 40 dígitos.';
     if (field === 'birthDate' && !validBirthDate(value)) errors[field] = 'Informe uma data de nascimento válida.';
     if (field === 'phone' && !/^\d{10,13}$/.test(data[field]!)) errors[field] = 'Informe o telefone com DDD.';
     if (field === 'contactEmail' && (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))) errors[field] = 'Informe um e-mail válido.';
