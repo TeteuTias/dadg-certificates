@@ -78,6 +78,14 @@ test("toda rota protegida declara student ou admin", () => {
   assert.equal(API_ROUTE_MAP.some((route) => "authType" in route && String(route.authType) === "both"), false);
 });
 
+test("resumo do perfil e estado CLAM exigem token de aluno", () => {
+  const authTypeFor = (path: string) =>
+    API_ROUTE_MAP.find((route) => route.method === "GET" && new RegExp(route.path).test(path))?.authType;
+
+  assert.equal(authTypeFor("/api/v1/user/profile/summary"), "student");
+  assert.equal(authTypeFor("/api/v1/selective-processes/6a92fab72fd46137ff827a87/me"), "student");
+});
+
 test("issuer e audience divergentes são rejeitados", async () => {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
   const issuer = "https://alunos.example.auth0.com/";

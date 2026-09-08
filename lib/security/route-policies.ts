@@ -71,13 +71,13 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   publicWebhook("^/api/admin/selective-processes/payments/webhook$"),
 
   // Processos seletivos - autosservico do candidato no site do aluno.
-  publicGet("^/api/v1/selective-processes/[0-9a-fA-F]{24}/me$"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/me$", "GET"),
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout$", "POST"),
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout/replace$", "POST"),
   student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/leagues$", "POST"),
 
   // Autosserviço autenticado do aluno.
-  publicGet("^/api/v1/user/profile/summary$"),
+  student("^/api/v1/user/profile/summary$", "GET"),
   student("^/api/v1/user/profile$", "GET"),
   student("^/api/v1/user/profile$", "PUT"),
   student("^/api/v1/events/[0-9a-fA-F]{24}/registration/?$", "GET"),
