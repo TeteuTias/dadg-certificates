@@ -15,6 +15,7 @@ import { MpGateway, type Gateway } from './gateway';
 type SessionDoc = mongoose.HydratedDocument<IPaymentSession>;
 export type CheckoutInput = {
   processId: string; userId: string; examsCount: number; payer: Payer;
+  candidateProfileId?: string;
   operationKey: string; previousSessionId?: string;
 };
 const gateway = () => new MpGateway();
@@ -89,7 +90,7 @@ export async function reconcileLocked(doc: SessionDoc, lock: Lock, provider: Gat
     if (verdict === 'PAID' || verdict === 'REVERSED') {
       const application = await Application.findOneAndUpdate(
         { selectionProcessId: doc.edicaoId, userId: doc.owner },
-        { $setOnInsert: { exams: [], scores: [], finalStatus: 'PENDING_RESULTS' } },
+        { $setOnInsert: { exams: [], scores: [], finalStatus: 'PENDING_RESULTS', candidateProfileId: doc.candidateProfileId } },
         { upsert: true, new: true, session });
       if (verdict === 'PAID' && reservation.state !== 'RESERVED' && reservation.state !== 'PAID') {
         throw new ClamError('PAYMENT_REVIEW_REQUIRED');
@@ -221,6 +222,7 @@ export async function checkout(input: CheckoutInput, provider: Gateway = gateway
       if (!reserved.matchedCount) throw new ClamError('PROCESS_CHANGED_OR_SOLD_OUT');
       await PaymentSession.create([{
         _id: id, owner: input.userId, edicaoId: input.processId, orderId: String(id), contract,
+        candidateProfileId: input.candidateProfileId,
         userProps: input.payer, paymentConfig: { examsCount: contract.examsCount, totalAmount: contract.amountCents / 100 },
         status: 'CREATING', type: 'ticket', expiresAt: new Date(Date.now() + 15 * 60_000),
         previousSessionId: current?._id, operationKey: input.operationKey, requestHash: hash,

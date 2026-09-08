@@ -112,21 +112,21 @@ export async function listApplicationsBySelectionProcess(selectionProcessId: str
   await connectToDatabase();
   return (await Application.find({ selectionProcessId }).sort({ createdAt: -1 }).lean()).map(a => ({ id: String(a._id), ...a }));
 }
-export async function updateScores(params: { applicationId: string; scores: Array<{ examId: string; scoreValue: number }>; graderUserId?: string }) {
+export async function updateScores(params: { applicationId: string; scores: Array<{ examId: string; scoreValue: number }>; graderUserId?: string; actor?: string }) {
   await connectToDatabase();
-  return mongoose.connection.transaction(async session => {
-    const app = await Application.findById(params.applicationId).session(session);
-    if (!app) throw new ClamError('APPLICATION_NOT_FOUND', 404);
-    await SelectionProcess.updateOne({ _id: app.selectionProcessId }, { $inc: { revision: 1 } }, { session });
-    const chosen = new Set(app.exams.map(String));
-    if (params.scores.some(s => !chosen.has(s.examId) || !Number.isFinite(s.scoreValue))) throw new ClamError('INVALID_SCORES', 400);
-    for (const score of app.scores) {
-      const update = params.scores.find(s => s.examId === String(score.examId));
-      if (update) { score.scoreValue = update.scoreValue; score.updatedAt = new Date(); }
-    }
-    await app.save({ session });
-    return { applicationId: params.applicationId, scores: app.scores };
-  });
+  const app = await Application.findById(params.applicationId).lean();
+  if (!app) throw new ClamError('APPLICATION_NOT_FOUND', 404);
+  if (!params.actor) throw new ClamError('NOT_AUTHORIZED', 403);
+  const { readReport, confirmImport } = await import('../reports/service');
+  const { previewImport } = await import('../reports/rules');
+  const { randomUUID } = await import('node:crypto');
+  const snapshot = await readReport(String(app.selectionProcessId));
+  const candidate = snapshot.candidates.find(c => c.id === params.applicationId);
+  const rows = params.scores.map((score, index) => ({ sheet: 'Lançamento manual', row: index + 1, applicationId: params.applicationId, examId: score.examId, registrationNumber: candidate?.registrationNumber || '', value: score.scoreValue }));
+  const preview = previewImport(snapshot, 'scores', rows);
+  if (!rows.length || preview.errors.length) throw new ClamError('INVALID_SCORES', 400);
+  await confirmImport({ processId: snapshot.processId, actor: params.actor, kind: 'scores', rows, previewHash: preview.hash, operationId: randomUUID() });
+  return { applicationId: params.applicationId, scores: (await Application.findById(params.applicationId).lean())?.scores || [] };
 }
 export async function setFinalStatus(params: { applicationId: string; finalStatus: ApplicationFinalStatus }) {
   await connectToDatabase();

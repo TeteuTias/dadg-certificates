@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
+import { requireCandidateProfile } from '@/lib/selective-processes/candidate-profile';
+import { clamFailure } from '@/lib/selective-processes/errors';
 import { identifyStudentOwner } from '@/lib/selective-processes/student-identity';
 import {
   LeagueSelectionError,
@@ -34,7 +36,9 @@ export async function POST(request: NextRequest, { params }: Context) {
   }
 
   try {
+    const profile = await requireCandidateProfile(identity.user);
     const data = await selectLeaguesForApplication({
+      candidateProfileId: String(profile._id),
       selectionProcessId: id,
       userId: identity.userId,
       examIds,
@@ -45,7 +49,6 @@ export async function POST(request: NextRequest, { params }: Context) {
       return NextResponse.json({ success: false, error: error.code }, { status: error.status });
     }
 
-    console.error('[POST /api/v1/selective-processes/:id/leagues]', error);
-    return NextResponse.json({ success: false, error: 'LEAGUE_SELECTION_FAILED' }, { status: 500 });
+    return clamFailure(error);
   }
 }

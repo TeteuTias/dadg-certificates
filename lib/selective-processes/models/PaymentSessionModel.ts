@@ -4,6 +4,7 @@ export type PaymentSessionStatus = 'CREATING' | 'PENDING' | 'CANCELING' | 'CANCE
 export type PaymentTicketType = 'ticket' | 'course';
 export type IPaymentSession = {
   owner: mongoose.Types.ObjectId; edicaoId: string; orderId: string;
+  candidateProfileId?: mongoose.Types.ObjectId;
   contract?: Contract; userProps: Payer; paymentConfig: { examsCount: number; totalAmount: number };
   status: PaymentSessionStatus; type: PaymentTicketType; paymentUrl?: string | null;
   settledAt?: Date; reversedAt?: Date; replacementAttempts: Array<{ key: string; hash: string }>;
@@ -13,6 +14,7 @@ export type IPaymentSession = {
 };
 const schema = new Schema<IPaymentSession>({
   owner: { type: Schema.Types.ObjectId, required: true, immutable: true },
+  candidateProfileId: { type: Schema.Types.ObjectId, immutable: true },
   edicaoId: { type: String, required: true, immutable: true },
   orderId: { type: String, required: true, immutable: true },
   contract: {

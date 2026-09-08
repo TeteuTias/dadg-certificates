@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from 'next/link';
 import { toLocalDateTime } from "@/lib/selective-processes/domain";
 import * as LucideIcons from "lucide-react";
 import PricingTiersPanel from "./PricingTiersPanel";
@@ -110,6 +111,7 @@ export default function SelectionProcessDetailPage({
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Processo seletivo</h1>
+          {process?.id && <Link className="mt-2 inline-block text-blue-700 underline" href={`/selective-processes/${process.id}/reports`}>Relatórios e correção</Link>}
           <p className="text-sm text-muted-foreground">Detalhe e contagem de vagas</p>
         </div>
         <button

@@ -171,7 +171,7 @@ export async function getStudentApplicationState(params: { selectionProcessId: s
 }
 
 export class LeagueSelectionError extends ClamError {}
-export async function selectLeaguesForApplication(params: { selectionProcessId: string; userId: string; examIds: string[] }) {
+export async function selectLeaguesForApplication(params: { selectionProcessId: string; userId: string; examIds: string[]; candidateProfileId?: string }) {
   const { selectionProcessId, userId, examIds } = params;
   if (!mongoose.isValidObjectId(selectionProcessId) || !mongoose.isValidObjectId(userId)) throw new LeagueSelectionError('INVALID_SELECTION_PROCESS_ID', 400);
   if (!examIds.length || examIds.some(id => !mongoose.isValidObjectId(id))) throw new LeagueSelectionError('INVALID_EXAM_ID', 400);
@@ -194,7 +194,8 @@ export async function selectLeaguesForApplication(params: { selectionProcessId: 
         if (selected.length + fresh.length > ticket.leagueAllowanceCount) throw new LeagueSelectionError('LEAGUE_ALLOWANCE_EXCEEDED');
         await ApplicationLeagueSelection.insertMany(fresh.map(examId => ({ applicationId: application._id, selectionProcessId, examId, lockedAt: new Date() })), { session });
         application.exams.push(...fresh.map(id => new mongoose.Types.ObjectId(id)));
-        application.scores.push(...fresh.map(id => ({ examId: new mongoose.Types.ObjectId(id), scoreValue: 0 })));
+        application.scores.push(...fresh.map(id => ({ examId: new mongoose.Types.ObjectId(id), scoreValue: null })));
+        if (params.candidateProfileId) application.candidateProfileId = new mongoose.Types.ObjectId(params.candidateProfileId);
         await application.save({ session });
       });
     });

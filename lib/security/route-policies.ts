@@ -90,6 +90,8 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   student("^/api/v1/blog/posts/[^/]+/comments$", "POST"),
 
   // Gestão de perfis e operações administrativas.
+  admin("^/api/admin/selective-processes/selection-processes/[0-9a-fA-F]{24}/reports/(summary|export|template)$", "GET"),
+  admin("^/api/admin/selective-processes/selection-processes/[0-9a-fA-F]{24}/reports/(settings|preview|confirm)$", "POST"),
   admin("^/api/v1/admin/profiles/query$", "POST"),
   admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "GET"),
   admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "PATCH"),

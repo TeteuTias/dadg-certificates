@@ -22,7 +22,6 @@ export async function PUT(request: NextRequest, { params }: Context) {
   const body = await request.json().catch(() => null);
 
   const scores = body?.scores;
-  const graderUserId = body?.graderUserId;
 
 
   if (!Array.isArray(scores)) {
@@ -44,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: Context) {
 
   const updated = await updateScores({
     applicationId,
-    graderUserId,
+    actor: access.principal?.user.sub,
     scores: (scores as Array<{ examId: string; scoreValue: number }>).map((s) => ({
       examId: s.examId,
       scoreValue: s.scoreValue,

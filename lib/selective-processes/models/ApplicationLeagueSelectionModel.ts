@@ -1,11 +1,4 @@
-import mongoose, { InferSchemaType, Schema } from 'mongoose';
-
-type ApplicationLeagueSelectionSchemaType = InferSchemaType<{
-  applicationId: mongoose.Types.ObjectId;
-  selectionProcessId: mongoose.Types.ObjectId;
-  examId: mongoose.Types.ObjectId;
-  lockedAt: Date;
-}>;
+import mongoose, { Schema } from 'mongoose';
 
 export interface IApplicationLeagueSelection {
   applicationId: mongoose.Types.ObjectId;
@@ -39,8 +32,8 @@ const ApplicationLeagueSelectionSchema: Schema<IApplicationLeagueSelection> = ne
 ApplicationLeagueSelectionSchema.index({ applicationId: 1, examId: 1 }, { unique: true });
 
 export const ApplicationLeagueSelection =
-  (mongoose.models.ApplicationLeagueSelection as mongoose.Model<ApplicationLeagueSelectionSchemaType>) ||
-  mongoose.model<ApplicationLeagueSelectionSchemaType>(
+  (mongoose.models.ApplicationLeagueSelection as mongoose.Model<IApplicationLeagueSelection>) ||
+  mongoose.model<IApplicationLeagueSelection>(
     'ApplicationLeagueSelection',
     ApplicationLeagueSelectionSchema
   );

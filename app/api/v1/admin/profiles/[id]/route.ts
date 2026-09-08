@@ -18,6 +18,9 @@ import {
 import { isDuplicateKeyError } from "@/lib/profile/service";
 import {
   formatCpf,
+  academicFields,
+  validateAcademicContact,
+  type ProfileInput,
   isValidCpf,
   normalizeCpf,
   normalizeName,
@@ -74,6 +77,8 @@ export async function GET(request: NextRequest, { params }: Context) {
           name: profile.name,
           cpf: formatCpf(decryptCpf(profile.cpfEncrypted)),
           period: profile.period,
+          registrationNumber: profile.registrationNumber || '', birthDate: profile.birthDate || '',
+          phone: profile.phone || '', contactEmail: profile.contactEmail || '',
           updatedAt: profile.updatedAt,
           privacy: acceptance
             ? {
@@ -140,7 +145,10 @@ export async function PATCH(request: NextRequest, { params }: Context) {
       );
 
     const update: Record<string, unknown> = {};
-    const fields: Array<"name" | "cpf" | "period"> = [];
+    const fields: Array<keyof ProfileInput> = [];
+    const extra = validateAcademicContact(body);
+    if (Object.keys(extra.errors).length) return NextResponse.json({ success: false, code: 'PROFILE_VALIDATION_ERROR', fields: extra.errors }, { status: 400, headers });
+    for (const field of academicFields) if (extra.data[field] !== undefined && extra.data[field] !== profile[field]) { update[field] = extra.data[field]; fields.push(field); }
     if ("name" in body) {
       const name = normalizeName(body.name);
       const error = validateName(name);

@@ -6,7 +6,7 @@ export type ProfileAuditDocument = {
   actorIssuer: string;
   actorSubject: string;
   action: "profile.created" | "profile.updated" | "profile.admin_updated";
-  changedFields: Array<"name" | "cpf" | "period">;
+  changedFields: Array<"name" | "cpf" | "period" | "registrationNumber" | "birthDate" | "phone" | "contactEmail">;
   createdAt: Date;
 };
 
@@ -20,7 +20,7 @@ const ProfileAuditSchema = new Schema<ProfileAuditDocument>({
     required: true,
     immutable: true,
   },
-  changedFields: [{ type: String, enum: ["name", "cpf", "period"], required: true, immutable: true }],
+  changedFields: [{ type: String, enum: ["name", "cpf", "period", "registrationNumber", "birthDate", "phone", "contactEmail"], required: true, immutable: true }],
   createdAt: { type: Date, required: true, default: Date.now, immutable: true },
 }, {
   collection: "users.profileAudit",
