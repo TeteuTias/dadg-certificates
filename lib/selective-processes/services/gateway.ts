@@ -9,6 +9,32 @@ export interface Gateway {
   paymentReference(paymentId: string): Promise<string>;
   close(preferenceId: string, reference: string): Promise<GatewayPayment[]>;
 }
+/** Caminho do handler que concilia o pagamento neste backend. */
+const WEBHOOK_PATH = '/api/selective-processes/webhook';
+
+/**
+ * URL de notificacao do Mercado Pago.
+ *
+ * MERCADOPAGO_WEBHOOK_URL configurada como uma origem sem caminho (por exemplo
+ * a raiz do site do aluno) faz o Mercado Pago notificar uma pagina qualquer:
+ * a preferencia e criada, o aluno paga e a inscricao nunca e conciliada. Por
+ * isso a variavel so e aceita quando aponta para o endpoint do webhook; caso
+ * contrario o endereco e derivado de APP_BASE_URL.
+ */
+export function webhookNotificationUrl(): string {
+  const configured = process.env.MERCADOPAGO_WEBHOOK_URL?.trim();
+  if (configured) {
+    try {
+      const parsed = new URL(configured);
+      if (parsed.pathname.replace(/\/$/, '') === WEBHOOK_PATH) return parsed.toString();
+    } catch {
+      // Endereco invalido: cai no APP_BASE_URL abaixo.
+    }
+  }
+  const base = process.env.APP_BASE_URL?.trim().replace(/\/$/, '');
+  return base ? `${base}${WEBHOOK_PATH}` : '';
+}
+
 export class MpGateway implements Gateway {
   private async request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
     const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -22,7 +48,7 @@ export class MpGateway implements Gateway {
     return response.json() as Promise<T>;
   }
   async create(reference: string, contract: Contract, payer: Payer, expiresAt: Date) {
-    const notification = process.env.MERCADOPAGO_WEBHOOK_URL || `${process.env.APP_BASE_URL}/api/selective-processes/webhook`;
+    const notification = webhookNotificationUrl();
     if (!notification.startsWith('https://') || !process.env.MERCADOPAGO_WEBHOOK_SECRET) throw new ClamError('PAYMENT_CONFIGURATION_ERROR', 503);
     const pref = await this.request<Preference>('/checkout/preferences', 'POST', {
       external_reference: reference, items: [{ id: reference, title: `Inscrição CLAM — ${contract.examsCount} liga(s)`,
