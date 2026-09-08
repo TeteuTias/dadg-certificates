@@ -5,9 +5,9 @@ export type RouteConfig = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
   allowedOrigins?: string[];
 } & (
-  | { isPublic: true; authType?: never }
-  | { isPublic: false; authType: ProtectedAuthType }
-);
+    | { isPublic: true; authType?: never }
+    | { isPublic: false; authType: ProtectedAuthType }
+  );
 
 const compactOrigins = (...values: Array<string | undefined>) =>
   [...new Set(values.filter((value): value is string => Boolean(value)).map((value) => value.replace(/\/$/, "")))];
@@ -45,6 +45,13 @@ const student = (path: string, method?: RouteConfig["method"]): RouteConfig => (
 const publicGet = (path: string): RouteConfig => ({ path, method: "GET", isPublic: true });
 
 /**
+ * Notificacoes de servicos externos (Mercado Pago). Nao ha sessao nem token do
+ * nosso Auth0 nessas chamadas; a autenticidade e verificada dentro do handler,
+ * que confere a assinatura e consulta o pagamento na API do Mercado Pago.
+ */
+const publicWebhook = (path: string): RouteConfig => ({ path, method: "POST", isPublic: true });
+
+/**
  * Rotas ordenadas do contrato mais específico para o mais abrangente.
  * Qualquer rota ausente continua negada por padrão no GateKeeper.
  */
@@ -52,6 +59,22 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   { path: "^/_next/", isPublic: true },
   { path: "^/auth(/.*)?$", isPublic: true },
   { path: "^/not-allowed$", isPublic: true },
+  {
+    path: "^/api/selective-processes/checkout$",
+    method: "POST",
+    isPublic: false,
+    authType: "student",
+    allowedOrigins: STUDENT_ORIGINS,
+  },
+  // Webhooks do Mercado Pago - precisam responder sem autenticacao.
+  publicWebhook("^/api/selective-processes/webhook$"),
+  publicWebhook("^/api/admin/selective-processes/payments/webhook$"),
+
+  // Processos seletivos - autosservico do candidato no site do aluno.
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/me$", "GET"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout$", "POST"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/checkout/replace$", "POST"),
+  student("^/api/v1/selective-processes/[0-9a-fA-F]{24}/leagues$", "POST"),
 
   // Autosserviço autenticado do aluno.
   student("^/api/v1/user/profile/summary$", "GET"),
@@ -94,6 +117,8 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   publicGet("^/api/v1/blog/posts/by-slug/[^/]+$"),
   publicGet("^/api/v1/blog/posts/[^/]+$"),
   publicGet("^/api/v1/blog/posts/[^/]+/comments$"),
+  publicGet("^/api/v1/selective-processes$"),
+  publicGet("^/api/v1/selective-processes/[0-9a-fA-F]{24}$"),
   publicGet("^/api/v1/settings$"),
 
   // Fallbacks de escrita/gestão, posicionados depois das leituras públicas.
@@ -106,6 +131,23 @@ export const API_ROUTE_MAP: RouteConfig[] = [
 
   // APIs legadas e páginas do aplicativo administrativo.
   admin("^/api/(get|put|delete)/.*$"),
+
+  // selective-processes (ADM) - garante autorização para endpoints desse módulo
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "GET"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "POST"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "PUT"),
+  admin("^/api/admin/selective-processes/selection-processes(/.*)?$", "DELETE"),
+  admin("^/api/admin/selective-processes/applications/[0-9a-fA-F]{24}/(scores|final-status)$", "PUT"),
+  admin("^/api/admin/selective-processes/payments/[0-9a-fA-F]{24}/reconcile$", "POST"),
+  admin("^/api/admin/selective-processes/payments/session$", "POST"),
+  admin("^/api/admin/selective-processes/applications/[0-9a-fA-F]{24}/ticket$", "POST"),
+  admin("^/api/admin/selective-processes/tickets/[0-9a-fA-F]{24}/payment-status$", "PUT"),
+
+  // selective-processes (páginas) - protege a UI do ADM
+  admin("^/selective-processes(/.*)?$"),
+
+  // selective-processes (checkout) - liberado para user e admin
+  // Permite que usuários logados (student) e admin acessem o endpoint de checkout.
   admin("^/$"),
   admin("^/(createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
   admin("^/teste$"),

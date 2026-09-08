@@ -10,7 +10,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
     const { id } = await params;
-    
+
     if (!isAdmin(user)) {
       return NextResponse.json({ success: false, error: "Acesso Negado. Privilégios insuficientes." }, { status: 403 });
     }
@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (coverImage !== undefined) postToUpdate.coverImage = coverImage;
     if (authorName) postToUpdate.authorName = authorName;
     if (tags) postToUpdate.tags = tags;
-    
+
     if (status && status !== postToUpdate.status) {
       postToUpdate.status = status;
       if (status === "PUBLISHED" && !postToUpdate.publishedAt) {
@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ success: true, data: updatedPost }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao atualizar post:", error);
     return NextResponse.json({ success: false, error: "Erro interno ao atualizar o artigo" }, { status: 500 });
   }
@@ -68,7 +68,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
     const { id } = await params;
-    
+
     if (!isAdmin(user)) {
       return NextResponse.json({ success: false, error: "Acesso Negado. Privilégios insuficientes." }, { status: 403 });
     }
@@ -86,8 +86,21 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     return NextResponse.json({ success: true, message: "Artigo excluído com sucesso." }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao excluir post:", error);
     return NextResponse.json({ success: false, error: "Erro interno ao excluir o artigo" }, { status: 500 });
   }
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const keeper = new GateKeeper(request);
+  const user = await keeper.identifyAdmin();
+  if (!user) return NextResponse.json({ success: false, error: 'Acesso negado.' }, { status: 403 });
+  const { id } = await params;
+  if (!ObjectId.isValid(id)) return NextResponse.json({ success: false, error: 'ID inválido.' }, { status: 400 });
+  try {
+    await connectToDatabase();
+    const data = await BlogPostModel.findById(id).lean();
+    return NextResponse.json({ success: Boolean(data), data }, { status: data ? 200 : 404, headers: { 'Cache-Control': 'private, no-store' } });
+  } catch { return NextResponse.json({ success: false, error: 'Erro ao carregar artigo.' }, { status: 503 }); }
 }
