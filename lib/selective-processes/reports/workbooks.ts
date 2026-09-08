@@ -1,3 +1,4 @@
+import { onlyDigits } from "../../profile/validation";
 import ExcelJS from "exceljs";
 import { checkXlsxArchive } from "./zip-limits";
 import { ClamError } from "../domain";
@@ -348,7 +349,7 @@ export async function parseWorkbook(
           row: i,
           applicationId: text("_Inscricao"),
           examId: text("_Prova"),
-          registrationNumber: text("Matrícula"),
+          registrationNumber: onlyDigits(text("Matrícula")),
           value: get("Nota"),
         });
       } else
