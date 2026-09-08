@@ -22,6 +22,7 @@ const ADMIN_ORIGINS = compactOrigins(
 const STUDENT_ORIGINS = compactOrigins(
   "http://localhost:3001",
   "https://dadg.com.br",
+  "https://www.dadg.com.br",
   "https://dadg.imepac.edu.br",
   ...(process.env.STUDENT_ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()),
 );

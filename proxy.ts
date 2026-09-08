@@ -25,7 +25,14 @@ export async function proxy(request: NextRequest) {
     // Se for uma chamada de API, devolvemos JSON (401 ou 403)
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json(
-        { success: false, error: access.message, code: access.code },
+        {
+          success: false,
+          error: access.message,
+          code: access.code,
+          // Categoria tecnica da falha (sem token/claims) para diagnostico.
+          ...(access.reason ? { reason: access.reason } : {}),
+          ...(access.expected ? { expected: access.expected } : {}),
+        },
         { status: access.status || 401, headers: { "Cache-Control": "private, no-store" } }
       );
     }
