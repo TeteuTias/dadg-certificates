@@ -26,14 +26,15 @@ export async function PUT(request: NextRequest, { params }: Context) {
 
   const examStartDate = body?.examStartDate;
   const examEndDate = body?.examEndDate;
-  const name = body?.name;
-
-  if (!examStartDate || !examEndDate || !name) {
+  if (!examStartDate || !examEndDate || !body) {
     return NextResponse.json({ success: false, error: 'INVALID_BODY' }, { status: 400 });
   }
 
   const updated = await updateExamForProcess(id, examId, {
-    name,
+    source: body.source,
+    academicLeagueId: body.academicLeagueId,
+    name: body.name,
+    acronym: body.acronym,
     examStartDate: new Date(examStartDate),
     examEndDate: new Date(examEndDate),
   });

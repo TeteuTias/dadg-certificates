@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { NextRequest } from 'next/server';
-import { contractFor, paymentVerdict, toLocalDateTime, type GatewayPayment } from '../lib/selective-processes/domain';
+import { contractFor, normalizeLeagueAcronym, paymentVerdict, toLocalDateTime, type GatewayPayment } from '../lib/selective-processes/domain';
 import { verifyMercadoPagoSignature } from '../lib/selective-processes/services/webhookSignature';
 import { API_ROUTE_MAP } from '../lib/security/route-policies';
 
@@ -63,6 +63,15 @@ test('date editor roundtrip keeps local wall time', () => {
     assert.equal(new Date(toLocalDateTime(original)).toISOString(), original.toISOString());
     assert.equal(toLocalDateTime('invalid'), '');
   } finally { if (before === undefined) delete process.env.TZ; else process.env.TZ = before; }
+});
+
+test('league acronyms are trimmed, uppercased and restricted to the stored format', () => {
+  assert.equal(normalizeLeagueAcronym('  lacor  '), 'LACOR');
+  assert.equal(normalizeLeagueAcronym('liga_2-sp'), 'LIGA_2-SP');
+  assert.equal(normalizeLeagueAcronym(''), undefined);
+  for (const invalid of ['LIGA CLÍNICA', 'LIGA/2', 'A'.repeat(31)]) {
+    assert.throws(() => normalizeLeagueAcronym(invalid));
+  }
 });
 
 

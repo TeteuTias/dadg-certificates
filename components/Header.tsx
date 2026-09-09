@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Eye, FolderOpen, Menu, Newspaper, Plus, Sparkles, UsersRound, X } from "lucide-react";
+import { ChevronDown, ClipboardList, Eye, FolderOpen, Menu, Newspaper, Plus, Sparkles, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import "./Header.css";
 
@@ -265,6 +265,10 @@ export default function Header() {
 
             <Link href="/blog" className="header-link" onClick={closeNavigation}>
               <Newspaper size={16} /> Blog
+            </Link>
+
+            <Link href="/selective-processes" className="header-link" onClick={closeNavigation}>
+              <ClipboardList size={16} /> CLAM
             </Link>
 
             <Link href="/Avisos" className="header-link" onClick={closeNavigation}>

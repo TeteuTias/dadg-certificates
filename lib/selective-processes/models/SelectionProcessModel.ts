@@ -1,10 +1,12 @@
 import mongoose, { Schema } from 'mongoose';
 export interface ISelectionProcess {
+  title?: string;
   registrationStartDate: Date; registrationEndDate: Date; maxExamsPerApplication: number;
   maxCapacity: number; allocatedCount: number; accountingVersion: number; revision: number;
   reportConfig?: { mode: 'dates' | 'file'; day1: string; day2: string };
 }
 const schema = new Schema<ISelectionProcess>({
+  title: { type: String, trim: true, maxlength: 120 },
   registrationStartDate: { type: Date, required: true }, registrationEndDate: { type: Date, required: true },
   maxExamsPerApplication: { type: Number, required: true, min: 1, max: 4, validate: Number.isInteger },
   maxCapacity: { type: Number, required: true, min: 0, validate: Number.isInteger },

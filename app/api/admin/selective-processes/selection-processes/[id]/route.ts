@@ -18,6 +18,7 @@ async function run(request: NextRequest, { params }: Context) {
     else {
       const body = await request.json();
       data = await updateSelectionProcess(id, {
+        title: typeof body.title === 'string' ? body.title : undefined,
         registrationStartDate: body.registrationStartDate ? new Date(body.registrationStartDate) : undefined,
         registrationEndDate: body.registrationEndDate ? new Date(body.registrationEndDate) : undefined,
         maxExamsPerApplication: body.maxExamsPerApplication, maxCapacity: body.maxCapacity,

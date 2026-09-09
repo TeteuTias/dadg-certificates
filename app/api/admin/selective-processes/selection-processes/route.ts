@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const registrationStartDate = body?.registrationStartDate;
   const registrationEndDate = body?.registrationEndDate;
+  const title = body?.title;
   const maxExamsPerApplication = body?.maxExamsPerApplication;
   const maxCapacity = body?.maxCapacity;
 
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   const created = await createSelectionProcess({
+    title: typeof title === 'string' ? title : undefined,
     registrationStartDate: new Date(registrationStartDate),
     registrationEndDate: new Date(registrationEndDate),
     maxExamsPerApplication,
