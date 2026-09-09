@@ -210,15 +210,17 @@ export async function checkout(input: CheckoutInput, provider: Gateway = gateway
       if (!current?.providerClosed) throw new ClamError('PAYMENT_CANCELLATION_PENDING');
     }
     const id = new mongoose.Types.ObjectId();
+    let allocated = false;
     await transaction(lock, async session => {
       const r = await Reservation.findById(lock.key).session(session);
       if (!r || r.firstPaidAt) throw new ClamError('ALREADY_ENROLLED');
       // Serialize with process edits, league deletion, and price replacement.
       const filter: Record<string, unknown> = { _id: input.processId, accountingVersion: 1, revision: process.revision,
         registrationStartDate: { $lte: new Date() }, registrationEndDate: { $gte: new Date() } };
-      if (r.state !== 'RESERVED') filter.$expr = { $lt: ['$allocatedCount', '$maxCapacity'] };
+      const reservedNewSeat = r.state !== 'RESERVED';
+      if (reservedNewSeat) filter.$expr = { $lt: ['$allocatedCount', '$maxCapacity'] };
       const reserved = await SelectionProcess.updateOne(filter,
-        { $inc: { allocatedCount: r.state === 'RESERVED' ? 0 : 1, revision: 1 } }, { session });
+        { $inc: { allocatedCount: reservedNewSeat ? 1 : 0, revision: 1 } }, { session });
       if (!reserved.matchedCount) throw new ClamError('PROCESS_CHANGED_OR_SOLD_OUT');
       await PaymentSession.create([{
         _id: id, owner: input.userId, edicaoId: input.processId, orderId: String(id), contract,
@@ -230,6 +232,7 @@ export async function checkout(input: CheckoutInput, provider: Gateway = gateway
       }], { session });
       await PaymentAttribution.create([{ compraId: id, usuarioId: input.userId, edicaoId: input.processId, status: 'PAGAMENTO_PENDENTE' }], { session });
       r.state = 'RESERVED'; r.activeSessionId = id; await r.save({ session });
+      allocated = reservedNewSeat;
     });
     const created = (await PaymentSession.findById(id))!;
     try {
@@ -241,6 +244,29 @@ export async function checkout(input: CheckoutInput, provider: Gateway = gateway
         await PaymentAttribution.updateOne({ compraId: id }, { $set: { pagamento: { checkoutId: preference.id, metodo: 'CHECKOUT_PRO' } } }, { session });
       });
     } catch (error) {
+      // PAYMENT_CONFIGURATION_ERROR e decidido dentro do gateway antes de
+      // qualquer chamada ao Mercado Pago: nenhuma preferencia pode existir,
+      // entao nao ha pagamento ambiguo a revisar. Marcar a reserva aqui
+      // bloquearia o candidato para sempre - tanto o checkout quanto a
+      // reconciliacao administrativa recusam qualquer reserva com
+      // reviewReason - inclusive depois de a variavel ser corrigida.
+      // Desfazemos a reserva e devolvemos a causa real.
+      if (error instanceof ClamError && error.code === 'PAYMENT_CONFIGURATION_ERROR') {
+        await transaction(lock, async session => {
+          const r = await Reservation.findById(lock.key).session(session);
+          if (!r || r.firstPaidAt || String(r.activeSessionId) !== String(id)) return;
+          if (allocated) {
+            await SelectionProcess.updateOne({ _id: input.processId, allocatedCount: { $gt: 0 } },
+              { $inc: { allocatedCount: -1, revision: 1 } }, { session });
+          }
+          await PaymentSession.updateOne({ _id: id, status: 'CREATING' },
+            { $set: { status: 'CANCELED', providerClosed: true } }, { session });
+          await PaymentAttribution.updateOne({ compraId: id }, { $set: { status: 'PAGAMENTO_CANCELADO' } }, { session });
+          r.state = 'IDLE'; r.activeSessionId = undefined; await r.save({ session });
+        });
+        console.error('[clam:checkout]', { sessionId: String(id), code: 'PAYMENT_CONFIGURATION_ERROR' });
+        throw error;
+      }
       await review(lock, created, 'PREFERENCE_CREATION_UNCERTAIN');
       console.error('[clam:checkout]', { sessionId: String(id), code: error instanceof ClamError ? error.code : 'PROVIDER_FAILURE' });
       throw new ClamError('PAYMENT_REVIEW_REQUIRED', 503);
