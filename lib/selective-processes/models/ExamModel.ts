@@ -2,6 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 export interface IExam {
   selectionProcessId: mongoose.Types.ObjectId;
+  academicLeagueId?: mongoose.Types.ObjectId;
   name: string;
   examStartDate: Date;
   examEndDate: Date;
@@ -18,6 +19,10 @@ const ExamSchema: Schema<IExam> = new mongoose.Schema(
       required: true,
       ref: 'SelectionProcess',
     },
+    academicLeagueId: {
+      type: Schema.Types.ObjectId,
+      ref: 'AcademicLeague',
+    },
     name: { type: String, required: true },
     examStartDate: { type: Date, required: true },
     examEndDate: { type: Date, required: true },
@@ -30,6 +35,14 @@ const ExamSchema: Schema<IExam> = new mongoose.Schema(
 );
 
 ExamSchema.index({ selectionProcessId: 1, acronym: 1 }, { unique: true, partialFilterExpression: { acronym: { $type: 'string' } }, name: 'clam_exam_acronym_unique' });
+ExamSchema.index(
+  { selectionProcessId: 1, academicLeagueId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { academicLeagueId: { $type: 'objectId' } },
+    name: 'clam_exam_academic_league_unique',
+  },
+);
 export const Exam =
   (mongoose.models.Exam as mongoose.Model<IExam>) ||
   mongoose.model<IExam>('Exam', ExamSchema);

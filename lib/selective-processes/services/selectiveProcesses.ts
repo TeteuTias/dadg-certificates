@@ -8,19 +8,21 @@ import { PaymentSession } from '../models/PaymentSessionModel';
 import { PricingTier } from '../models/PricingTierModel';
 import { Reservation } from '../models/ReservationModel';
 import { SelectionProcess } from '../models/SelectionProcessModel';
-import { ClamError } from '../domain';
+import { ClamError, normalizeLeagueAcronym } from '../domain';
+import AcademicLeagueModel from '@/lib/models/AcademicLeagues';
 export type CreateSelectionProcessInput = {
-  registrationStartDate: Date; registrationEndDate: Date; maxExamsPerApplication: number; maxCapacity: number;
+  title?: string; registrationStartDate: Date; registrationEndDate: Date; maxExamsPerApplication: number; maxCapacity: number;
 };
 function validProcess(input: CreateSelectionProcessInput) {
-  if (!Number.isFinite(input.registrationStartDate?.getTime()) || !Number.isFinite(input.registrationEndDate?.getTime()) ||
+  if ((input.title !== undefined && (input.title.trim().length < 3 || input.title.trim().length > 120)) ||
+    !Number.isFinite(input.registrationStartDate?.getTime()) || !Number.isFinite(input.registrationEndDate?.getTime()) ||
     input.registrationEndDate <= input.registrationStartDate || !Number.isInteger(input.maxExamsPerApplication) ||
     input.maxExamsPerApplication < 1 || input.maxExamsPerApplication > 4 ||
     !Number.isInteger(input.maxCapacity) || input.maxCapacity < 0) throw new ClamError('INVALID_PROCESS', 400);
 }
 export async function createSelectionProcess(input: CreateSelectionProcessInput) {
   validProcess(input); await connectToDatabase();
-  const doc = await SelectionProcess.create(input);
+  const doc = await SelectionProcess.create({ ...input, title: input.title?.trim() || undefined });
   return { id: String(doc._id), ...doc.toObject() };
 }
 export async function listSelectionProcesses() {
@@ -45,7 +47,7 @@ export async function updateSelectionProcess(id: string, input: Partial<CreateSe
     const doc = await SelectionProcess.findById(id).session(session);
     if (!doc) return null;
     if (doc.$isDefault('accountingVersion')) throw new ClamError('SELECTIVE_PROCESS_SETUP_REQUIRED', 503);
-    for (const [key, value] of Object.entries(input)) if (value !== undefined) doc.set(key, value);
+    for (const [key, value] of Object.entries(input)) if (value !== undefined) doc.set(key, key === 'title' && typeof value === 'string' ? value.trim() : value);
     validProcess(doc);
     if (doc.maxCapacity < doc.allocatedCount) throw new ClamError('CAPACITY_BELOW_ALLOCATED');
     doc.revision += 1; await doc.save({ session });
@@ -67,17 +69,66 @@ export async function deleteSelectionProcess(id: string) {
     return { id };
   });
 }
-type ExamInput = { name: string; examStartDate: Date; examEndDate: Date };
-function validExam(input: ExamInput) {
-  if (!input.name?.trim() || input.name.length > 200 || !Number.isFinite(input.examStartDate?.getTime()) ||
+export type ExamInput = {
+  source?: 'catalog' | 'custom';
+  academicLeagueId?: string;
+  name?: string;
+  acronym?: string;
+  examStartDate: Date;
+  examEndDate: Date;
+};
+type ResolvedExamInput = {
+  academicLeagueId?: mongoose.Types.ObjectId;
+  name: string;
+  acronym?: string;
+  examStartDate: Date;
+  examEndDate: Date;
+};
+function validExamDates(input: ExamInput) {
+  if (!Number.isFinite(input.examStartDate?.getTime()) ||
       !Number.isFinite(input.examEndDate?.getTime()) || input.examEndDate <= input.examStartDate) throw new ClamError('INVALID_EXAM', 400);
 }
+async function resolveExamInput(input: ExamInput, session: mongoose.ClientSession): Promise<ResolvedExamInput> {
+  validExamDates(input);
+  if (input.source === 'catalog') {
+    if (!input.academicLeagueId || !mongoose.isValidObjectId(input.academicLeagueId)) throw new ClamError('INVALID_ACADEMIC_LEAGUE', 400);
+    const league = await AcademicLeagueModel.findById(input.academicLeagueId).session(session).lean();
+    if (!league) throw new ClamError('ACADEMIC_LEAGUE_NOT_FOUND', 404);
+    const acronym = normalizeLeagueAcronym(league.acronym);
+    if (!acronym) throw new ClamError('INVALID_ACADEMIC_LEAGUE', 422);
+    return {
+      academicLeagueId: new mongoose.Types.ObjectId(input.academicLeagueId),
+      name: league.name.trim(),
+      acronym,
+      examStartDate: input.examStartDate,
+      examEndDate: input.examEndDate,
+    };
+  }
+  const name = input.name?.trim();
+  const acronym = normalizeLeagueAcronym(input.acronym);
+  if (!name || name.length > 200 || (input.source === 'custom' && !acronym)) throw new ClamError('INVALID_EXAM', 400);
+  return { name, acronym, examStartDate: input.examStartDate, examEndDate: input.examEndDate };
+}
+async function ensureExamUnique(selectionProcessId: string, input: ResolvedExamInput, session: mongoose.ClientSession, exceptId?: string) {
+  const alternatives: Record<string, unknown>[] = [];
+  if (input.academicLeagueId) alternatives.push({ academicLeagueId: input.academicLeagueId });
+  if (input.acronym) alternatives.push({ acronym: input.acronym });
+  if (!alternatives.length) alternatives.push({ name: input.name });
+  const duplicate = await Exam.exists({
+    selectionProcessId,
+    ...(exceptId ? { _id: { $ne: exceptId } } : {}),
+    $or: alternatives,
+  }).session(session);
+  if (duplicate) throw new ClamError('DUPLICATE_EXAM', 409);
+}
 export async function createExamForProcess(selectionProcessId: string, input: ExamInput) {
-  validExam(input); await connectToDatabase();
+  validExamDates(input); await connectToDatabase();
   return mongoose.connection.transaction(async session => {
     const p = await SelectionProcess.updateOne({ _id: selectionProcessId }, { $inc: { revision: 1 } }, { session });
     if (!p.matchedCount) throw new ClamError('PROCESS_NOT_FOUND', 404);
-    const [doc] = await Exam.create([{ selectionProcessId, ...input }], { session });
+    const resolved = await resolveExamInput(input, session);
+    await ensureExamUnique(selectionProcessId, resolved, session);
+    const [doc] = await Exam.create([{ selectionProcessId, ...resolved }], { session });
     return { id: String(doc._id), ...doc.toObject() };
   });
 }
@@ -86,10 +137,16 @@ export async function getExamsBySelectionProcess(selectionProcessId: string) {
   return (await Exam.find({ selectionProcessId }).sort({ examStartDate: 1 }).lean()).map(e => ({ id: String(e._id), ...e }));
 }
 export async function updateExamForProcess(selectionProcessId: string, examId: string, input: ExamInput) {
-  validExam(input); await connectToDatabase();
+  validExamDates(input); await connectToDatabase();
   return mongoose.connection.transaction(async session => {
     await SelectionProcess.updateOne({ _id: selectionProcessId }, { $inc: { revision: 1 } }, { session });
-    const doc = await Exam.findOneAndUpdate({ _id: examId, selectionProcessId }, { $set: input }, { new: true, session, runValidators: true }).lean();
+    const resolved = await resolveExamInput(input, session);
+    await ensureExamUnique(selectionProcessId, resolved, session, examId);
+    const doc = await Exam.findOneAndUpdate(
+      { _id: examId, selectionProcessId },
+      { $set: resolved, ...(resolved.academicLeagueId ? {} : { $unset: { academicLeagueId: 1 } }) },
+      { new: true, session, runValidators: true },
+    ).lean();
     return doc ? { id: String(doc._id), ...doc } : null;
   });
 }
