@@ -6,6 +6,13 @@ export interface IEventParticipant {
     _id: ObjectId;
     eventId: ObjectId;
     owner?: ObjectId;
+    profileId?: ObjectId;
+    status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "REVIEW";
+    activePaymentId?: ObjectId;
+    cancelledAt?: Date;
+    cancellationReason?: string;
+    cpfEncrypted?: import("@/lib/profile/crypto").EncryptedCpf;
+    cpfLookup?: string;
     ownerName: string;
     ownerEmail?: string;
     ownerCpf?: string;
@@ -33,6 +40,11 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
             ref: 'EventCertificate',
             required: true,
         },
+        profileId: { type: Schema.Types.ObjectId, ref: "UserProfile" },
+        status: { type: String, enum: ["PENDING", "CONFIRMED", "CANCELLED", "REVIEW"] },
+        activePaymentId: Schema.Types.ObjectId,
+        cancelledAt: Date, cancellationReason: String,
+        cpfEncrypted: Schema.Types.Mixed, cpfLookup: String,
         owner: {
             type: Schema.Types.ObjectId,
             required: false,
@@ -92,8 +104,9 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
     }
 );
 
+EventParticipantSchema.index({eventId:1,profileId:1},{unique:true,partialFilterExpression:{profileId:{$type:"objectId"}},name:"event_profile_unique"});
 export const EventParticipant =
-    mongoose.models.EventParticipant ||
+    (mongoose.models.EventParticipant as mongoose.Model<IEventParticipant> | undefined) ||
     mongoose.model<IEventParticipant>('EventParticipant', EventParticipantSchema);
 
 export default EventParticipant;

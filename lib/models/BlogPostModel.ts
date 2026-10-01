@@ -33,5 +33,5 @@ const BlogPostSchema = new Schema(
   { timestamps: true }
 );
 
-const BlogPostModel = mongoose.models.BlogPost || mongoose.model<IBlogPost>("BlogPost", BlogPostSchema);
+const BlogPostModel = (mongoose.models.BlogPost as mongoose.Model<IBlogPost>|undefined) || mongoose.model<IBlogPost>("BlogPost", BlogPostSchema);
 export default BlogPostModel;

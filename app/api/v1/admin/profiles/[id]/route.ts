@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { ObjectId } from "bson";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -37,7 +38,7 @@ async function admin(request: NextRequest) {
   return new GateKeeper(request).identifyAdmin();
 }
 
-export async function GET(request: NextRequest, { params }: Context) {
+async function GETHandler(request: NextRequest, { params }: Context) {
   try {
     assertProfileCryptoConfigured();
     if (!(await admin(request)))
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest, { params }: Context) {
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: Context) {
+async function PATCHHandler(request: NextRequest, { params }: Context) {
   try {
     assertProfileCryptoConfigured();
     const actor = await admin(request);
@@ -265,3 +266,6 @@ function profileError(error: unknown, method: string) {
     { status: 500, headers },
   );
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const PATCH = withRouteAccess(PATCHHandler);

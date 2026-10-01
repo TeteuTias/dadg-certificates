@@ -1,0 +1,30 @@
+name: Quality
+on:
+  pull_request:
+  push:
+    branches: ["codex/**"]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      DB_ACCESS_DISABLED: "1"
+      MONGODB_URI: "mongodb://127.0.0.1:1/offline_disabled"
+      BACKEND_URL: "http://127.0.0.1:1"
+      AUTH0_DOMAIN: "offline.example.invalid"
+      AUTH0_CLIENT_ID: "offline"
+      AUTH0_CLIENT_SECRET: "offline"
+      AUTH0_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - run: npm run build

@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import CertificateModel from '@/lib/models/CertificateModel';
@@ -9,7 +10,7 @@ import { ObjectId } from 'mongodb';
 type ICertificateUpdate = Pick<ICertificateWithEventPopulate, '_id'> & Partial<Omit<ICertificateWithEventPopulate, '_id'>>;
 
 
-export async function PUT(request: Request) {
+async function PUTHandler(request: Request) {
     try {
         // Conecta ao banco de dados
         await connectToDatabase();
@@ -72,3 +73,5 @@ export async function PUT(request: Request) {
         );
     }
 }
+
+export const PUT = withRouteAccess(PUTHandler);

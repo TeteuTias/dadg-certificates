@@ -1,9 +1,10 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import EventCertificateModel, { IEventCertificate } from '@/lib/models/EventCertificateModel';
 import { buildEventStatusDetails } from '@/lib/events/statusDetails';
 
-export async function PUT(request: Request) {
+async function PUTHandler(request: Request) {
     try {
         await connectToDatabase();
 
@@ -30,7 +31,11 @@ export async function PUT(request: Request) {
             statusDetails,
             ...restUpdateData
         } = formData;
-        const updateData = restUpdateData as Partial<IEventCertificate>;
+        const allowed = ["eventName","eventDescription","eventType","eventBenefits","styleContainer","styleContainerVerse","styleFrontTopperText","styleFrontBottomText","styleNameText","templatePath","templateVersePath","maxParticipants","certificateHours","isPaid","price","useStatementFormat"];
+        const updateData = Object.fromEntries(Object.entries(restUpdateData).filter(([key])=>allowed.includes(key))) as Partial<IEventCertificate>;
+        const existing = await EventCertificateModel.findById(_id).lean();
+        if (existing && updateData.maxParticipants !== undefined && updateData.maxParticipants < (existing.registrationCount || 0)) return NextResponse.json({success:false,message:"Capacidade inferior às vagas já ocupadas."},{status:409});
+        if (existing?.registrationCount && (updateData.isPaid !== undefined && updateData.isPaid !== existing.isPaid || updateData.price !== undefined && updateData.price !== existing.price)) return NextResponse.json({success:false,message:"Não altere o preço de um evento com inscrições."},{status:409});
 
         if (typeof _id !== 'string') {
             return NextResponse.json(
@@ -59,15 +64,15 @@ export async function PUT(request: Request) {
         }
 
         const update = await EventCertificateModel.findOneAndUpdate(
-            { _id },
+            { _id, registrationCount: existing?.registrationCount ?? {$exists:false} },
             { $set: updateData },
             { new: true, runValidators: true }
         ).lean();
 
         if (!update) {
             return NextResponse.json(
-                { success: false, message: 'Certificado não encontrado ou atualização falhou.' },
-                { status: 404 }
+                { success: false, message: 'Evento alterado simultaneamente. Atualize os dados e tente novamente.' },
+                { status: 409 }
             );
         }
         return NextResponse.json({ success: true, data: update });
@@ -83,3 +88,5 @@ export async function PUT(request: Request) {
         );
     }
 }
+
+export const PUT = withRouteAccess(PUTHandler);

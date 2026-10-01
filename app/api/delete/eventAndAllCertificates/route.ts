@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { DeleteEventAndAllCertificates } from "@/lib/models/src/certificatesHandler/delete/deleteEventAndAllCertificates";
 //
 //
 //
-export async function DELETE(request: Request) {
+async function DELETEHandler(request: Request) {
 
     const formData = await request.formData();
     const eventId = formData.get("eventId")
@@ -15,8 +16,9 @@ export async function DELETE(request: Request) {
     const formatedEventId = new ObjectId(eventId)
     const deletedEvent = await DeleteEventAndAllCertificates(formatedEventId)
     if (!deletedEvent) {
-        return NextResponse.json({ message: "Não foi possível apagar o evento." }, { status: 500 })
+        return NextResponse.json({ message: "Não foi possível arquivar o evento." }, { status: 500 })
     }
 
-    return NextResponse.json({ "message": "Seu evento e TODOS OS CERTIFICADOS ASSOCIADOS A ELE foram apagados com sucesso" })
+    return NextResponse.json({ "message": "Evento arquivado. Certificados e participantes foram preservados." })
 }
+export const DELETE = withRouteAccess(DELETEHandler);

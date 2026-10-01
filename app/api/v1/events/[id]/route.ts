@@ -1,15 +1,16 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import EventCertificateModel from "@/lib/models/EventCertificateModel";
 
-//  export async function GET(req: NextRequest, { params }: { params: { search: string } }) {
+//  async function GETHandler(req: NextRequest, { params }: { params: { search: string } }) {
 
 export const dynamic = 'force-dynamic'
 
 
 
-export async function GET(req: NextRequest, {
+async function GETHandler(req: NextRequest, {
     params,
 }: {
     params: Promise<{ id: string }>
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest, {
 
     const events = await EventCertificateModel.findOne({
         _id: searchId,
-        isReady: true, // Certificados prontos,
+        archivedAt: { $exists: false }, "statusDetails.status": { $ne: "DRAFT" },
     })
     return NextResponse.json({ "data": events, })
 }
+export const GET = withRouteAccess(GETHandler);

@@ -1,55 +1,59 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import ScanTemplateModel from '@/lib/models/ScanTemplate';
-import { connectToDatabase } from '@/lib/mongodb';
-
-//
-const s3Client = new S3Client({
-    // O 'region' é obrigatório, 'auto' é o valor correto para o R2.
-    region: 'auto',
-
-    // Usando a URL completa do endpoint diretamente.
-    endpoint: process.env.R2_ENDPOINT_URL!,
-
-    // Usando as novas chaves para as credenciais.
-    credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY!,
-        secretAccessKey: process.env.R2_SECRET_KEY!,
-    },
-});
-
-export async function POST(request: Request) {
-    //
-    //
-
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    if (!file) {
-        return new Response(JSON.stringify({ message: 'No file uploaded' }), { status: 400 });
+import sharp from "sharp";
+import { PDFDocument } from "pdf-lib";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { NextRequest } from "next/server";
+import { withRouteAccess } from "@/lib/security/route-access";
+import ScanTemplate from "@/lib/models/ScanTemplate";
+import { connectToDatabase } from "@/lib/mongodb";
+import { r2 } from "@/lib/certificates/storage";
+import { templateFormat } from "@/lib/certificates/file-validation";
+export const POST = withRouteAccess(async (request: NextRequest) => {
+  if (Number(request.headers.get("content-length")) > 11 * 1024 * 1024)
+    return Response.json({ message: "Arquivo muito grande." }, { status: 413 });
+  const file = (await request.formData()).get("file");
+  if (!(file instanceof File) || file.size > 10 * 1024 * 1024)
+    return Response.json(
+      { message: "Envie um arquivo de até 10 MB." },
+      { status: 400 },
+    );
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let format;
+  try {
+    format = templateFormat(bytes);
+    if (format.extension === "pdf") {
+      const pdf = await PDFDocument.load(bytes);
+      if (pdf.getPageCount() < 1 || pdf.getPageCount() > 50)
+        throw new Error("O PDF deve ter de 1 a 50 páginas.");
+    } else {
+      await sharp(bytes, { limitInputPixels: 40000000, failOn: "warning" })
+        .png()
+        .toBuffer();
     }
-    //
-    //
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    //
-    await connectToDatabase()
-    const scanTemplate = new ScanTemplateModel({
-        // Preencha os campos necessários para o modelo
-        templateExtension: file.name.split(".").reverse()[0]
-    });
-    await scanTemplate.save();
-
-    const filename = `${scanTemplate.id.toString()}.${file.name.split(".").reverse()[0]}`;
-    const putCommand = new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME!,
-        Key: `${process.env.R2_SUBFOLDER}/${filename}`,
-        Body: buffer,
-        ContentType: file.type,
-    });
-
-    await s3Client.send(putCommand);
-
-    // Aqui você pode processar o arquivo, salvá-lo em um armazenamento, etc.
-    // Por simplicidade, vamos apenas retornar o nome do arquivo.
-
-    return new Response(JSON.stringify({ message: 'File uploaded successfully', fileId: `${scanTemplate._id}` }), { status: 200 });
-}
+  } catch (e) {
+    return Response.json({ message: (e as Error).message }, { status: 400 });
+  }
+  const template = new ScanTemplate({ templateExtension: format.extension });
+  const key = `${process.env.R2_SUBFOLDER}/${template._id}.${format.extension}`;
+  const client = r2();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+      Body: bytes,
+      ContentType: format.mime,
+    }),
+  );
+  try {
+    await connectToDatabase();
+    await template.save();
+  } catch (e) {
+    await client.send(
+      new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key }),
+    );
+    throw e;
+  }
+  return Response.json({
+    message: "Arquivo enviado.",
+    fileId: String(template._id),
+  });
+});

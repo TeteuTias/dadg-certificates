@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server";
 import {
   getAppsScriptTipo,
@@ -24,7 +25,7 @@ function buildSuccessFallback(data: Parameters<typeof resolveAvisoTargetEmails>[
   };
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   let body: unknown;
 
   try {
@@ -157,3 +158,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export const POST = withRouteAccess(POSTHandler);

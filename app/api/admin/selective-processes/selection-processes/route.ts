@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { clamFailure } from '@/lib/selective-processes/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
@@ -8,7 +9,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
   } catch (error) { return clamFailure(error); }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -65,3 +66,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) { return clamFailure(error); }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const POST = withRouteAccess(POSTHandler);

@@ -43,6 +43,9 @@ interface Meta {
     absent: number;
 }
 
+type QrDecoder=(data:Uint8ClampedArray,width:number,height:number,options:{inversionAttempts:string})=>{data:string}|null;
+declare global {interface Window {jsQR?:QrDecoder}}
+
 type ScanState = "idle" | "scanning" | "validating" | "success" | "error" | "duplicate";
 
 interface ScanResult {
@@ -72,7 +75,7 @@ export default function PresencaPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animFrameRef = useRef<number | null>(null);
-    const jsQRRef = useRef<any>(null);
+    const jsQRRef = useRef<QrDecoder|null>(null);
 
     // Walk-in modal
     const [showWalkin, setShowWalkin] = useState(false);
@@ -100,10 +103,10 @@ export default function PresencaPage() {
     // Carrega jsQR via CDN (sem dependência extra)
     useEffect(() => {
         if (typeof window === "undefined") return;
-        if ((window as any).jsQR) { jsQRRef.current = (window as any).jsQR; return; }
+        if (window.jsQR) { jsQRRef.current = window.jsQR ?? null; return; }
         const script = document.createElement("script");
         script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
-        script.onload = () => { jsQRRef.current = (window as any).jsQR; };
+        script.onload = () => { jsQRRef.current = window.jsQR ?? null; };
         document.head.appendChild(script);
     }, []);
 
@@ -112,36 +115,7 @@ export default function PresencaPage() {
         if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
     }, []);
 
-    const scanFrame = useCallback(() => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const jsQR = jsQRRef.current;
-        if (!video || !canvas || !jsQR || video.readyState !== video.HAVE_ENOUGH_DATA) {
-            animFrameRef.current = requestAnimationFrame(scanFrame); return;
-        }
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-        if (code?.data) { stopCamera(); handleQRDetected(code.data); return; }
-        animFrameRef.current = requestAnimationFrame(scanFrame);
-    }, [stopCamera]);
-
-    const startCamera = async () => {
-        setScanState("scanning"); setScanResult(null); setScanError("");
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            streamRef.current = stream;
-            if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-            animFrameRef.current = requestAnimationFrame(scanFrame);
-        } catch {
-            setScanState("error"); setScanError("Não foi possível acessar a câmera. Verifique as permissões.");
-        }
-    };
-
-    const handleQRDetected = async (token: string) => {
+    const handleQRDetected = useCallback(async (token: string) => {
         setScanState("validating");
         try {
             const scanRes = await fetch(`/api/v1/events/${eventId}/checkin/scan?token=${encodeURIComponent(token)}`);
@@ -173,6 +147,35 @@ export default function PresencaPage() {
             setScanState("success"); setScanResult(participantData);
             await fetchParticipants();
         } catch { setScanState("error"); setScanError("Erro de conexão ao validar QR Code."); }
+    }, [eventId, scanMode, fetchParticipants]);
+
+    const scanFrame = useCallback(() => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const jsQR = jsQRRef.current;
+        if (!video || !canvas || !jsQR || video.readyState !== video.HAVE_ENOUGH_DATA) {
+            animFrameRef.current = requestAnimationFrame(scanFrame); return;
+        }
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        if (code?.data) { stopCamera(); handleQRDetected(code.data); return; }
+        animFrameRef.current = requestAnimationFrame(scanFrame);
+    }, [stopCamera, handleQRDetected]);
+
+    const startCamera = async () => {
+        setScanState("scanning"); setScanResult(null); setScanError("");
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            streamRef.current = stream;
+            if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
+            animFrameRef.current = requestAnimationFrame(scanFrame);
+        } catch {
+            setScanState("error"); setScanError("Não foi possível acessar a câmera. Verifique as permissões.");
+        }
     };
 
     const resetScanner = () => { stopCamera(); setScanState("idle"); setScanResult(null); setScanError(""); };
@@ -198,7 +201,7 @@ export default function PresencaPage() {
     const filteredParticipants = participants.filter(p => {
         const matchesFilter = filter === "all" || (filter === "checkedIn" && p.checkedIn) || (filter === "absent" && !p.checkedIn);
         const q = searchQuery.toLowerCase();
-        const matchesSearch = !q || p.ownerName.toLowerCase().includes(q) || p.ownerEmail.toLowerCase().includes(q) || p.ownerCpf.includes(q);
+        const matchesSearch = !q || p.ownerName.toLowerCase().includes(q) || p.ownerEmail.toLowerCase().includes(q) || (p.ownerCpf||"").includes(q);
         return matchesFilter && matchesSearch;
     });
     return (
@@ -213,6 +216,15 @@ export default function PresencaPage() {
                         <p className="presenca-subtitle">Confirme as presenças com QR Code ou manualmente e libere os certificados ao final.</p>
                     </div>
                     <div className="presenca-header-actions">
+                        <Link href={`/event-payments?eventId=${eventId}`} className="glass-button">Pagamentos</Link>
+                        <Link href="/certificate-claims" className="glass-button">Revisar vínculos antigos</Link>
+                        <button className="glass-button" onClick={async()=>{
+                          const preview=await fetch(`/api/v1/events/${eventId}/certificates`);const summary=await preview.json();
+                          if(!preview.ok){alert(summary.error||"Não foi possível verificar os participantes.");return;}
+                          if(!window.confirm(`Liberar certificados para ${summary.eligible} participantes com entrada e saída? Cada execução processa até 100.`))return;
+                          const response=await fetch(`/api/v1/events/${eventId}/certificates`,{method:"POST"});const result=await response.json();
+                          alert(response.ok?`${result.issued} processados; ${result.remaining} restantes.`:result.error||"Erro ao emitir certificados.");
+                        }}>Liberar certificados de presença</button>
                         <Link href={`/todosCertificados/${eventId}`} target="_blank" className="glass-button presenca-certs-link">
                             <ExternalLink size={15} />Ver certificados (fluxo manual)
                         </Link>

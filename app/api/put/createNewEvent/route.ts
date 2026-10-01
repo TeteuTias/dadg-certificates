@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server"
 import CreateNewEvent from "@/lib/models/src/certificatesHandler/put/CreateNewEvent";
 import { connectToDatabase } from "@/lib/mongodb";
 import type { IEventCertificate } from "@/lib/models/EventCertificateModel";
 import { buildEventStatusDetails } from "@/lib/events/statusDetails";
 
-export async function PUT(request: Request) {
+async function PUTHandler(request: Request) {
     const formData = await request.formData();
 
     // Configurando os campos do front
@@ -173,3 +174,5 @@ export async function PUT(request: Request) {
         return NextResponse.json({ message: "Erro interno ao salvar no banco de dados." }, { status: 500 });
     }
 }
+
+export const PUT = withRouteAccess(PUTHandler);

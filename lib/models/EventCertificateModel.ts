@@ -57,6 +57,7 @@ export type IEventCertificate = {
     styleFrontBottomText: React.CSSProperties;
     styleNameText: React.CSSProperties;
     registrationCount: number;
+    archivedAt?: Date;
     templatePath: string;
     templateVersePath?: string;
     // Informações Gerais e Regras
@@ -100,6 +101,7 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
 
         eventType: { type: String, required: true },
         eventBenefits: { type: String, required: false },
+        archivedAt: Date,
         registrationCount: { type: Number, required: true, default: 0 },
         documentVersion: { type: String, required: false, default: "2.0" },
         maxParticipants: { type: Number, required: true },
@@ -110,7 +112,7 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
         isPaid: { type: Boolean, required: true },
         price: {
             type: Number,
-            required: function (this: any) {
+            required: function (this: IEventCertificate) {
                 return this.isPaid === true;
             }
         },
@@ -125,18 +127,18 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
             },
             registrationStartDate: {
                 type: Date,
-                required: function (this: any) {
+                required: function (this: IEventCertificate) {
                     // Obrigatório se o admin disser que está aberto
                     return this.statusDetails?.status === 'PUBLISHED_OPEN';
                 }
             },
             registrationEndDate: {
                 type: Date,
-                required: function (this: any) {
+                required: function (this: IEventCertificate) {
                     return this.statusDetails?.status === 'PUBLISHED_OPEN';
                 },
                 validate: {
-                    validator: function (this: any, val: Date) {
+                    validator: function (this: IEventCertificate, val: Date) {
                         if (this.statusDetails?.status === 'PUBLISHED_OPEN' && this.statusDetails?.registrationStartDate) {
                             return val > this.statusDetails.registrationStartDate;
                         }
@@ -148,12 +150,12 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
             timeLine: {
                 type: [TimelineItemSchema],
                 default: undefined,
-                required: function (this: any) {
+                required: function (this: IEventCertificate) {
                     // A timeline é obrigatória para qualquer status que não seja rascunho
                     return this.statusDetails?.status !== 'DRAFT';
                 },
                 validate: {
-                    validator: function (this: any, val: any[]) {
+                    validator: function (this: IEventCertificate, val: unknown[]) {
                         // Validação extra: se não for DRAFT, o array não pode estar vazio
                         if (this.statusDetails?.status !== 'DRAFT') {
                             return Array.isArray(val) && val.length > 0;

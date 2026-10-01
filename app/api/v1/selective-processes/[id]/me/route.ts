@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { identifyStudentOwner } from '@/lib/selective-processes/student-identity';
@@ -11,7 +12,7 @@ type Context = { params: Promise<{ id: string }> };
  * Situação do candidato logado no processo seletivo: se já tem inscrição,
  * se o pagamento foi confirmado e quais ligas ele já escolheu.
  */
-export async function GET(request: NextRequest, { params }: Context) {
+async function GETHandler(request: NextRequest, { params }: Context) {
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -38,3 +39,5 @@ export async function GET(request: NextRequest, { params }: Context) {
     return NextResponse.json({ success: false, error: 'APPLICATION_STATE_FAILED' }, { status: 500 });
   }
 }
+
+export const GET = withRouteAccess(GETHandler);

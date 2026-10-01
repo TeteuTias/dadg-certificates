@@ -150,6 +150,7 @@ export default function Header() {
         }`}
       >
         <nav className="header-nav" ref={headerNavRef}>
+<Link href="/certificate-claims">Vínculos de certificados</Link>
           <div className="header-topbar">
             <Link
               href="/"

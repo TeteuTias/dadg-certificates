@@ -1,37 +1,17 @@
-import EventCertificateModel from "@/lib/models/EventCertificateModel";
-import { IEventCertificate } from "@/lib/models/EventCertificateModel";
-import CertificateModel from "@/lib/models/CertificateModel";
+import mongoose from "mongoose";
+import Event from "@/lib/models/EventCertificateModel";
 import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/lib/mongodb";
-import CreateNewModificationHistory from "../put/CreateNewModificationHistory";
-import { getUserId } from "@/lib/getUserId";
 import { auth0 } from "@/lib/auth0";
-
-//
-//
-export async function DeleteEventAndAllCertificates(eventId: ObjectId): Promise<IEventCertificate | null> {
-    await connectToDatabase()
-    const deletedDocument = await EventCertificateModel.findOneAndDelete({ _id: new ObjectId(eventId) }).lean();
-    await CertificateModel.deleteMany({ eventId: eventId })
- 
-
-
-    const userId = await getUserId()
-    const user = await auth0.getSession()
-
-
-    const userName = await user?.user.nickname
-
-    await CreateNewModificationHistory({
-        modifiedElementId: new ObjectId(eventId),
-        modifiedUserId: new ObjectId(userId),
-        modifiedDocumentType: "event",
-        userName: `${userName}`,
-        modificationDate: new Date(),
-        description: `O evento de ID: ${deletedDocument?._id}, de nome: ${deletedDocument?.eventName}, foi apagado em: ${new Date().toLocaleString()} pelo usuário de email: ${user?.user.email} e usuário: ${userName} e Identificação: ${userId}. A descrição do evento apagado era: " ${deletedDocument?.eventDescription} ". TODOS OS CERTIFICADOS ASSOCIADOS A ESSE EVENTO FORAM APAGADOS PERMANENTEMENTE JUNTO AO EVENTO.`,
-        httpMethods: "delete"
-    })
-
-    return deletedDocument
-
+import { isAdmin } from "@/lib/security/isAdmin";
+import { EventAudit } from "@/lib/events/Audit";
+export async function DeleteEventAndAllCertificates(eventId:ObjectId){
+ const actor=await auth0.getSession();if(!actor?.user||!isAdmin(actor.user))throw new Error("FORBIDDEN");
+ await connectToDatabase();const session=await mongoose.startSession();
+ try{return await session.withTransaction(async()=>{
+  const event=await Event.findById(eventId).session(session);if(!event)return null;
+  if(!event.archivedAt){event.archivedAt=new Date();event.statusDetails.status="PUBLISHED_CLOSED";await event.save({session});
+   await EventAudit.create([{eventId,actor:actor.user.sub,action:"event.archived",details:"Certificates and participants preserved"}],{session});}
+  return event.toObject();
+ });}finally{await session.endSession();}
 }

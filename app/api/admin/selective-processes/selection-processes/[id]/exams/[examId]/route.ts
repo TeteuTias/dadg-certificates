@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { clamFailure } from '@/lib/selective-processes/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 type Context = { params: Promise<{ id: string; examId: string }> };
 
-export async function PUT(request: NextRequest, { params }: Context) {
+async function PUTHandler(request: NextRequest, { params }: Context) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -44,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: Context) {
   } catch (error) { return clamFailure(error); }
 }
 
-export async function DELETE(request: NextRequest, { params }: Context) {
+async function DELETEHandler(request: NextRequest, { params }: Context) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -63,3 +64,6 @@ export async function DELETE(request: NextRequest, { params }: Context) {
 
   } catch (error) { return clamFailure(error); }
 }
+
+export const PUT = withRouteAccess(PUTHandler);
+export const DELETE = withRouteAccess(DELETEHandler);

@@ -29,7 +29,7 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import "./page.css";
 import GetUserCertificateByEventId from "@/lib/models/src/certificatesHandler/get/GetUserCertificateByEventId";
-import { ICertificate } from "@/lib/models/CertificateModel";
+
 
 type ViewMode = "overview" | "settings";
 type ModalState = IModalProps & { isOpen: boolean };
@@ -1016,7 +1016,7 @@ function VisualEditor({
     onBack: () => void;
     onSaved: (styles: VisualStyles) => void;
 }) {
-    const [certificate, setCertificate] = useState<ICertificate | null>(null);
+    const [certificate, setCertificate] = useState<{_id:string;ownerName:string;frontTopperText?:string;frontBottomText?:string} | null>(null);
     const [saving, setSaving] = useState(true);
     const [feedback, setFeedback] = useState("");
     const [liveTopperText, setLiveTopperText] = useState("Certificamos que");
@@ -1072,7 +1072,7 @@ function VisualEditor({
         }
     };
     useEffect(() => {
-        GetUserCertificateByEventId(new ObjectId(eventData._id)).then((cert) => {
+        GetUserCertificateByEventId(String(eventData._id)).then((cert) => {
             setCertificate(cert);
             if (cert) {
                 setLiveTopperText(cert.frontTopperText ?? "Certificamos que");
@@ -1081,7 +1081,7 @@ function VisualEditor({
             setSaving(false);
         })
 
-    }, [])
+    }, [eventData._id])
     return (
         <main className="event-editor-page" style={PoppinsFontLib.style}>
             {saving && <LoadingModal />}
@@ -1208,7 +1208,7 @@ function VisualEditor({
                                 >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                        src={certificate?._id ? `https://www.dadg.com.br/api/get/templateProxy/${certificate._id}|front?t=${Date.now()}` : `https://www.dadg.com.br/api/get/templateProxy/698afa75b745573f14c27605|front?t=${Date.now()}`}
+                                        src={`/api/v1/admin/events/${eventData._id}/template`}
                                         alt="Preview do certificado"
                                         className="event-editor-image"
                                     />

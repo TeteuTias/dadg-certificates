@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import {
@@ -14,7 +15,7 @@ import GateKeeper from "@/lib/security/gatekeeper";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     assertProfileCryptoConfigured();
     const user = await new GateKeeper(request).identifyStudent();
@@ -54,3 +55,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withRouteAccess(GETHandler);

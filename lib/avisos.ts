@@ -150,7 +150,8 @@ export function isAvisoAllowedForType(tipo: AvisoTipo, aviso: AvisoCode): boolea
   return AVISO_GROUPS[tipo].some((option) => option.value === aviso);
 }
 
-export function getAppsScriptTipo(tipo: AvisoTipo, aviso: AvisoCode): AvisoTipo {
+export function getAppsScriptTipo(tipo: AvisoTipo, ..._compat: [AvisoCode]): AvisoTipo {
+  void _compat;
   return tipo;
 }
 

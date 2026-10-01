@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'bson';
 import EventParticipant from '@/lib/models/EventParticipant';
@@ -12,7 +13,7 @@ interface RouteParams {
  * @description Retorna a lista completa de participantes inscritos em um evento, com status de check-in.
  * Usado pela tela de presença no painel admin. Acesso restrito.
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function GETHandler(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const { searchParams } = new URL(request.url);
         const checkedInFilter = searchParams.get('checkedIn');
 
-        const query: Record<string, any> = { eventId: new ObjectId(id) };
+        const query: Record<string, unknown> = { eventId: new ObjectId(id), status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] } };
         if (checkedInFilter === 'true') query.checkedIn = true;
         if (checkedInFilter === 'false') query.checkedIn = false;
 
@@ -40,8 +41,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             .sort({ ownerName: 1 })
             .lean();
 
-        const totalCheckedIn = await EventParticipant.countDocuments({ eventId: new ObjectId(id), checkedIn: true });
-        const totalParticipants = await EventParticipant.countDocuments({ eventId: new ObjectId(id) });
+        const totalCheckedIn = await EventParticipant.countDocuments({ eventId: new ObjectId(id), status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] }, checkedIn: true });
+        const totalParticipants = await EventParticipant.countDocuments({ eventId: new ObjectId(id), status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] } });
 
         return NextResponse.json({
             success: true,
@@ -53,8 +54,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             }
         }, { status: 200 });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[PARTICIPANTS_GET]', error);
         return NextResponse.json({ success: false, error: 'Erro interno ao buscar participantes.' }, { status: 500 });
     }
 }
+
+export const GET = withRouteAccess(GETHandler);

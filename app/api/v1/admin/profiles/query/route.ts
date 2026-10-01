@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import type { FilterQuery, Types } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -22,7 +23,7 @@ const headers = { "Cache-Control": "private, no-store" };
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
     assertProfileCryptoConfigured();
     if (!(await new GateKeeper(request).identifyAdmin())) {
@@ -134,3 +135,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRouteAccess(POSTHandler);

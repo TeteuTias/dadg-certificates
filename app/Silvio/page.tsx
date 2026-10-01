@@ -173,7 +173,7 @@ export default function SilvioPage() {
 
       <section className="silvio-dashboard">
         <div className="silvio-quote-panel">
-          <p className="silvio-quote-mark">"</p>
+          <p className="silvio-quote-mark">&quot;</p>
           <h2>Onde Silvio chega, a ocasião cresce junto.</h2>
           <p className="silvio-quote-text">
             Tem presença que não precisa ser anunciada duas vezes. A postura, o respeito e a energia fazem o

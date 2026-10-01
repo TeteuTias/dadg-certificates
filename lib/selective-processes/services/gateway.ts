@@ -36,6 +36,7 @@ export function webhookNotificationUrl(): string {
 }
 
 export class MpGateway implements Gateway {
+  constructor(private readonly eventTitle?: string) {}
   private async request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
     const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
     if (!token) throw new ClamError('PAYMENT_CONFIGURATION_ERROR', 503);
@@ -48,14 +49,18 @@ export class MpGateway implements Gateway {
     return response.json() as Promise<T>;
   }
   async create(reference: string, contract: Contract, payer: Payer, expiresAt: Date) {
-    const notification = webhookNotificationUrl();
+    const notification = this.eventTitle ? `${process.env.APP_BASE_URL?.replace(/\/$/, "")}/api/events/webhook` : webhookNotificationUrl();
     if (!notification.startsWith('https://') || !process.env.MERCADOPAGO_WEBHOOK_SECRET) throw new ClamError('PAYMENT_CONFIGURATION_ERROR', 503);
     const pref = await this.request<Preference>('/checkout/preferences', 'POST', {
-      external_reference: reference, items: [{ id: reference, title: `Inscrição CLAM — ${contract.examsCount} liga(s)`,
+      external_reference: reference, items: [{ id: reference, title: this.eventTitle || `Inscrição CLAM — ${contract.examsCount} liga(s)`,
         quantity: 1, currency_id: contract.currency, unit_price: contract.amountCents / 100 }],
       payer: { email: payer.email, first_name: payer.name, identification: { type: 'CPF', number: payer.cpf } },
       notification_url: notification, auto_return: 'approved',
-      back_urls: { success: process.env.MERCADOPAGO_BACK_URL_SUCCESS, pending: process.env.MERCADOPAGO_BACK_URL_PENDING, failure: process.env.MERCADOPAGO_BACK_URL_FAILURE },
+      back_urls: this.eventTitle ? {
+        success: `${(process.env.STUDENT_SITE_URL || "https://www.dadg.com.br").replace(/\/$/, "")}/perfil`,
+        pending: `${(process.env.STUDENT_SITE_URL || "https://www.dadg.com.br").replace(/\/$/, "")}/perfil`,
+        failure: `${(process.env.STUDENT_SITE_URL || "https://www.dadg.com.br").replace(/\/$/, "")}/perfil`,
+      } : { success: process.env.MERCADOPAGO_BACK_URL_SUCCESS, pending: process.env.MERCADOPAGO_BACK_URL_PENDING, failure: process.env.MERCADOPAGO_BACK_URL_FAILURE },
       expires: true, expiration_date_from: new Date().toISOString(), expiration_date_to: expiresAt.toISOString(),
     });
     if (!pref.id || !pref.init_point || new URL(pref.init_point).protocol !== 'https:') throw new ClamError('PAYMENT_PROVIDER_UNAVAILABLE', 503);

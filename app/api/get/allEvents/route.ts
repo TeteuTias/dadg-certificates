@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server"
 import GetAllEvents from "@/lib/models/src/certificatesHandler/get/GetAllEvents"
 
 export const dynamic = 'force-dynamic'
 
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get("page") || "1");
     const limit = Number(searchParams.get("limit") || "48");
@@ -18,3 +19,5 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data)
 }
+
+export const GET = withRouteAccess(GETHandler);

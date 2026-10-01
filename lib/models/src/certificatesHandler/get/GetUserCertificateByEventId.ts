@@ -1,29 +1,12 @@
 "use server";
-import CertificateModel, { ICertificate } from "@/lib/models/CertificateModel";
+import Certificate from "@/lib/models/CertificateModel";
 import { connectToDatabase } from "@/lib/mongodb";
 import { ObjectId } from "bson";
-
-export default async function GetUserCertificateByEventId(
-    eventId: string | ObjectId, // Aceitar string facilita a chamada do Client
-): Promise<ICertificate | null> {
-    await connectToDatabase();
-
-    const certificate = await CertificateModel.findOne({
-        eventId: new ObjectId(eventId),
-    }).lean();
-
-    if (!certificate) {
-        return null;
-    }
-
-    // Criamos um objeto novo "limpo" para o Client
-    return {
-        ...certificate,
-        //@ts-expect-error: O campo _id é do tipo ObjectId, mas para o Client é mais fácil trabalhar com string
-        _id: certificate._id.toString(),
-        //@ts-expect-error: O campo eventId é do tipo ObjectId, mas para o Client é mais fácil trabalhar com string
-        eventId: certificate.eventId.toString(),
-        // Se houver campos de data, converta-os também:
-        // createdAt: certificate.createdAt?.toISOString(),
-    };
+import { auth0 } from "@/lib/auth0";
+import { isAdmin } from "@/lib/security/isAdmin";
+export default async function GetUserCertificateByEventId(eventId:string|ObjectId):Promise<{_id:string;ownerName:string;frontTopperText?:string;frontBottomText?:string}|null>{
+ const session=await auth0.getSession();if(!session?.user||!isAdmin(session.user))throw new Error("FORBIDDEN");
+ if(!ObjectId.isValid(eventId))return null;await connectToDatabase();
+ const certificate=await Certificate.findOne({eventId:new ObjectId(eventId)}).select("_id ownerName frontTopperText frontBottomText").lean();
+ return certificate?{_id:String(certificate._id),ownerName:certificate.ownerName,frontTopperText:certificate.frontTopperText,frontBottomText:certificate.frontBottomText}:null;
 }

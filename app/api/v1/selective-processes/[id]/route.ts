@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { getSelectionProcessForStudents } from '@/lib/selective-processes/services/studentSelectiveProcesses';
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ id: string }> };
 
 /** Detalhe público de um processo seletivo, com as ligas e a tabela de preços. */
-export async function GET(request: NextRequest, { params }: Context) {
+async function GETHandler(request: NextRequest, { params }: Context) {
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -29,3 +30,5 @@ export async function GET(request: NextRequest, { params }: Context) {
     return NextResponse.json({ success: false, error: 'SELECTION_PROCESS_FAILED' }, { status: 500 });
   }
 }
+
+export const GET = withRouteAccess(GETHandler);

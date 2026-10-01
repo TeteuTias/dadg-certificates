@@ -1,161 +1,142 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ObjectId } from 'bson';
-import EventParticipant from '@/lib/models/EventParticipant';
-import GateKeeper from '@/lib/security/gatekeeper';
-import { connectToDatabase } from '@/lib/mongodb';
+import mongoose from "mongoose";
 
-interface RouteParams {
-    params: Promise<{ id: string; participantId: string }>;
-}
+import { NextRequest } from "next/server";
 
-/**
- * @description Registra check-in, check-out ou remove manualmente a presença de um participante.
- * PATCH /api/v1/events/[id]/registration/[participantId]/checkin
- * Apenas admins autenticados podem chamar este endpoint.
- */
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+import { withRouteAccess } from "@/lib/security/route-access";
+
+import Participant from "@/lib/models/EventParticipant";
+
+import GateKeeper from "@/lib/security/gatekeeper";
+
+import { connectToDatabase } from "@/lib/mongodb";
+
+import { EventAudit } from "@/lib/events/Audit";
+
+import { EventError } from "@/lib/events/rules";
+
+export const PATCH = withRouteAccess(
+  async (
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string; participantId: string }> },
+  ) => {
+    const { id, participantId } = await params;
+
+    if (!/^[a-f0-9]{24}$/i.test(id) || !/^[a-f0-9]{24}$/i.test(participantId))
+      return Response.json(
+        { error: "Identificador inválido." },
+        { status: 400 },
+      );
+
+    const body = await request.json().catch(() => ({}));
+    const mode = body.mode || "checkin";
+
+    if (!["checkin", "checkout", "reset"].includes(mode))
+      return Response.json({ error: "Ação inválida." }, { status: 400 });
+
+    const actor = await new GateKeeper(request).identifyAdmin();
+
+    await connectToDatabase();
+    const session = await mongoose.startSession();
+
     try {
-        const { id, participantId } = await params;
+      const data = await session.withTransaction(async () => {
+        const participant = await Participant.findOne({
+          _id: participantId,
+          eventId: id,
+          status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] },
+        }).session(session);
 
-        if (!ObjectId.isValid(id)) {
-            return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
-        }
-        if (!ObjectId.isValid(participantId)) {
-            return NextResponse.json({ success: false, error: 'ID de participante inválido' }, { status: 400 });
-        }
+        if (!participant)
+          throw new EventError(
+            "PARTICIPANT_NOT_FOUND",
+            404,
+            "Participante não disponível neste evento.",
+          );
 
-        const keeper = new GateKeeper(request);
-        const user = await keeper.identifySession();
-        if (!user) {
-            return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
-        }
+        if (participant.certificateId)
+          throw new EventError(
+            "CERTIFICATE_ALREADY_ISSUED",
+            409,
+            "Presença protegida: certificado já emitido.",
+          );
 
-        let mode = 'checkin';
-        try {
-            const body = await request.json();
-            if (body && body.mode) {
-                mode = body.mode;
-            }
-        } catch (e) {
-            // body is optional, default to checkin
-        }
-        if (!['checkin', 'checkout', 'reset'].includes(mode)) {
-            return NextResponse.json({ success: false, error: 'Ação de presença inválida.' }, { status: 400 });
-        }
+        if (mode === "reset") {
+          participant.checkedIn = false;
+          participant.checkedOut = false;
+          participant.checkedInAt = null;
+          participant.checkedOutAt = null;
+        } else if (mode === "checkout") {
+          if (!participant.checkedIn)
+            throw new EventError(
+              "CHECKIN_REQUIRED",
+              409,
+              "Registre a entrada antes da saída.",
+            );
 
-        await connectToDatabase();
+          if (participant.checkedOut)
+            throw new EventError(
+              "ALREADY_CHECKED_OUT",
+              409,
+              "Saída já registrada.",
+            );
 
-        const participant = await EventParticipant.findOne({
-            _id: new ObjectId(participantId),
-            eventId: new ObjectId(id),
-        });
+          participant.checkedOut = true;
+          participant.checkedOutAt = new Date();
+        } else {
+          if (participant.checkedIn)
+            throw new EventError(
+              "ALREADY_CHECKED_IN",
+              409,
+              "Entrada já registrada.",
+            );
 
-        if (!participant) {
-            return NextResponse.json({ success: false, error: 'Participante não encontrado neste evento.' }, { status: 404 });
-        }
-
-        const now = new Date();
-
-        if (mode === 'reset') {
-            if (participant.certificateId) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Não é possível remover a presença porque o certificado já foi emitido.',
-                }, { status: 409 });
-            }
-            if (!participant.checkedIn && !participant.checkedOut) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Este participante ainda não possui presença registrada.',
-                }, { status: 409 });
-            }
-
-            participant.checkedIn = false;
-            participant.checkedInAt = null;
-            participant.checkedOut = false;
-            participant.checkedOutAt = null;
-            await participant.save();
-
-            return NextResponse.json({
-                success: true,
-                message: `Presença de ${participant.ownerName} removida com sucesso!`,
-                data: {
-                    participantId: String(participant._id),
-                    ownerName: participant.ownerName,
-                    checkedIn: false,
-                    checkedInAt: null,
-                    checkedOut: false,
-                    checkedOutAt: null,
-                },
-            }, { status: 200 });
+          participant.checkedIn = true;
+          participant.checkedInAt = new Date();
         }
 
-        if (mode === 'checkout') {
-            if (!participant.checkedIn) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Participante não realizou check-in ainda, não pode fazer check-out.',
-                }, { status: 400 });
-            }
-            if (participant.checkedOut) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Este participante já realizou check-out.',
-                    data: {
-                        participantId: String(participant._id),
-                        ownerName: participant.ownerName,
-                        checkedOutAt: participant.checkedOutAt,
-                    }
-                }, { status: 409 });
-            }
-            participant.checkedOut = true;
-            participant.checkedOutAt = now;
-            await participant.save();
+        await participant.save({ session });
 
-            return NextResponse.json({
-                success: true,
-                message: `Check-out de ${participant.ownerName} confirmado com sucesso!`,
-                data: {
-                    participantId: String(participant._id),
-                    ownerName: participant.ownerName,
-                    ownerEmail: participant.ownerEmail,
-                    checkedOut: true,
-                    checkedOutAt: now,
-                }
-            }, { status: 200 });
-        }
+        await EventAudit.create(
+          [
+            {
+              eventId: id,
+              participantId,
+              actor: actor?.sub,
+              action: `attendance.${mode}`,
+              details: "admin",
+            },
+          ],
+          { session },
+        );
 
-        // Default mode: checkin
-        if (participant.checkedIn) {
-            return NextResponse.json({
-                success: false,
-                error: 'Este participante já realizou check-in.',
-                data: {
-                    participantId: String(participant._id),
-                    ownerName: participant.ownerName,
-                    checkedInAt: participant.checkedInAt,
-                }
-            }, { status: 409 });
-        }
+        return {
+          participantId,
+          ownerName: participant.ownerName,
+          checkedIn: participant.checkedIn,
+          checkedInAt: participant.checkedInAt,
+          checkedOut: participant.checkedOut,
+          checkedOutAt: participant.checkedOutAt,
+        };
+      });
 
-        participant.checkedIn = true;
-        participant.checkedInAt = now;
-        await participant.save();
-
-        return NextResponse.json({
-            success: true,
-            message: `Check-in de ${participant.ownerName} confirmado com sucesso!`,
-            data: {
-                participantId: String(participant._id),
-                ownerName: participant.ownerName,
-                ownerEmail: participant.ownerEmail,
-                checkedIn: true,
-                checkedInAt: now,
-            }
-        }, { status: 200 });
-
-    } catch (error: any) {
-        console.error('[CHECKIN_PATCH]', error);
-        return NextResponse.json({ success: false, error: 'Erro interno ao registrar check-in.' }, { status: 500 });
+      return Response.json({
+        success: true,
+        message: "Presença atualizada.",
+        data,
+      });
+    } catch (error) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            error instanceof EventError
+              ? error.message
+              : "Não foi possível atualizar a presença.",
+        },
+        { status: error instanceof EventError ? error.status : 500 },
+      );
+    } finally {
+      await session.endSession();
     }
-}
+  },
+);

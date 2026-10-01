@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'bson';
 import EventParticipant from '@/lib/models/EventParticipant';
@@ -12,7 +13,7 @@ interface RouteParams {
  * @description Valida um QR Code de ingresso. Recebe o token via query param e retorna os dados do participante.
  * GET /api/v1/events/[id]/checkin/scan?token=UUID
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function GETHandler(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
 
@@ -37,10 +38,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         const participant = await EventParticipant.findOne({
             eventId: new ObjectId(id),
+            status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] },
             qrToken: token,
         })
             .select('ownerName ownerEmail ownerCpf checkedIn checkedInAt checkedOut checkedOutAt _id')
-            .lean() as any;
+            .lean();
 
         if (!participant) {
             return NextResponse.json({
@@ -64,8 +66,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             }
         }, { status: 200 });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[CHECKIN_SCAN_GET]', error);
         return NextResponse.json({ success: false, error: 'Erro interno ao validar QR Code.' }, { status: 500 });
     }
 }
+
+export const GET = withRouteAccess(GETHandler);
