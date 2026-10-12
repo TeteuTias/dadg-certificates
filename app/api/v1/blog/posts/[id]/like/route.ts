@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { BlogLikeModel } from "@/lib/models/BlogInteractionModel";
@@ -10,7 +11,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function POSTHandler(request: NextRequest, { params }: RouteParams) {
   const session = await mongoose.startSession();
   try {
     const { id } = await params;
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await session.commitTransaction();
     return NextResponse.json({ success: true, isLiked }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error) {
     if (session.inTransaction()) {
       await session.abortTransaction();
     }
@@ -62,3 +63,5 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     session.endSession();
   }
 }
+
+export const POST = withRouteAccess(POSTHandler);

@@ -1,10 +1,12 @@
+import { safeBlogHtml } from "@/lib/blog-html";
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import BlogPostModel from "@/lib/models/BlogPostModel";
 import GateKeeper from "@/lib/security/gatekeeper";
 import { isAdmin } from "@/lib/security/isAdmin";
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
       title,
       slug,
       excerpt,
-      content,
+      content: safeBlogHtml(content),
       coverImage: coverImage || null,
       authorName: authorName || user?.name || "Equipe DADG",
       tags: tags || [],
@@ -91,3 +93,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Erro interno ao salvar o artigo" }, { status: 500 });
   }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const POST = withRouteAccess(POSTHandler);

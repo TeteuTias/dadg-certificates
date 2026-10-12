@@ -1,0 +1,76 @@
+import mongoose from "mongoose";
+import { NextRequest } from "next/server";
+import { withRouteAccess } from "@/lib/security/route-access";
+import GateKeeper from "@/lib/security/gatekeeper";
+import { connectToDatabase } from "@/lib/mongodb";
+import { CertificateClaim } from "@/lib/certificates/Claim";
+import Certificate from "@/lib/models/CertificateModel";
+export const PATCH = withRouteAccess(
+  async (
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> },
+  ) => {
+    const body = await request.json().catch(() => null);
+    if (
+      !body ||
+      !["APPROVED", "REJECTED", "REVOKED"].includes(body.status) ||
+      typeof body.reason !== "string" ||
+      body.reason.trim().length < 10 ||
+      body.reason.length > 1000
+    )
+      return Response.json(
+        { error: "Informe decisão e justificativa de 10 a 1.000 caracteres." },
+        { status: 400 },
+      );
+    const actor = await new GateKeeper(request).identifyAdmin();
+    if (!actor)
+      return Response.json({ error: "Não autorizado" }, { status: 403 });
+    await connectToDatabase();
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const claim = await CertificateClaim.findById(
+          (await params).id,
+        ).session(session);
+        if (!claim) throw new Error("Solicitação não encontrada.");
+        if (
+          (body.status === "REVOKED" && claim.status !== "APPROVED") ||
+          (body.status !== "REVOKED" && claim.status !== "PENDING")
+        )
+          throw new Error("Solicitação já revisada. Atualize a lista.");
+        if (body.status === "APPROVED") {
+          const result = await Certificate.updateOne(
+            { _id: claim.certificateId, profileId: null, isReady: true },
+            { $set: { profileId: claim.profileId } },
+            { session },
+          );
+          if (!result.modifiedCount)
+            throw new Error("Certificado indisponível ou já vinculado.");
+        }
+        if (body.status === "REVOKED") {
+          await Certificate.updateOne(
+            { _id: claim.certificateId, profileId: claim.profileId },
+            { $unset: { profileId: 1 } },
+            { session },
+          );
+        }
+        claim.history.push({
+          status: body.status,
+          reason: body.reason.trim(),
+          actor: actor.sub,
+          at: new Date(),
+        });
+        claim.status = body.status;
+        claim.reason = body.reason.trim();
+        claim.reviewedBy = actor.sub;
+        claim.reviewedAt = new Date();
+        await claim.save({ session });
+      });
+      return Response.json({ success: true });
+    } catch (e) {
+      return Response.json({ error: (e as Error).message }, { status: 409 });
+    } finally {
+      await session.endSession();
+    }
+  },
+);

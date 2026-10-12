@@ -80,7 +80,7 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
           tier.unitTotalPrice <= 0,
       )
     ) {
-      setFeedback({ type: "error", text: "Quantidade precisa ser inteira (mín. 1) e o valor não pode ser negativo." });
+      setFeedback({ type: "error", text: "A quantidade deve ser um inteiro de 1 a 4 e o valor deve ser maior que zero." });
       setSaving(false);
       return;
     }
@@ -112,11 +112,12 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
   };
 
   return (
-    <div className="mt-6 rounded border p-4">
+    <section className="clam-panel">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold">Faixas de preço</div>
-          <div className="mt-1 text-xs text-muted-foreground">
+          <p className="clam-kicker">Valores</p>
+          <h2 className="mt-2 text-xl font-bold text-white">Faixas de preço</h2>
+          <div className="clam-muted mt-1 text-sm">
             Valor total da inscrição conforme a quantidade de ligas escolhidas. Sem faixa exata, o sistema
             multiplica o valor de 1 liga.
           </div>
@@ -125,14 +126,14 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
         <button
           type="button"
           onClick={() => setRows((previous) => [...previous, { examsCount: "", unitTotalPrice: "" }])}
-          className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm"
+          className="clam-button"
         >
           <Plus size={16} /> Nova faixa
         </button>
       </div>
 
       {!loading && rows.length === 0 && (
-        <div className="mt-4 flex items-start gap-2 rounded border border-amber-500/50 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="clam-feedback clam-feedback-warning mt-4 flex items-start gap-2">
           <AlertTriangle size={16} className="mt-0.5 flex-none" />
           Nenhuma faixa cadastrada: as inscrições deste processo seletivo estão bloqueadas até salvar ao menos
           a faixa de 1 liga.
@@ -142,8 +143,8 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
       {feedback && (
         <div
           className={
-            "mt-4 rounded border p-3 text-sm " +
-            (feedback.type === "success" ? "border-green-500/50" : "border-red-500/50")
+            "clam-feedback mt-4 " +
+            (feedback.type === "success" ? "clam-feedback-success" : "clam-feedback-error")
           }
         >
           {feedback.text}
@@ -151,7 +152,7 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
       )}
 
       {loading ? (
-        <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="clam-muted mt-4 flex items-center gap-2 text-sm">
           <Loader2 size={16} className="animate-spin" /> Carregando faixas...
         </div>
       ) : (
@@ -160,40 +161,38 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
             const preview = Number(String(row.unitTotalPrice).replace(",", "."));
 
             return (
-              <div key={index} className="grid grid-cols-1 items-end gap-3 rounded border bg-white p-3 md:grid-cols-[1fr_1fr_auto]">
-                <label>
-                  <div className="text-xs text-muted-foreground">Quantidade de ligas</div>
+              <div key={index} className="clam-card grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_1fr_auto]">
+                <label className="clam-label">Quantidade de ligas
                   <input
                     type="number"
                     min={1} max={4}
                     step={1}
                     value={row.examsCount}
                     onChange={(e) => updateRow(index, { examsCount: e.target.value })}
-                    className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                    className="clam-input"
                     placeholder="ex: 2"
                   />
                 </label>
 
-                <label>
-                  <div className="text-xs text-muted-foreground">Valor total (R$)</div>
+                <label className="clam-label">Valor total (R$)
                   <input
                     type="number"
                     min={0.01}
                     step="0.01"
                     value={row.unitTotalPrice}
                     onChange={(e) => updateRow(index, { unitTotalPrice: e.target.value })}
-                    className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                    className="clam-input"
                     placeholder="ex: 90"
                   />
                   {Number.isFinite(preview) && row.unitTotalPrice !== "" && (
-                    <div className="mt-1 text-xs text-muted-foreground">{formatCurrency(preview)}</div>
+                    <div className="clam-muted mt-1 text-xs">{formatCurrency(preview)}</div>
                   )}
                 </label>
 
                 <button
                   type="button"
                   onClick={() => setRows((previous) => previous.filter((_, i) => i !== index))}
-                  className="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm text-red-600"
+                  className="clam-button clam-button-danger"
                   title="Remover faixa"
                 >
                   <Trash2 size={16} /> Remover
@@ -208,15 +207,15 @@ export default function PricingTiersPanel({ selectionProcessId }: { selectionPro
         type="button"
         onClick={() => void save()}
         disabled={saving || loading}
-        className="mt-4 inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-2 text-white disabled:opacity-50"
+        className="clam-button clam-button-primary mt-4"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         Salvar tabela
       </button>
 
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="clam-muted mt-2 text-xs">
         Salvar substitui a tabela inteira: as faixas que não estiverem na lista acima são apagadas.
       </p>
-    </div>
+    </section>
   );
 }

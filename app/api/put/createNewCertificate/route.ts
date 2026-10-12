@@ -1,8 +1,9 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server"
 import CreateNewCertificate from "@/lib/models/src/certificatesHandler/put/CreateNewCertificate";
 import { ObjectId } from "bson";
 import { connectToDatabase } from "@/lib/mongodb";
-export async function PUT(request: Request) {
+async function PUTHandler(request: Request) {
 
     const formData = await request.formData();
 
@@ -78,3 +79,4 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ _id: update })
 }
+export const PUT = withRouteAccess(PUTHandler);

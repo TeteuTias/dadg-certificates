@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { clamFailure } from '@/lib/selective-processes/errors';
 import mongoose from 'mongoose';
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,7 +16,7 @@ type Context = { params: Promise<{ id: string }> };
  * O checkout do candidato calcula o valor a partir daqui, então sem pelo menos
  * uma faixa cadastrada as inscrições ficam bloqueadas.
  */
-export async function GET(request: NextRequest, { params }: Context) {
+async function GETHandler(request: NextRequest, { params }: Context) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest, { params }: Context) {
 }
 
 /** Substitui a tabela inteira de preços do processo seletivo. */
-export async function PUT(request: NextRequest, { params }: Context) {
+async function PUTHandler(request: NextRequest, { params }: Context) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -101,3 +102,6 @@ export async function PUT(request: NextRequest, { params }: Context) {
 
   } catch (error) { return clamFailure(error); }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const PUT = withRouteAccess(PUTHandler);

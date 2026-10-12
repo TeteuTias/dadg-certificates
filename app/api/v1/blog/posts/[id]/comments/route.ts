@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { BlogCommentModel } from "@/lib/models/BlogInteractionModel";
@@ -10,7 +11,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function GETHandler(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     if (!ObjectId.isValid(id)) {
@@ -19,19 +20,21 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     await connectToDatabase();
     
+    if (!await BlogPostModel.exists({_id:id,status:"PUBLISHED"})) return NextResponse.json({error:"Post não encontrado"},{status:404});
     // Lista os comentários do post ordenados do mais recente pro mais antigo
     const comments = await BlogCommentModel.find({ postId: id })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 }).limit(50)
       .lean();
 
     return NextResponse.json({ success: true, data: comments }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro ao listar comentários:", error);
     return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function POSTHandler(request: NextRequest, { params }: RouteParams) {
+  await connectToDatabase();
   const session = await mongoose.startSession();
   try {
     const { id } = await params;
@@ -46,14 +49,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const { content } = await request.json();
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
+    if (!content || typeof content !== "string" || content.trim().length === 0 || content.length > 2000) {
       return NextResponse.json({ success: false, error: "O conteúdo do comentário é obrigatório" }, { status: 400 });
     }
 
     await connectToDatabase();
     session.startTransaction();
 
-    const post = await BlogPostModel.findById(id).session(session);
+    const post = await BlogPostModel.findOne({_id:id,status:"PUBLISHED"}).session(session);
     if (!post) {
       await session.abortTransaction();
       return NextResponse.json({ success: false, error: "Post não encontrado" }, { status: 404 });
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await session.commitTransaction();
     return NextResponse.json({ success: true, data: newComment[0] }, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error) {
     if (session.inTransaction()) {
       await session.abortTransaction();
     }
@@ -83,3 +86,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     session.endSession();
   }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const POST = withRouteAccess(POSTHandler);

@@ -7,6 +7,7 @@ export type UserProfileDocument = {
   authSubject: string;
   name: string;
   period: number;
+  registrationRevision?: number;
   registrationNumber?: string;
   birthDate?: string;
   phone?: string;
@@ -21,6 +22,7 @@ const UserProfileSchema = new Schema<UserProfileDocument>({
   authIssuer: { type: String, required: true, immutable: true },
   authSubject: { type: String, required: true, immutable: true },
   name: { type: String, required: true },
+  registrationRevision: { type: Number, default: 0 },
   period: { type: Number, required: true, min: 1, max: 12 },
   registrationNumber: String,
   birthDate: String,

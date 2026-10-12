@@ -32,6 +32,7 @@ export type StudentApplicationStatus =
 
 type ProcessDocument = {
   _id: mongoose.Types.ObjectId;
+  title?: string;
   registrationStartDate: Date;
   registrationEndDate: Date;
   maxExamsPerApplication: number;
@@ -46,6 +47,7 @@ function serializeProcess(process: ProcessDocument) {
 
   return {
     id: String(process._id),
+    title: process.title?.trim() || `Processo seletivo CLAM ${new Date(process.registrationStartDate).getUTCFullYear()}`,
     registrationStartDate: process.registrationStartDate,
     registrationEndDate: process.registrationEndDate,
     maxExamsPerApplication: process.maxExamsPerApplication,
@@ -92,7 +94,7 @@ export async function getSelectionProcessForStudents(selectionProcessId: string)
   const [occupancy, exams, pricingTiers] = await Promise.all([
     getSelectionProcessOccupancy(process._id),
     Exam.find({ selectionProcessId: process._id }).sort({ name: 1 }).lean() as unknown as Promise<
-      Array<{ _id: mongoose.Types.ObjectId; name: string; examStartDate: Date; examEndDate: Date }>
+      Array<{ _id: mongoose.Types.ObjectId; name: string; acronym?: string; examStartDate: Date; examEndDate: Date }>
     >,
     PricingTier.find({ selectionProcessId: process._id })
       .sort({ examsCount: 1 })
@@ -105,6 +107,7 @@ export async function getSelectionProcessForStudents(selectionProcessId: string)
     exams: exams.map((exam) => ({
       id: String(exam._id),
       name: exam.name,
+      acronym: exam.acronym || undefined,
       examStartDate: exam.examStartDate,
       examEndDate: exam.examEndDate,
     })),

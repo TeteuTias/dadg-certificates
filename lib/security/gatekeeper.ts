@@ -2,7 +2,7 @@ import type { User } from "@auth0/nextjs-auth0/types";
 import type { JWTPayload } from "jose";
 import type { NextRequest } from "next/server";
 import { auth0 } from "../auth0";
-import { isAdmin } from "./isAdmin";
+import { isAdmin, isOperator, staffRole, type StaffRole } from "./isAdmin";
 import { API_ROUTE_MAP, type RouteConfig } from "./route-policies";
 import {
   AuthConfigurationError,
@@ -95,7 +95,12 @@ export default class GateKeeper {
     try {
       const principal = await this.identifyPrincipal();
       const authType = policy.authType;
-      const decision = authorizePrincipal(authType, principal?.kind || null, principal?.kind === "admin" && isAdmin(principal.user));
+      const decision = authorizePrincipal(
+        authType,
+        principal?.kind || null,
+        principal?.kind === "admin" && isAdmin(principal.user),
+        principal?.kind === "admin" && isOperator(principal.user),
+      );
       if (!decision.authorized) {
         return {
           ...decision,
@@ -138,6 +143,18 @@ export default class GateKeeper {
   public async identifyAdmin(): Promise<User | null> {
     const principal = await this.identifyPrincipal();
     return principal?.kind === "admin" && isAdmin(principal.user) ? principal.user : null;
+  }
+
+  /** Sessão do painel com papel de administrador ou de operador de presença. */
+  public async identifyStaff(): Promise<{ user: User; role: StaffRole } | null> {
+    try {
+      const principal = await this.identifyPrincipal();
+      if (principal?.kind !== "admin") return null;
+      const role = staffRole(principal.user);
+      return role ? { user: principal.user, role } : null;
+    } catch {
+      return null;
+    }
   }
 
   /** Compatibilidade com handlers; a política da rota já foi aplicada pelo proxy. */

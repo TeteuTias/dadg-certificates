@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import AcademicLeagueModel from "@/lib/models/AcademicLeagues";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest } from "next/server";
 import { ObjectId } from "bson"
 //
 //
-export async function GET(req: NextRequest, {
+async function GETHandler(req: NextRequest, {
     params,
 }: {
     params: Promise<{ id: string }>
@@ -32,3 +33,4 @@ export async function GET(req: NextRequest, {
     return Response.json({ data: data }, { status: 200 });
 
 }
+export const GET = withRouteAccess(GETHandler);

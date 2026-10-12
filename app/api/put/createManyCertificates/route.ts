@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import CertificateModel from "@/lib/models/CertificateModel";
 import { ObjectId } from "mongodb";
@@ -5,7 +6,7 @@ import { ICertificate } from "@/lib/models/CertificateModel";
 import { connectToDatabase } from "@/lib/mongodb";
 
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
     /*
         ---> [ 'Nome', 'CPF (sem pontos ou traços)', 'Email' ] <---
     */
@@ -45,3 +46,4 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: `${err instanceof Error ? err.message : "Ocorreu algum erro desconhecido"}` }, { status: 500 })
     }
 }
+export const POST = withRouteAccess(POSTHandler);

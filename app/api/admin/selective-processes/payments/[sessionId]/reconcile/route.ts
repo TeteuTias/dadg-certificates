@@ -1,9 +1,10 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { reconcileSession } from '@/lib/selective-processes/services/checkout';
 import { clamFailure } from '@/lib/selective-processes/http';
-export async function POST(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
+async function POSTHandler(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) return NextResponse.json({ success: false, error: access.code }, { status: access.status || 403 });
   const { sessionId } = await params;
@@ -14,3 +15,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: true, data });
   } catch (error) { return clamFailure(error); }
 }
+
+export const POST = withRouteAccess(POSTHandler);

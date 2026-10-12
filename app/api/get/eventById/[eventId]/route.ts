@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server";
 import GetEvent from "@/lib/models/src/certificatesHandler/get/GetEvent";
 import { ObjectId } from "mongodb";
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: Request, { params }: { params: Promise<{ eventId: string }> }) {
+async function GETHandler(request: Request, { params }: { params: Promise<{ eventId: string }> }) {
 
 
     const eventId = (await params).eventId
@@ -15,3 +16,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ even
     }
     return NextResponse.json({ "data": data })
 }
+
+export const GET = withRouteAccess(GETHandler);

@@ -57,6 +57,7 @@ export type IEventCertificate = {
     styleFrontBottomText: React.CSSProperties;
     styleNameText: React.CSSProperties;
     registrationCount: number;
+    archivedAt?: Date;
     templatePath: string;
     templateVersePath?: string;
     // Informações Gerais e Regras
@@ -67,6 +68,8 @@ export type IEventCertificate = {
     useStatementFormat: boolean;
     /** Carga horária do evento — usada na geração automática dos certificados (ex: "4h", "8 horas") */
     certificateHours?: string;
+    /** Percentual mínimo de etapas (com entrada e saída) exigido para o certificado. Padrão: 100. */
+    minAttendancePercent?: number;
     /** Flag que indica se os certificados já foram liberados para os participantes */
     certificateReleased: boolean;
     statusDetails: EventStatusConfig;
@@ -75,6 +78,8 @@ export type IEventCertificate = {
 // Definição do schema do Mongoose
 const TimelineItemSchema = new Schema(
     {
+        // Identidade estável da etapa: é a chave da presença por etapa do participante.
+        id: { type: Schema.Types.ObjectId, required: false },
         startDate: { type: Date, required: true },
         endDate: { type: Date, required: true },
         description: { type: String, required: true },
@@ -100,17 +105,19 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
 
         eventType: { type: String, required: true },
         eventBenefits: { type: String, required: false },
+        archivedAt: Date,
         registrationCount: { type: Number, required: true, default: 0 },
         documentVersion: { type: String, required: false, default: "2.0" },
         maxParticipants: { type: Number, required: true },
         certificateHours: { type: String, required: false, default: "" },
+        minAttendancePercent: { type: Number, required: false, min: 1, max: 100, default: 100 },
         certificateReleased: { type: Boolean, required: true, default: false },
 
         // Regras de Pagamento
         isPaid: { type: Boolean, required: true },
         price: {
             type: Number,
-            required: function (this: any) {
+            required: function (this: IEventCertificate) {
                 return this.isPaid === true;
             }
         },
@@ -125,18 +132,18 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
             },
             registrationStartDate: {
                 type: Date,
-                required: function (this: any) {
+                required: function (this: IEventCertificate) {
                     // Obrigatório se o admin disser que está aberto
                     return this.statusDetails?.status === 'PUBLISHED_OPEN';
                 }
             },
             registrationEndDate: {
                 type: Date,
-                required: function (this: any) {
+                required: function (this: IEventCertificate) {
                     return this.statusDetails?.status === 'PUBLISHED_OPEN';
                 },
                 validate: {
-                    validator: function (this: any, val: Date) {
+                    validator: function (this: IEventCertificate, val: Date) {
                         if (this.statusDetails?.status === 'PUBLISHED_OPEN' && this.statusDetails?.registrationStartDate) {
                             return val > this.statusDetails.registrationStartDate;
                         }
@@ -148,12 +155,12 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
             timeLine: {
                 type: [TimelineItemSchema],
                 default: undefined,
-                required: function (this: any) {
+                required: function (this: IEventCertificate) {
                     // A timeline é obrigatória para qualquer status que não seja rascunho
                     return this.statusDetails?.status !== 'DRAFT';
                 },
                 validate: {
-                    validator: function (this: any, val: any[]) {
+                    validator: function (this: IEventCertificate, val: unknown[]) {
                         // Validação extra: se não for DRAFT, o array não pode estar vazio
                         if (this.statusDetails?.status !== 'DRAFT') {
                             return Array.isArray(val) && val.length > 0;

@@ -1,161 +1,156 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ObjectId } from 'bson';
-import EventParticipant from '@/lib/models/EventParticipant';
-import GateKeeper from '@/lib/security/gatekeeper';
-import { connectToDatabase } from '@/lib/mongodb';
+import mongoose from "mongoose";
 
-interface RouteParams {
-    params: Promise<{ id: string; participantId: string }>;
-}
+import { NextRequest } from "next/server";
+
+import { withRouteAccess } from "@/lib/security/route-access";
+
+import Event from "@/lib/models/EventCertificateModel";
+
+import Participant from "@/lib/models/EventParticipant";
+
+import GateKeeper from "@/lib/security/gatekeeper";
+
+import { connectToDatabase } from "@/lib/mongodb";
+
+import { EventAudit } from "@/lib/events/Audit";
+
+import { EventError } from "@/lib/events/rules";
+
+import {
+  applyAttendance,
+  eventStages,
+  type AttendanceMode,
+} from "@/lib/events/attendance";
 
 /**
- * @description Registra check-in, check-out ou remove manualmente a presença de um participante.
+ * Registra entrada, saída ou remoção de presença de um participante.
  * PATCH /api/v1/events/[id]/registration/[participantId]/checkin
- * Apenas admins autenticados podem chamar este endpoint.
+ * Body: { mode: "checkin" | "checkout" | "reset", stageId? }
+ * Em eventos com várias etapas, `stageId` é obrigatório.
  */
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withRouteAccess(
+  async (
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string; participantId: string }> },
+  ) => {
+    const { id, participantId } = await params;
+
+    if (!/^[a-f0-9]{24}$/i.test(id) || !/^[a-f0-9]{24}$/i.test(participantId))
+      return Response.json(
+        { error: "Identificador inválido." },
+        { status: 400 },
+      );
+
+    const body = await request.json().catch(() => ({}));
+    const mode: AttendanceMode = body.mode || "checkin";
+    const requestedStageId =
+      typeof body.stageId === "string" && body.stageId ? body.stageId : null;
+
+    if (!["checkin", "checkout", "reset"].includes(mode))
+      return Response.json({ error: "Ação inválida." }, { status: 400 });
+
+    // Administrador ou operador de presença: a política da rota já validou o acesso.
+    const staff = await new GateKeeper(request).identifyStaff();
+    const role = staff?.role || "admin";
+
+    await connectToDatabase();
+    const session = await mongoose.startSession();
+
     try {
-        const { id, participantId } = await params;
+      const data = await session.withTransaction(async () => {
+        const event = await Event.findById(id)
+          .select("statusDetails")
+          .session(session)
+          .lean();
 
-        if (!ObjectId.isValid(id)) {
-            return NextResponse.json({ success: false, error: 'ID de evento inválido' }, { status: 400 });
-        }
-        if (!ObjectId.isValid(participantId)) {
-            return NextResponse.json({ success: false, error: 'ID de participante inválido' }, { status: 400 });
-        }
+        const participant = await Participant.findOne({
+          _id: participantId,
+          eventId: id,
+          status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] },
+        }).session(session);
 
-        const keeper = new GateKeeper(request);
-        const user = await keeper.identifySession();
-        if (!user) {
-            return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
-        }
+        if (!participant)
+          throw new EventError(
+            "PARTICIPANT_NOT_FOUND",
+            404,
+            "Participante não disponível neste evento.",
+          );
 
-        let mode = 'checkin';
-        try {
-            const body = await request.json();
-            if (body && body.mode) {
-                mode = body.mode;
-            }
-        } catch (e) {
-            // body is optional, default to checkin
-        }
-        if (!['checkin', 'checkout', 'reset'].includes(mode)) {
-            return NextResponse.json({ success: false, error: 'Ação de presença inválida.' }, { status: 400 });
-        }
+        if (participant.certificateId)
+          throw new EventError(
+            "CERTIFICATE_ALREADY_ISSUED",
+            409,
+            "Presença protegida: certificado já emitido.",
+          );
 
-        await connectToDatabase();
+        const result = applyAttendance(
+          participant,
+          event ? eventStages(event) : null,
+          mode,
+          requestedStageId,
+        );
 
-        const participant = await EventParticipant.findOne({
-            _id: new ObjectId(participantId),
-            eventId: new ObjectId(id),
-        });
+        if (result.attendance)
+          participant.attendance = result.attendance.map((entry) => ({
+            stageId: new mongoose.Types.ObjectId(entry.stageId),
+            checkedInAt: entry.checkedInAt,
+            checkedOutAt: entry.checkedOutAt,
+          }));
+        participant.checkedIn = result.summary.checkedIn;
+        participant.checkedInAt = result.summary.checkedInAt;
+        participant.checkedOut = result.summary.checkedOut;
+        participant.checkedOutAt = result.summary.checkedOutAt;
 
-        if (!participant) {
-            return NextResponse.json({ success: false, error: 'Participante não encontrado neste evento.' }, { status: 404 });
-        }
+        await participant.save({ session });
 
-        const now = new Date();
+        await EventAudit.create(
+          [
+            {
+              eventId: id,
+              participantId,
+              actor: staff?.user.sub,
+              action: `attendance.${mode}`,
+              details: result.stageId ? `${role} stage:${result.stageId}` : role,
+            },
+          ],
+          { session },
+        );
 
-        if (mode === 'reset') {
-            if (participant.certificateId) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Não é possível remover a presença porque o certificado já foi emitido.',
-                }, { status: 409 });
-            }
-            if (!participant.checkedIn && !participant.checkedOut) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Este participante ainda não possui presença registrada.',
-                }, { status: 409 });
-            }
+        const stage = result.stageId
+          ? result.attendance?.find((entry) => entry.stageId === result.stageId)
+          : null;
 
-            participant.checkedIn = false;
-            participant.checkedInAt = null;
-            participant.checkedOut = false;
-            participant.checkedOutAt = null;
-            await participant.save();
+        return {
+          participantId,
+          ownerName: participant.ownerName,
+          stageId: result.stageId,
+          // Presença na etapa informada; sem etapas, a do evento.
+          checkedIn: result.stageId ? Boolean(stage?.checkedInAt) : result.summary.checkedIn,
+          checkedInAt: result.stageId ? (stage?.checkedInAt ?? null) : result.summary.checkedInAt,
+          checkedOut: result.stageId ? Boolean(stage?.checkedOutAt) : result.summary.checkedOut,
+          checkedOutAt: result.stageId ? (stage?.checkedOutAt ?? null) : result.summary.checkedOutAt,
+        };
+      });
 
-            return NextResponse.json({
-                success: true,
-                message: `Presença de ${participant.ownerName} removida com sucesso!`,
-                data: {
-                    participantId: String(participant._id),
-                    ownerName: participant.ownerName,
-                    checkedIn: false,
-                    checkedInAt: null,
-                    checkedOut: false,
-                    checkedOutAt: null,
-                },
-            }, { status: 200 });
-        }
-
-        if (mode === 'checkout') {
-            if (!participant.checkedIn) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Participante não realizou check-in ainda, não pode fazer check-out.',
-                }, { status: 400 });
-            }
-            if (participant.checkedOut) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Este participante já realizou check-out.',
-                    data: {
-                        participantId: String(participant._id),
-                        ownerName: participant.ownerName,
-                        checkedOutAt: participant.checkedOutAt,
-                    }
-                }, { status: 409 });
-            }
-            participant.checkedOut = true;
-            participant.checkedOutAt = now;
-            await participant.save();
-
-            return NextResponse.json({
-                success: true,
-                message: `Check-out de ${participant.ownerName} confirmado com sucesso!`,
-                data: {
-                    participantId: String(participant._id),
-                    ownerName: participant.ownerName,
-                    ownerEmail: participant.ownerEmail,
-                    checkedOut: true,
-                    checkedOutAt: now,
-                }
-            }, { status: 200 });
-        }
-
-        // Default mode: checkin
-        if (participant.checkedIn) {
-            return NextResponse.json({
-                success: false,
-                error: 'Este participante já realizou check-in.',
-                data: {
-                    participantId: String(participant._id),
-                    ownerName: participant.ownerName,
-                    checkedInAt: participant.checkedInAt,
-                }
-            }, { status: 409 });
-        }
-
-        participant.checkedIn = true;
-        participant.checkedInAt = now;
-        await participant.save();
-
-        return NextResponse.json({
-            success: true,
-            message: `Check-in de ${participant.ownerName} confirmado com sucesso!`,
-            data: {
-                participantId: String(participant._id),
-                ownerName: participant.ownerName,
-                ownerEmail: participant.ownerEmail,
-                checkedIn: true,
-                checkedInAt: now,
-            }
-        }, { status: 200 });
-
-    } catch (error: any) {
-        console.error('[CHECKIN_PATCH]', error);
-        return NextResponse.json({ success: false, error: 'Erro interno ao registrar check-in.' }, { status: 500 });
+      return Response.json({
+        success: true,
+        message: "Presença atualizada.",
+        data,
+      });
+    } catch (error) {
+      return Response.json(
+        {
+          success: false,
+          error:
+            error instanceof EventError
+              ? error.message
+              : "Não foi possível atualizar a presença.",
+          ...(error instanceof EventError ? { code: error.code } : {}),
+        },
+        { status: error instanceof EventError ? error.status : 500 },
+      );
+    } finally {
+      await session.endSession();
     }
-}
+  },
+);

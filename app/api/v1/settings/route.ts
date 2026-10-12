@@ -1,9 +1,10 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import AppSettingsModel from "@/lib/models/AppSettingsModel";
 
 // GET /api/v1/settings
-export async function GET() {
+async function GETHandler() {
   try {
     await connectToDatabase();
     
@@ -23,7 +24,7 @@ export async function GET() {
 }
 
 // PUT /api/v1/settings
-export async function PUT(req: NextRequest) {
+async function PUTHandler(req: NextRequest) {
   try {
     const body = await req.json();
     const { blogEnabled } = body;
@@ -46,3 +47,6 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const PUT = withRouteAccess(PUTHandler);

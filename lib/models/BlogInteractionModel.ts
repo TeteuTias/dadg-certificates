@@ -64,4 +64,4 @@ const BlogBookmarkSchema = new Schema(
 // Índice composto
 BlogBookmarkSchema.index({ postId: 1, ownerId: 1 }, { unique: true });
 
-export const BlogBookmarkModel = mongoose.models.BlogBookmark || mongoose.model<IBlogBookmark>("BlogBookmark", BlogBookmarkSchema);
+export const BlogBookmarkModel: mongoose.Model<IBlogBookmark> = mongoose.models.BlogBookmark || mongoose.model<IBlogBookmark>("BlogBookmark", BlogBookmarkSchema);

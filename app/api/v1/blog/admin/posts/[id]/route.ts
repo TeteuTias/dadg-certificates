@@ -1,3 +1,5 @@
+import { safeBlogHtml } from "@/lib/blog-html";
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import BlogPostModel from "@/lib/models/BlogPostModel";
@@ -5,7 +7,7 @@ import GateKeeper from "@/lib/security/gatekeeper";
 import { isAdmin } from "@/lib/security/isAdmin";
 import { ObjectId } from "bson";
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function PUTHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
@@ -41,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (title) postToUpdate.title = title;
     if (slug) postToUpdate.slug = slug;
     if (excerpt) postToUpdate.excerpt = excerpt;
-    if (content) postToUpdate.content = content;
+    if (content) postToUpdate.content = safeBlogHtml(content);
     if (coverImage !== undefined) postToUpdate.coverImage = coverImage;
     if (authorName) postToUpdate.authorName = authorName;
     if (tags) postToUpdate.tags = tags;
@@ -63,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function DELETEHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
@@ -92,7 +94,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   }
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const keeper = new GateKeeper(request);
   const user = await keeper.identifyAdmin();
   if (!user) return NextResponse.json({ success: false, error: 'Acesso negado.' }, { status: 403 });
@@ -104,3 +106,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ success: Boolean(data), data }, { status: data ? 200 : 404, headers: { 'Cache-Control': 'private, no-store' } });
   } catch { return NextResponse.json({ success: false, error: 'Erro ao carregar artigo.' }, { status: 503 }); }
 }
+
+export const PUT = withRouteAccess(PUTHandler);
+export const DELETE = withRouteAccess(DELETEHandler);
+export const GET = withRouteAccess(GETHandler);

@@ -37,7 +37,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
+import { readCertificateSheet } from "@/lib/certificates/read-spreadsheet";
 import "./page.css";
 
 type ActiveView = "overview" | "single" | "bulk" | "verse-bulk";
@@ -756,34 +756,10 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
         setFileName(file.name);
         setFeedback(null);
 
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             const arrayBuffer = event.target?.result;
             if (arrayBuffer && typeof arrayBuffer !== "string") {
-                const workbook = XLSX.read(arrayBuffer, { type: "array" });
-                const firstSheetName = workbook.SheetNames[0];
-                const ws = workbook.Sheets[firstSheetName];
-
-                // TRATAMENTO DE CÉLULAS MESCLADAS
-                if (ws['!merges']) {
-                    ws['!merges'].forEach((merge) => {
-                        const masterCellAddress = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
-                        const masterValue = ws[masterCellAddress];
-                        if (!masterValue) return;
-
-                        for (let r = merge.s.r; r <= merge.e.r; r++) {
-                            for (let c = merge.s.c; c <= merge.e.c; c++) {
-                                const targetAddr = XLSX.utils.encode_cell({ r, c });
-                                if (c === merge.s.c) {
-                                    ws[targetAddr] = { ...masterValue };
-                                } else {
-                                    ws[targetAddr] = { t: 's', v: '' }; 
-                                }
-                            }
-                        }
-                    });
-                }
-
-                let rawData: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+                const rawData = await readCertificateSheet(arrayBuffer as ArrayBuffer).catch(error=>{alert(error instanceof Error?error.message:"Planilha inválida.");return [];});
 
                 if (rawData.length === 0) {
                     setData([]);
@@ -982,7 +958,7 @@ const XLSXReader: React.FC<{ eventId: string; eventName: string; onBack: () => v
                                 </button>
                                 <input
                                     type="file"
-                                    accept=".xlsx, .xls"
+                                    accept=".xlsx, .csv"
                                     ref={fileInputRef}
                                     onChange={handleFileChange}
                                     className="certificate-bulk-hidden-input"
@@ -1305,46 +1281,20 @@ const XLSXReader2: React.FC<{
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
     loading: boolean;
 }> = ({ eventId, eventName, onBack, setLoading, loading }) => {
-    const [frontRows, setFrontRows] = useState<any[]>([]);
+    const [frontRows, setFrontRows] = useState<Record<string,string>[]>([]);
     const [verseData, setVerseData] = useState<{ headers: string[], rows: [string[]] | [] }>({ headers: [], rows: [] });
     const [activeTab, setActiveTab] = useState<'front' | 'verse'>('front');
-    const [useClamFormat, setUseClamFormat] = useState(false);
+    const [useClamFormat] = useState(false);
 
     const handleFileUpload = (e: ChangeEvent<HTMLInputElement>, type: 'front' | 'verse') => {
         const file = e.target.files?.[0];
         if (!file) return;
+        if(file.size>5*1024*1024){alert("Envie uma planilha de até 5 MB.");return;}
 
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
             const bstr = evt.target?.result;
-            const wb = XLSX.read(bstr, { type: 'binary' });
-            const ws = wb.Sheets[wb.SheetNames[0]];
-
-            // TRATAMENTO DE CÉLULAS MESCLADAS
-            if (ws['!merges']) {
-                ws['!merges'].forEach((merge) => {
-                    const masterCellAddress = XLSX.utils.encode_cell({ r: merge.s.r, c: merge.s.c });
-                    const masterValue = ws[masterCellAddress];
-                    if (!masterValue) return;
-
-                    for (let r = merge.s.r; r <= merge.e.r; r++) {
-                        for (let c = merge.s.c; c <= merge.e.c; c++) {
-                            const targetAddr = XLSX.utils.encode_cell({ r, c });
-                            if (c === merge.s.c) {
-                                ws[targetAddr] = { ...masterValue };
-                            } else {
-                                ws[targetAddr] = { t: 's', v: '' }; 
-                            }
-                        }
-                    }
-                });
-            }
-
-            // LEITURA COM VALOR PADRÃO
-            let rawData = XLSX.utils.sheet_to_json(ws, {
-                header: 1,
-                defval: ""
-            }) as any[][];
+            const rawData = await readCertificateSheet(bstr as string).catch(error=>{alert(error instanceof Error?error.message:"Planilha inválida.");return [];});
 
             if (rawData.length === 0) return;
 
@@ -1395,7 +1345,7 @@ const XLSXReader2: React.FC<{
             if (type === 'front') {
                 const headers = cleanedData[0] as string[];
                 const validRows = cleanedData.slice(1).map(row => {
-                    const obj: any = {};
+                    const obj: Record<string,string> = {};
                     headers.forEach((h, i) => obj[h] = row[i]);
                     return obj;
                 });
@@ -1490,7 +1440,7 @@ const XLSXReader2: React.FC<{
 
             alert("Lote processado com sucesso!");
             onBack();
-        } catch (error) {
+        } catch {
             alert("Erro ao gerar certificados.");
         } finally {
             setLoading(false);
@@ -1512,7 +1462,7 @@ const XLSXReader2: React.FC<{
                     </div>
                     <input
                         type="file"
-                        accept=".xlsx,.xls,.csv"
+                        accept=".xlsx,.csv" title="XLSX ou CSV. Converta arquivos XLS antigos antes de importar."
                         onChange={(e) => handleFileUpload(e, 'front')}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
@@ -1529,7 +1479,7 @@ const XLSXReader2: React.FC<{
                     </div>
                     <input
                         type="file"
-                        accept=".xlsx,.xls,.csv"
+                        accept=".xlsx,.csv" title="XLSX ou CSV. Converta arquivos XLS antigos antes de importar."
                         onChange={(e) => handleFileUpload(e, 'verse')}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />

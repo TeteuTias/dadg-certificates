@@ -1,6 +1,7 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
     const { searchParams } = new URL(request.url);
     const start = searchParams.get('start');
     const end = searchParams.get('end');
@@ -57,3 +58,4 @@ export async function GET(request: Request) {
 }
 
 //Filtre por data via query: ?date=2026-03-15
+export const GET = withRouteAccess(GETHandler);

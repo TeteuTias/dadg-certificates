@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import EventCertificateModel from "@/lib/models/EventCertificateModel";
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
  * @abstract Para isso, ela filtra os eventos por: "PUBLISHED_CLOSED".
  * @returns Ela retorna os eventos que estão fechados para inscrição, filtrando por mês e ano. O formato do parâmetro é "AAAA-MM" (ex: "2026-04"). A resposta inclui os eventos do mês especificado, ordenados do mais antigo para o mais recente.
  */
-export async function GET(
+async function GETHandler(
   req: NextRequest,
   {
     params,
@@ -61,3 +62,4 @@ export async function GET(
     filter: n // Devolvemos o mês/ano pra facilitar a validação no front
   });
 }
+export const GET = withRouteAccess(GETHandler);

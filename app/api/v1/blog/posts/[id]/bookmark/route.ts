@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { BlogBookmarkModel } from "@/lib/models/BlogInteractionModel";
@@ -9,7 +10,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams) {
+async function POSTHandler(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     if (!ObjectId.isValid(id)) {
@@ -45,8 +46,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({ success: true, isBookmarked }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro no Bookmark:", error);
     return NextResponse.json({ success: false, error: "Erro interno ao processar bookmark" }, { status: 500 });
   }
 }
+
+export const POST = withRouteAccess(POSTHandler);

@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import GateKeeper from "@/lib/security/gatekeeper";
 import { ClamError } from "@/lib/selective-processes/domain";
@@ -68,7 +69,7 @@ async function boundedBody(request: NextRequest, limit: number) {
   }
   return Buffer.concat(chunks);
 }
-export async function GET(request: NextRequest, context: Context) {
+async function GETHandler(request: NextRequest, context: Context) {
   try {
     await authorized(request);
     const { id, action } = await context.params;
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest, context: Context) {
     return clamFailure(error);
   }
 }
-export async function POST(request: NextRequest, context: Context) {
+async function POSTHandler(request: NextRequest, context: Context) {
   try {
     const actor = await authorized(request);
     const { id, action } = await context.params;
@@ -155,3 +156,6 @@ export async function POST(request: NextRequest, context: Context) {
     return clamFailure(error);
   }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const POST = withRouteAccess(POSTHandler);

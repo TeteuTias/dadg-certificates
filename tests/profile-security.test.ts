@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPair, jwtVerify, SignJWT } from "jose";
 import { authorizePrincipal } from "../lib/security/authorization";
-import { ADMIN_ROLES_CLAIM, isAdmin } from "../lib/security/isAdmin";
+import { ADMIN_ROLES_CLAIM, isAdmin, isOperator, staffRole } from "../lib/security/isAdmin";
 import { adminSessionUser } from "../lib/security/adminSession";
 import { API_ROUTE_MAP } from "../lib/security/route-policies";
 import { AuthConfigurationError, getStudentAuthConfiguration, studentJwtVerifyOptions } from "../lib/security/verifyToken";
@@ -71,11 +71,92 @@ test("duplicidade concorrente do índice é reconhecida sem inspecionar valores"
   assert.equal(isDuplicateKeyError({ code: 50 }), false);
 });
 
-test("toda rota protegida declara student ou admin", () => {
+test("toda rota protegida declara student, admin ou operator", () => {
   for (const route of API_ROUTE_MAP) {
-    if (!route.isPublic) assert.ok(route.authType === "student" || route.authType === "admin");
+    if (!route.isPublic)
+      assert.ok(["student", "admin", "operator"].includes(route.authType));
   }
   assert.equal(API_ROUTE_MAP.some((route) => "authType" in route && String(route.authType) === "both"), false);
+});
+
+test("matriz do operador: presença sim, administração não", () => {
+  // Rota de presença: administrador ou operador, sempre por sessão do painel.
+  assert.equal(authorizePrincipal("operator", "admin", true, false).authorized, true);
+  assert.equal(authorizePrincipal("operator", "admin", false, true).authorized, true);
+  assert.equal(authorizePrincipal("operator", "admin", false, false).status, 403);
+  assert.equal(authorizePrincipal("operator", "student", false, true).status, 403);
+  assert.equal(authorizePrincipal("operator", null, false, false).status, 401);
+  // Rota administrativa: a role de operador não basta.
+  assert.equal(authorizePrincipal("admin", "admin", false, true).status, 403);
+  assert.equal(authorizePrincipal("student", "admin", false, true).status, 403);
+});
+
+test("operador exige role própria configurada; administrador prevalece", () => {
+  const previousAdmin = process.env.DADG_ADMIN_ROLE_NAME;
+  const previousOperator = process.env.DADG_OPERATOR_ROLE_NAME;
+  const operatorUser = { sub: "auth0|op", [ADMIN_ROLES_CLAIM]: ["Operador de Presença"] };
+  const both = { sub: "auth0|both", [ADMIN_ROLES_CLAIM]: ["Administrador", "Operador de Presença"] };
+  try {
+    process.env.DADG_ADMIN_ROLE_NAME = "Administrador";
+    delete process.env.DADG_OPERATOR_ROLE_NAME;
+    assert.equal(isOperator(operatorUser), false);
+    assert.equal(staffRole(operatorUser), null);
+
+    process.env.DADG_OPERATOR_ROLE_NAME = "Operador de Presença";
+    assert.equal(isOperator(operatorUser), true);
+    assert.equal(isAdmin(operatorUser), false);
+    assert.equal(staffRole(operatorUser), "operator");
+    assert.equal(staffRole(both), "admin");
+    assert.equal(staffRole({ sub: "auth0|x", [ADMIN_ROLES_CLAIM]: ["Outra"] }), null);
+    assert.equal(staffRole(null), null);
+  } finally {
+    if (previousAdmin === undefined) delete process.env.DADG_ADMIN_ROLE_NAME;
+    else process.env.DADG_ADMIN_ROLE_NAME = previousAdmin;
+    if (previousOperator === undefined) delete process.env.DADG_OPERATOR_ROLE_NAME;
+    else process.env.DADG_OPERATOR_ROLE_NAME = previousOperator;
+  }
+});
+
+test("operador alcança só a lista de presença", () => {
+  const eventId = "6a92fab72fd46137ff827a87";
+  const authTypeFor = (method: string, path: string) =>
+    API_ROUTE_MAP.find(
+      (route) => new RegExp(route.path).test(path) && (!route.method || route.method === method),
+    )?.authType;
+
+  const operatorRoutes: Array<[string, string]> = [
+    ["GET", "/presenca"],
+    ["GET", `/todosEventos/${eventId}/presenca`],
+    ["GET", "/api/v1/events/attendance"],
+    ["GET", `/api/v1/events/${eventId}/participants`],
+    ["POST", `/api/v1/events/${eventId}/participants`],
+    ["POST", `/api/v1/events/${eventId}/checkin/scan`],
+    ["PATCH", `/api/v1/events/${eventId}/registration/${eventId}/checkin`],
+    ["POST", `/api/v1/events/${eventId}/walkin`],
+  ];
+  for (const [method, path] of operatorRoutes)
+    assert.equal(authTypeFor(method, path), "operator", `${method} ${path}`);
+
+  const adminOnly: Array<[string, string]> = [
+    ["GET", "/"],
+    ["GET", "/todosEventos"],
+    ["GET", `/todosEventos/modificar/${eventId}`],
+    ["GET", "/event-payments"],
+    ["GET", "/certificate-claims"],
+    ["GET", "/usuarios"],
+    ["GET", `/api/v1/events/${eventId}/certificates`],
+    ["POST", `/api/v1/events/${eventId}/certificates`],
+    ["GET", "/api/v1/admin/event-payments"],
+    ["POST", "/api/v1/admin/profiles/query"],
+    ["PUT", "/api/put/updateEvent"],
+    ["GET", "/api/get/allEvents"],
+    ["DELETE", `/api/v1/events/${eventId}/participants`],
+  ];
+  for (const [method, path] of adminOnly)
+    assert.equal(authTypeFor(method, path), "admin", `${method} ${path}`);
+
+  // A leitura do QR não aceita mais o código na URL.
+  assert.notEqual(authTypeFor("GET", `/api/v1/events/${eventId}/checkin/scan`), "operator");
 });
 
 test("resumo do perfil e estado CLAM exigem token de aluno", () => {

@@ -6,6 +6,13 @@ export interface IEventParticipant {
     _id: ObjectId;
     eventId: ObjectId;
     owner?: ObjectId;
+    profileId?: ObjectId;
+    status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "REVIEW";
+    activePaymentId?: ObjectId;
+    cancelledAt?: Date;
+    cancellationReason?: string;
+    cpfEncrypted?: import("@/lib/profile/crypto").EncryptedCpf;
+    cpfLookup?: string;
     ownerName: string;
     ownerEmail?: string;
     ownerCpf?: string;
@@ -16,6 +23,15 @@ export interface IEventParticipant {
     checkedOut?: boolean;
     /** Momento em que a saída foi confirmada */
     checkedOutAt?: Date | null;
+    /**
+     * Presença por etapa do cronograma. Os campos checkedIn/checkedOut acima
+     * ficam como resumo: primeira entrada e última saída registradas.
+     */
+    attendance?: {
+        stageId: ObjectId;
+        checkedInAt?: Date | null;
+        checkedOutAt?: Date | null;
+    }[];
     /** Referência ao certificado gerado após a liberação automática */
     certificateId?: ObjectId | null;
     createdAt?: Date;
@@ -33,6 +49,11 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
             ref: 'EventCertificate',
             required: true,
         },
+        profileId: { type: Schema.Types.ObjectId, ref: "UserProfile" },
+        status: { type: String, enum: ["PENDING", "CONFIRMED", "CANCELLED", "REVIEW"] },
+        activePaymentId: Schema.Types.ObjectId,
+        cancelledAt: Date, cancellationReason: String,
+        cpfEncrypted: Schema.Types.Mixed, cpfLookup: String,
         owner: {
             type: Schema.Types.ObjectId,
             required: false,
@@ -77,6 +98,19 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
             type: Date,
             required: false,
         },
+        attendance: {
+            type: [
+                new Schema(
+                    {
+                        stageId: { type: Schema.Types.ObjectId, required: true },
+                        checkedInAt: { type: Date, required: false },
+                        checkedOutAt: { type: Date, required: false },
+                    },
+                    { _id: false },
+                ),
+            ],
+            default: undefined,
+        },
         certificateId: {
             type: Schema.Types.ObjectId,
             ref: 'Certificate',
@@ -92,8 +126,9 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
     }
 );
 
+EventParticipantSchema.index({eventId:1,profileId:1},{unique:true,partialFilterExpression:{profileId:{$type:"objectId"}},name:"event_profile_unique"});
 export const EventParticipant =
-    mongoose.models.EventParticipant ||
+    (mongoose.models.EventParticipant as mongoose.Model<IEventParticipant> | undefined) ||
     mongoose.model<IEventParticipant>('EventParticipant', EventParticipantSchema);
 
 export default EventParticipant;

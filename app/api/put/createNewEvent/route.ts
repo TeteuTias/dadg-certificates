@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextResponse } from "next/server"
 import CreateNewEvent from "@/lib/models/src/certificatesHandler/put/CreateNewEvent";
 import { connectToDatabase } from "@/lib/mongodb";
 import type { IEventCertificate } from "@/lib/models/EventCertificateModel";
 import { buildEventStatusDetails } from "@/lib/events/statusDetails";
 
-export async function PUT(request: Request) {
+async function PUTHandler(request: Request) {
     const formData = await request.formData();
 
     // Configurando os campos do front
@@ -17,6 +18,8 @@ export async function PUT(request: Request) {
     const isPaidRaw = formData.get("isPaid");
     const priceRaw = formData.get("price");
     const templateForm = formData.get("templateForm") as string
+    const certificateHoursRaw = formData.get("certificateHours");
+    const certificateHours = typeof certificateHoursRaw === "string" ? certificateHoursRaw.trim() : "";
 
     // Pegando dados do status
     const statusRaw = formData.get("status") as string;
@@ -31,6 +34,7 @@ export async function PUT(request: Request) {
     if (!eventType || typeof eventType !== "string") return NextResponse.json({ message: "Forneça o tipo do evento." }, { status: 400 });
     if (!eventType || typeof eventType !== "string") return NextResponse.json({ message: "Forneça o tipo do evento." }, { status: 400 });
     if (!templateForm || typeof templateForm !== "string") return NextResponse.json({ message: "Forneça o formato do template do evento." }, { status: 400 });
+    if (certificateHours.length > 60) return NextResponse.json({ message: "Carga horária inválida: use um texto de até 60 caracteres." }, { status: 400 });
 
 
     const maxParticipants = Number(maxParticipantsRaw);
@@ -153,7 +157,7 @@ export async function PUT(request: Request) {
         registrationCount: 0,
         documentVersion: "3.0",
         useStatementFormat: false,
-        certificateHours: "",
+        certificateHours,
         certificateReleased: false,
         statusDetails
     };
@@ -173,3 +177,5 @@ export async function PUT(request: Request) {
         return NextResponse.json({ message: "Erro interno ao salvar no banco de dados." }, { status: 500 });
     }
 }
+
+export const PUT = withRouteAccess(PUTHandler);

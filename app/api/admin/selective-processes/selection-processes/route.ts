@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { clamFailure } from '@/lib/selective-processes/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
@@ -8,7 +9,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
   } catch (error) { return clamFailure(error); }
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const registrationStartDate = body?.registrationStartDate;
   const registrationEndDate = body?.registrationEndDate;
+  const title = body?.title;
   const maxExamsPerApplication = body?.maxExamsPerApplication;
   const maxCapacity = body?.maxCapacity;
 
@@ -55,6 +57,7 @@ export async function POST(request: NextRequest) {
   }
 
   const created = await createSelectionProcess({
+    title: typeof title === 'string' ? title : undefined,
     registrationStartDate: new Date(registrationStartDate),
     registrationEndDate: new Date(registrationEndDate),
     maxExamsPerApplication,
@@ -65,3 +68,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) { return clamFailure(error); }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const POST = withRouteAccess(POSTHandler);

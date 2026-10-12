@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Eye, FolderOpen, Menu, Newspaper, Plus, Sparkles, UsersRound, X } from "lucide-react";
+import { ChevronDown, ClipboardList, Eye, FolderOpen, Menu, Newspaper, Plus, Sparkles, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import "./Header.css";
 
 type HeaderMenu = "certificates" | "events" | null;
 
-export default function Header() {
+export default function Header({ role = "admin" }: { role?: "admin" | "operator" | null }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -142,6 +142,29 @@ export default function Header() {
     setSecretError('Senha incorreta. Tenta "Silvio".');
   };
 
+  // Operador de presença: só a lista de presença, sem os menus administrativos.
+  if (role === "operator") {
+    return (
+      <header className="header-container">
+        <nav className="header-nav">
+          <div className="header-topbar">
+            <Link href="/presenca" className="header-logo">
+              DADG Certificates
+            </Link>
+          </div>
+          <div className="header-links is-mobile-open" id="header-navigation">
+            <Link href="/presenca" className="header-link">
+              Presença
+            </Link>
+            <a href="/auth/logout" className="header-link">
+              Sair
+            </a>
+          </div>
+        </nav>
+      </header>
+    );
+  }
+
   return (
     <>
       <header
@@ -150,6 +173,7 @@ export default function Header() {
         }`}
       >
         <nav className="header-nav" ref={headerNavRef}>
+<Link href="/certificate-claims">Vínculos de certificados</Link>
           <div className="header-topbar">
             <Link
               href="/"
@@ -265,6 +289,10 @@ export default function Header() {
 
             <Link href="/blog" className="header-link" onClick={closeNavigation}>
               <Newspaper size={16} /> Blog
+            </Link>
+
+            <Link href="/selective-processes" className="header-link" onClick={closeNavigation}>
+              <ClipboardList size={16} /> CLAM
             </Link>
 
             <Link href="/Avisos" className="header-link" onClick={closeNavigation}>

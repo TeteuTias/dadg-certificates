@@ -1,10 +1,11 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { BlogBookmarkModel } from "@/lib/models/BlogInteractionModel";
-import BlogPostModel from "@/lib/models/BlogPostModel";
+import BlogPostModel, { type IBlogPost } from "@/lib/models/BlogPostModel";
 import GateKeeper from "@/lib/security/gatekeeper";
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     const keeper = new GateKeeper(request);
     const user = await keeper.identifySession();
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Encontra os bookmarks do usuário e popula com os dados do BlogPost
     const bookmarks = await BlogBookmarkModel.find({ ownerId: user.sub })
       .sort({ createdAt: -1 })
-      .populate({
+      .populate<{postId:IBlogPost|null}>({
         path: "postId",
         model: BlogPostModel,
         select: "title slug excerpt coverImage authorName tags likesCount commentsCount publishedAt createdAt status",
@@ -26,13 +27,15 @@ export async function GET(request: NextRequest) {
 
     // Filtra apenas bookmarks em que o post ainda existe e está publicado
     const savedPosts = bookmarks
-      .map((bm: any) => bm.postId)
-      .filter((post: any) => post && post.status === "PUBLISHED");
+      .map((bm) => bm.postId)
+      .filter((post) => post && post.status === "PUBLISHED");
 
     return NextResponse.json({ success: true, data: savedPosts }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro ao listar artigos salvos:", error);
     return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
   }
 }
+
+export const GET = withRouteAccess(GETHandler);

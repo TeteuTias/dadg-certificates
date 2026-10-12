@@ -144,7 +144,7 @@ export async function reportSnapshot(
       continue;
     const linkedProfile = profileById.get(String(app.candidateProfileId));
     const profile =
-      linkedProfile?.authSubject.split("|").pop() === String(app.userId)
+      linkedProfile && (String(linkedProfile._id) === String(app.userId) || linkedProfile.authSubject === `auth0|${app.userId}`)
         ? linkedProfile
         : undefined;
     const missing = missingClamFields(profile || null);

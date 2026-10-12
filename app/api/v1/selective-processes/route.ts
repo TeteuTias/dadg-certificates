@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { listSelectionProcessesForStudents } from '@/lib/selective-processes/services/studentSelectiveProcesses';
@@ -5,7 +6,7 @@ import { listSelectionProcessesForStudents } from '@/lib/selective-processes/ser
 export const dynamic = 'force-dynamic';
 
 /** Listagem pública dos processos seletivos exibida no site do aluno. */
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -25,3 +26,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withRouteAccess(GETHandler);

@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
 import { requireCandidateProfile } from '@/lib/selective-processes/candidate-profile';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 type Context = { params: Promise<{ id: string }> };
 
 /** Escolha das ligas acadêmicas, liberada após a confirmação do pagamento. */
-export async function POST(request: NextRequest, { params }: Context) {
+async function POSTHandler(request: NextRequest, { params }: Context) {
   const access = await new GateKeeper(request).validate();
   if (!access.authorized) {
     return NextResponse.json(
@@ -52,3 +53,5 @@ export async function POST(request: NextRequest, { params }: Context) {
     return clamFailure(error);
   }
 }
+
+export const POST = withRouteAccess(POSTHandler);

@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { clamFailure } from '@/lib/selective-processes/errors';
 import { NextRequest, NextResponse } from 'next/server';
 import GateKeeper from '@/lib/security/gatekeeper';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 type Context = { params: Promise<{ id: string }> };
 
-export async function GET(request: NextRequest, { params }: Context) {
+async function GETHandler(request: NextRequest, { params }: Context) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest, { params }: Context) {
   } catch (error) { return clamFailure(error); }
 }
 
-export async function POST(request: NextRequest, { params }: Context) {
+async function POSTHandler(request: NextRequest, { params }: Context) {
   try {
 
   const access = await new GateKeeper(request).validate();
@@ -44,14 +45,15 @@ export async function POST(request: NextRequest, { params }: Context) {
 
   const examStartDate = body?.examStartDate;
   const examEndDate = body?.examEndDate;
-  const name = body?.name;
-
-  if (!examStartDate || !examEndDate || !name) {
+  if (!examStartDate || !examEndDate || !body) {
     return NextResponse.json({ success: false, error: 'INVALID_BODY' }, { status: 400 });
   }
 
   const created = await createExamForProcess(id, {
-    name,
+    source: body.source,
+    academicLeagueId: body.academicLeagueId,
+    name: body.name,
+    acronym: body.acronym,
     examStartDate: new Date(examStartDate),
     examEndDate: new Date(examEndDate),
   });
@@ -60,3 +62,6 @@ export async function POST(request: NextRequest, { params }: Context) {
 
   } catch (error) { return clamFailure(error); }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const POST = withRouteAccess(POSTHandler);

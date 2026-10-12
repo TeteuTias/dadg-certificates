@@ -29,7 +29,7 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import "./page.css";
 import GetUserCertificateByEventId from "@/lib/models/src/certificatesHandler/get/GetUserCertificateByEventId";
-import { ICertificate } from "@/lib/models/CertificateModel";
+
 
 type ViewMode = "overview" | "settings";
 type ModalState = IModalProps & { isOpen: boolean };
@@ -51,6 +51,8 @@ type EventFormState = {
     styleFrontBottomText: string;
     styleNameText: string;
     useStatementFormat: boolean;
+    certificateHours: string;
+    minAttendancePercent: number | "";
 };
 
 type EventStatusFormState = {
@@ -63,6 +65,13 @@ type EventStatusFormState = {
 
 type FieldName = keyof EventFormState;
 type DirtyFields = Record<FieldName, boolean>;
+const STYLE_FIELDS: FieldName[] = [
+    "styleContainer",
+    "styleContainerVerse",
+    "styleFrontBottomText",
+    "styleFrontTopperText",
+    "styleNameText",
+];
 type VisualStyles = Pick<
     IEventCertificate,
     "styleContainer" | "styleContainerVerse" | "styleFrontTopperText" | "styleFrontBottomText" | "styleNameText"
@@ -85,6 +94,8 @@ const createEmptyFormState = (): EventFormState => ({
     styleFrontBottomText: "",
     styleNameText: "",
     useStatementFormat: false,
+    certificateHours: "",
+    minAttendancePercent: 100,
 });
 
 const createEmptyStatusFormState = (): EventStatusFormState => ({
@@ -111,6 +122,8 @@ const createDirtyFields = (): DirtyFields => ({
     styleFrontBottomText: false,
     styleNameText: false,
     useStatementFormat: false,
+    certificateHours: false,
+    minAttendancePercent: false,
 });
 
 const buildStatusFormState = (statusDetails?: EventStatusConfig): EventStatusFormState => {
@@ -136,6 +149,8 @@ const serializeStatusFormState = (state: EventStatusFormState) => ({
     registrationStartDate: state.registrationStartDate,
     registrationEndDate: state.registrationEndDate,
     timeLine: state.timeLine.map((item) => ({
+        // O id identifica a etapa na presenca: sem ele o servidor trataria como etapa nova.
+        id: item.id ? String(item.id) : undefined,
         startDate: item.startDate,
         endDate: item.endDate,
         description: item.description,
@@ -158,7 +173,9 @@ const buildFormState = (eventData: IEventCertificate): EventFormState => ({
     styleFrontBottomText: JSON.stringify(eventData.styleFrontBottomText || {}, null, 2),
     styleNameText: JSON.stringify(eventData.styleNameText || {}, null, 2),
     useStatementFormat: (JSON.stringify(eventData.useStatementFormat) === "true" ? true : false) || false,
-    isPaid: false
+    isPaid: eventData.isPaid === true,
+    certificateHours: eventData.certificateHours || "",
+    minAttendancePercent: eventData.minAttendancePercent ?? 100,
 });
 
 export default function Page({ params }: { params: Promise<{ _id: string }> }) {
@@ -303,15 +320,17 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
         setSaving(true);
 
         try {
-            const payload = {
-                ...formData,
-                _id: eventData._id,
-                styleContainer: JSON.parse(formData.styleContainer),
-                styleContainerVerse: JSON.parse(formData.styleContainerVerse),
-                styleFrontBottomText: JSON.parse(formData.styleFrontBottomText),
-                styleFrontTopperText: JSON.parse(formData.styleFrontTopperText),
-                styleNameText: JSON.parse(formData.styleNameText),
-            };
+            // Envia somente o campo salvo. Reenviar o formulario inteiro sobrescrevia
+            // valores nao editados, inclusive a cobranca, com o que estava na tela.
+            const changes: Record<string, unknown> =
+                fieldName === "isPaid" || fieldName === "price"
+                    ? { isPaid: formData.isPaid, price: formData.isPaid ? formData.price : 0 }
+                    : {
+                        [fieldName]: STYLE_FIELDS.includes(fieldName)
+                            ? JSON.parse(formData[fieldName] as string)
+                            : formData[fieldName],
+                    };
+            const payload = { _id: eventData._id, ...changes };
 
             const response = await fetch("/api/put/updateEvent/", {
                 method: "PUT",
@@ -324,15 +343,7 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                 throw new Error(result.message || "Nao foi possivel salvar este campo.");
             }
 
-            const mergedEvent = {
-                ...eventData,
-                ...payload,
-                styleContainer: payload.styleContainer,
-                styleContainerVerse: payload.styleContainerVerse,
-                styleFrontBottomText: payload.styleFrontBottomText,
-                styleFrontTopperText: payload.styleFrontTopperText,
-                styleNameText: payload.styleNameText,
-            } as IEventCertificate;
+            const mergedEvent = { ...eventData, ...changes } as IEventCertificate;
 
             setEventData(mergedEvent);
             setOriginalFormData((prev) => ({ ...prev, [fieldName]: formData[fieldName] }));
@@ -715,6 +726,25 @@ export default function Page({ params }: { params: Promise<{ _id: string }> }) {
                                         onSave={() => saveField("registrationCount")}
                                         type="number"
                                     />
+                                    <EditableField
+                                        label="Carga horaria do certificado"
+                                        name="certificateHours"
+                                        value={formData.certificateHours}
+                                        dirty={dirtyFields.certificateHours}
+                                        onChange={handleInputChange}
+                                        onSave={() => saveField("certificateHours")}
+                                        hint="Texto livre, ex.: 4 horas. Obrigatoria para liberar certificados por presenca; entra na frase 'com carga horaria de ...'."
+                                    />
+                                    <EditableField
+                                        label="Presenca minima para certificado (%)"
+                                        name="minAttendancePercent"
+                                        value={String(formData.minAttendancePercent)}
+                                        dirty={dirtyFields.minAttendancePercent}
+                                        onChange={handleInputChange}
+                                        onSave={() => saveField("minAttendancePercent")}
+                                        type="number"
+                                        hint="Percentual das etapas do cronograma com entrada e saida registradas. 100 exige todas as etapas."
+                                    />
                                 </div>
 
                                 <div className="event-toggle-row">
@@ -1016,7 +1046,7 @@ function VisualEditor({
     onBack: () => void;
     onSaved: (styles: VisualStyles) => void;
 }) {
-    const [certificate, setCertificate] = useState<ICertificate | null>(null);
+    const [certificate, setCertificate] = useState<{_id:string;ownerName:string;frontTopperText?:string;frontBottomText?:string} | null>(null);
     const [saving, setSaving] = useState(true);
     const [feedback, setFeedback] = useState("");
     const [liveTopperText, setLiveTopperText] = useState("Certificamos que");
@@ -1072,7 +1102,7 @@ function VisualEditor({
         }
     };
     useEffect(() => {
-        GetUserCertificateByEventId(new ObjectId(eventData._id)).then((cert) => {
+        GetUserCertificateByEventId(String(eventData._id)).then((cert) => {
             setCertificate(cert);
             if (cert) {
                 setLiveTopperText(cert.frontTopperText ?? "Certificamos que");
@@ -1081,7 +1111,7 @@ function VisualEditor({
             setSaving(false);
         })
 
-    }, [])
+    }, [eventData._id])
     return (
         <main className="event-editor-page" style={PoppinsFontLib.style}>
             {saving && <LoadingModal />}
@@ -1208,7 +1238,7 @@ function VisualEditor({
                                 >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                        src={certificate?._id ? `https://www.dadg.com.br/api/get/templateProxy/${certificate._id}|front?t=${Date.now()}` : `https://www.dadg.com.br/api/get/templateProxy/698afa75b745573f14c27605|front?t=${Date.now()}`}
+                                        src={`/api/v1/admin/events/${eventData._id}/template`}
                                         alt="Preview do certificado"
                                         className="event-editor-image"
                                     />

@@ -68,6 +68,7 @@ const CreateEventCertificateForm: React.FC = () => {
     const [maxParticipants, setMaxParticipants] = useState<number | "">("");
     const [isPaid, setIsPaid] = useState(false);
     const [price, setPrice] = useState<number | "">("");
+    const [certificateHours, setCertificateHours] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // --- NOVO ESTADO: Controla a animação e o status do botão CLAM ---
@@ -103,6 +104,7 @@ const CreateEventCertificateForm: React.FC = () => {
         setTemplateVersePath("");
         setPrice("");
         setIsPaid(false);
+        setCertificateHours("");
         setIsClamFormatActive(false); // Reseta o botão do CLAM
     };
 
@@ -129,6 +131,7 @@ const CreateEventCertificateForm: React.FC = () => {
             formData.append("registrationEndDate", registrationEndDate);
             formData.append("timeLine", JSON.stringify(timeLine));
             formData.append("templateForm", isClamFormatActive ? "CLAM" : "default")
+            formData.append("certificateHours", certificateHours.trim());
             if (isPaid && price !== "") {
                 formData.append("price", price.toString());
             }
@@ -317,6 +320,14 @@ const CreateEventCertificateForm: React.FC = () => {
                                 type="number"
                                 min={1}
                                 placeholder="100"
+                            />
+                            <FieldGroup
+                                id="certificateHours"
+                                label="Carga horaria do certificado"
+                                value={certificateHours}
+                                onChange={setCertificateHours}
+                                placeholder="4 horas"
+                                hint="Opcional agora, obrigatoria para liberar certificados por presenca. Entra na frase: com carga horaria de..."
                             />
                         </div>
 

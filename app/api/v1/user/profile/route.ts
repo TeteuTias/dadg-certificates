@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import GateKeeper from "@/lib/security/gatekeeper";
@@ -42,7 +43,7 @@ async function student(request: NextRequest) {
   return user;
 }
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   try {
     assertProfileCryptoConfigured();
     const user = await student(request);
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     const [profile, data] = await Promise.all([
       serializeOwnProfile(identity),
-      getProfileEvents(identity.authSubject, typeof user.email === "string" ? user.email : undefined),
+      getProfileEvents(identity),
     ]);
     return json({
       success: true,
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+async function PUTHandler(request: NextRequest) {
   try {
     assertProfileCryptoConfigured();
     const user = await student(request);
@@ -90,3 +91,6 @@ export async function PUT(request: NextRequest) {
     return handleError(error, "PUT /api/v1/user/profile");
   }
 }
+
+export const GET = withRouteAccess(GETHandler);
+export const PUT = withRouteAccess(PUTHandler);

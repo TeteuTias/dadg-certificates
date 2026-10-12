@@ -1,3 +1,4 @@
+import { withRouteAccess } from "@/lib/security/route-access";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { BlogLikeModel, BlogBookmarkModel } from "@/lib/models/BlogInteractionModel";
@@ -8,7 +9,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+async function GETHandler(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
     if (!ObjectId.isValid(id)) {
@@ -34,8 +35,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       isBookmarked: !!bookmark
     }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro ao checar interações:", error);
     return NextResponse.json({ success: false, error: "Erro interno" }, { status: 500 });
   }
 }
+
+export const GET = withRouteAccess(GETHandler);

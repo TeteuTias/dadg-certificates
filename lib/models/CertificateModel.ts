@@ -6,6 +6,8 @@ import { ObjectId } from 'mongodb';
 export interface ICertificate {
     _id: ObjectId;
     ownerName: string;
+    profileId?: ObjectId;
+    participantId?: ObjectId;
     ownerCpf: string | null;
     eventName: string;
     ownerEmail: string | null;
@@ -15,6 +17,7 @@ export interface ICertificate {
     frontBottomText?: string;
     eventId: ObjectId;
     isReady?: boolean;
+    revokedAt?: Date;
     onlyImage?: boolean;
     verse: {
         showVerse: boolean;
@@ -31,6 +34,9 @@ export interface ICertificateWithEventPopulate extends Omit<ICertificate, 'event
 // Definição do schema do usuário
 const CertificateSchema: Schema<ICertificate> = new Schema(
     {
+        revokedAt: Date,
+        profileId: { type: Schema.Types.ObjectId, ref: "UserProfile" },
+        participantId: { type: Schema.Types.ObjectId, ref: "EventParticipant" },
         ownerName: { type: String, required: true },
         ownerCpf: { type: String, required: true },
         eventName: { type: String, required: true },
