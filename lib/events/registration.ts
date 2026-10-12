@@ -265,7 +265,9 @@ export async function cancelRegistration(request: NextRequest, id: string) {
       participant.status = "CANCELLED";
       participant.cancelledAt = new Date();
       participant.cancellationReason = "student";
-      participant.qrToken = undefined;
+      // O índice único de qrToken em produção não é esparso: remover o campo
+      // faria a segunda inscrição cancelada colidir. Trocar o valor invalida o código.
+      participant.qrToken = randomUUID();
       await participant.save({ session });
       const released = await Event.updateOne(
         { _id: id, registrationCount: { $gt: 0 } },

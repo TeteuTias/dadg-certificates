@@ -1,5 +1,6 @@
 import { EventError } from "@/lib/events/rules";
 import { EventAudit } from "@/lib/events/Audit";
+import { applyAttendance, eventStages } from "@/lib/events/attendance";
 import mongoose from "mongoose";
 import { isValidCpf, validateName } from "@/lib/profile/validation";
 import { encryptCpf, cpfLookup } from "@/lib/profile/crypto";
@@ -19,10 +20,12 @@ interface RouteParams {
 /**
  * @description Adiciona um participante walk-in (sem inscrição prévia) e já marca como presente.
  * POST /api/v1/events/[id]/walkin
- * 
- * Body: { ownerName, ownerEmail, ownerCpf }
- * Usado pelo admin na tela de presença quando alguém não se inscreveu antes mas está presente.
- * Não decrementa vagas nem verifica datas — é um lançamento manual de admin.
+ *
+ * Body: { ownerName, ownerEmail, ownerCpf, stageId? }
+ * A entrada é lançada na etapa informada (obrigatória em eventos com várias etapas).
+ * Usado na tela de presença quando alguém não se inscreveu antes mas está presente.
+ * É um lançamento manual: conta a vaga, mas não é barrado pela lotação nem pelo
+ * período de inscrições. Eventos pagos exigem inscrição pela conta do participante.
  */
 async function POSTHandler(request: NextRequest, { params }: RouteParams) {
     try {
@@ -33,10 +36,11 @@ async function POSTHandler(request: NextRequest, { params }: RouteParams) {
         }
 
         const keeper = new GateKeeper(request);
-        const user = await keeper.identifySession();
-        if (!user) {
+        const staff = await keeper.identifyStaff();
+        if (!staff) {
             return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
         }
+        const { user, role } = staff;
 
         const body = await request.json().catch(() => ({}));
         const ownerName: string = (body.ownerName || '').trim();
@@ -56,22 +60,88 @@ async function POSTHandler(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ success: false, error: 'Evento não encontrado.' }, { status: 404 });
         }
 
-        if (event.isPaid) return NextResponse.json({error:"Eventos pagos exigem inscrição e pagamento pela conta do participante."},{status:409});
-        // Verifica duplicatas por email dentro do mesmo evento
+        if (event.isPaid) {
+            return NextResponse.json(
+                { success: false, error: 'Eventos pagos exigem inscrição e pagamento pela conta do participante.' },
+                { status: 409 },
+            );
+        }
+
         const qrToken = randomUUID();
         const now = new Date();
+        const lookup = cpfLookup(ownerCpf);
+        const requestedStageId = typeof body.stageId === 'string' && body.stageId ? body.stageId : null;
+        const entry = applyAttendance({}, eventStages(event), 'checkin', requestedStageId, now);
 
-        // Walk-in: cria participante E já marca como presente em um único passo
-        const session=await mongoose.startSession();let participantId="";
-        try{await session.withTransaction(async()=>{
-          const existing=await EventParticipant.exists({eventId:id,status:{$ne:"CANCELLED"},$or:[{ownerEmail},{ownerCpf},{cpfLookup:cpfLookup(ownerCpf)}]}).session(session);
-          if(existing)throw new Error("Participante já cadastrado.");
-          const updated=await EventCertificateModel.updateOne({_id:id,archivedAt:{$exists:false},isPaid:false,$expr:{$lt:[{$ifNull:["$registrationCount",0]},"$maxParticipants"]}},{$inc:{registrationCount:1}},{session});
-          if(!updated.modifiedCount)throw new Error("Evento indisponível ou sem vagas.");
-          const [p]=await EventParticipant.create([{eventId:id,ownerName,ownerEmail,cpfEncrypted:encryptCpf(ownerCpf),cpfLookup:cpfLookup(ownerCpf),status:"CONFIRMED",qrToken,checkedIn:true,checkedInAt:now}],{session});participantId=String(p._id);
- await EventAudit.create([{eventId:id,participantId:p._id,actor:user.sub,action:"registration.walkin",details:"admin"}],{session});
-        });}finally{await session.endSession();}
+        // Walk-in: cria o participante e já marca a entrada em uma única transação.
+        const session = await mongoose.startSession();
+        let participantId = '';
+        try {
+            await session.withTransaction(async () => {
+                const existing = await EventParticipant.exists({
+                    eventId: id,
+                    status: { $ne: 'CANCELLED' },
+                    $or: [{ ownerEmail }, { ownerCpf }, { cpfLookup: lookup }],
+                }).session(session);
+                if (existing) {
+                    throw new EventError(
+                        'PARTICIPANT_ALREADY_REGISTERED',
+                        409,
+                        'Já existe inscrição com este e-mail ou CPF neste evento.',
+                    );
+                }
 
+                const updated = await EventCertificateModel.updateOne(
+                    { _id: id, archivedAt: { $exists: false }, isPaid: false },
+                    { $inc: { registrationCount: 1 } },
+                    { session },
+                );
+                if (!updated.modifiedCount) {
+                    throw new EventError(
+                        'EVENT_UNAVAILABLE',
+                        409,
+                        'Evento indisponível para lançamento manual.',
+                    );
+                }
+
+                const [participant] = await EventParticipant.create(
+                    [{
+                        eventId: id,
+                        ownerName,
+                        ownerEmail,
+                        cpfEncrypted: encryptCpf(ownerCpf),
+                        cpfLookup: lookup,
+                        status: 'CONFIRMED',
+                        qrToken,
+                        checkedIn: true,
+                        checkedInAt: now,
+                        ...(entry.attendance
+                            ? {
+                                attendance: entry.attendance.map((item) => ({
+                                    stageId: new ObjectId(item.stageId),
+                                    checkedInAt: item.checkedInAt,
+                                })),
+                            }
+                            : {}),
+                    }],
+                    { session },
+                );
+                participantId = String(participant._id);
+
+                await EventAudit.create(
+                    [{
+                        eventId: id,
+                        participantId: participant._id,
+                        actor: user.sub,
+                        action: 'registration.walkin',
+                        details: entry.stageId ? `${role} stage:${entry.stageId}` : role,
+                    }],
+                    { session },
+                );
+            });
+        } finally {
+            await session.endSession();
+        }
 
         return NextResponse.json({
             success: true,
@@ -80,14 +150,18 @@ async function POSTHandler(request: NextRequest, { params }: RouteParams) {
                 participantId: participantId,
                 ownerName,
                 ownerEmail,
+                stageId: entry.stageId,
                 checkedIn: true,
                 checkedInAt: now,
             },
         }, { status: 201 });
 
     } catch (error) {
+        if (error instanceof EventError) {
+            return NextResponse.json({ success: false, error: error.message, code: error.code }, { status: error.status });
+        }
         console.error('[WALKIN_POST]', error);
-        return NextResponse.json({ success: false, error: error instanceof EventError ? error.message : 'Erro interno ao adicionar participante.' }, { status: error instanceof EventError ? error.status : 500 });
+        return NextResponse.json({ success: false, error: 'Erro interno ao adicionar participante.' }, { status: 500 });
     }
 }
 

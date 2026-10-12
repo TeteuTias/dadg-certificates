@@ -18,6 +18,8 @@ import Certificate from "@/lib/models/CertificateModel";
 
 import { decryptCpf } from "@/lib/profile/crypto";
 
+import { attendanceSummary, eventStages } from "@/lib/events/attendance";
+
 async function handle(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -27,10 +29,11 @@ async function handle(
     return Response.json({ error: "Evento inválido" }, { status: 400 });
   await connectToDatabase();
 
+  // Quem tem alguma presença e ainda não recebeu certificado. O direito ao
+  // certificado depende das etapas cumpridas e é decidido por attendanceSummary.
   const filter = {
     eventId: id,
     checkedIn: true,
-    checkedOut: true,
     status: { $nin: ["PENDING", "CANCELLED", "REVIEW"] },
     certificateId: null,
   };
@@ -38,6 +41,15 @@ async function handle(
   const event = await Event.findById(id).lean();
   if (!event)
     return Response.json({ error: "Evento não encontrado" }, { status: 404 });
+
+  const eligibleIds = async () =>
+    (
+      await Participant.find(filter)
+        .select("_id attendance checkedIn checkedOut")
+        .lean()
+    )
+      .filter((participant) => attendanceSummary(event, participant).eligible)
+      .map((participant) => participant._id);
 
   const ends =
     event.statusDetails?.timeLine?.map((item) =>
@@ -50,9 +62,11 @@ async function handle(
 
   if (request.method === "GET")
     return Response.json({
-      eligible: await Participant.countDocuments(filter),
+      eligible: (await eligibleIds()).length,
       requiresCheckout: true,
       ended,
+      stages: eventStages(event)?.length ?? 1,
+      minAttendancePercent: event.minAttendancePercent ?? 100,
     });
 
   if (!ended)
@@ -63,19 +77,19 @@ async function handle(
 
   if (!event.certificateHours || !event.templatePath)
     return Response.json(
-      { error: "Configure carga horária e template antes de liberar." },
+      {
+        error:
+          "Defina a carga horária do certificado e o template em Editar evento antes de liberar.",
+      },
       { status: 409 },
     );
 
   const actor = await new GateKeeper(request).identifyAdmin();
 
-  const candidates = await Participant.find(filter)
-    .select("_id")
-    .limit(100)
-    .lean();
+  const candidates = (await eligibleIds()).slice(0, 100);
   let issued = 0;
 
-  for (const candidate of candidates) {
+  for (const candidateId of candidates) {
     const session = await mongoose.startSession();
     let created = false;
     try {
@@ -83,10 +97,12 @@ async function handle(
         created = false;
 
         const participant = await Participant.findOne({
-          _id: candidate._id,
+          _id: candidateId,
           ...filter,
         }).session(session);
-        if (!participant) return;
+        // Reconfere dentro da transação: a presença pode ter mudado desde a listagem.
+        if (!participant || !attendanceSummary(event, participant).eligible)
+          return;
 
         const certificateId = new mongoose.Types.ObjectId();
 
@@ -144,7 +160,7 @@ async function handle(
 
   return Response.json({
     issued,
-    remaining: await Participant.countDocuments(filter),
+    remaining: (await eligibleIds()).length,
   });
 }
 

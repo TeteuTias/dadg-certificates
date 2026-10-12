@@ -31,3 +31,25 @@ test('unconfirmed expiration and provider errors cannot be treated as cancellati
     await assert.rejects(new MpGateway().close('pref', 'order'), { name: 'TimeoutError' });
   } finally { global.fetch = original; if (token === undefined) delete process.env.MERCADOPAGO_ACCESS_TOKEN; else process.env.MERCADOPAGO_ACCESS_TOKEN = token; }
 });
+test('cobranças de evento e do CLAM são criadas sem boleto', async () => {
+  const original = global.fetch;
+  const saved = { token: process.env.MERCADOPAGO_ACCESS_TOKEN, secret: process.env.MERCADOPAGO_WEBHOOK_SECRET, base: process.env.APP_BASE_URL };
+  process.env.MERCADOPAGO_ACCESS_TOKEN = 'fake'; process.env.MERCADOPAGO_WEBHOOK_SECRET = 'fake'; process.env.APP_BASE_URL = 'https://backend.test';
+  try {
+    const sent: Array<Record<string, unknown>> = [];
+    global.fetch = async (_url, init) => { sent.push(JSON.parse(String(init?.body))); return Response.json({ id: 'pref', init_point: 'https://mp.test/checkout' }); };
+    const contract = { amountCents: 3000, currency: 'BRL' as const, examsCount: 1 };
+    const payer = { name: 'Ana', email: 'ana@example.test', cpf: '52998224725', phone: '', zipCode: '', street: '', number: '', neighborhood: '', complement: '' };
+    const expires = new Date(Date.now() + 900_000);
+    await new MpGateway('Simpósio').create('order', contract, payer, expires);
+    await new MpGateway().create('order', contract, payer, expires);
+    for (const body of sent) assert.deepEqual(body.payment_methods, { excluded_payment_types: [{ id: 'ticket' }] });
+    assert.equal(sent[0].notification_url, 'https://backend.test/api/events/webhook');
+    assert.equal(sent[1].notification_url, 'https://backend.test/api/selective-processes/webhook');
+  } finally {
+    global.fetch = original;
+    for (const [key, value] of [['MERCADOPAGO_ACCESS_TOKEN', saved.token], ['MERCADOPAGO_WEBHOOK_SECRET', saved.secret], ['APP_BASE_URL', saved.base]] as const) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});

@@ -68,6 +68,8 @@ export type IEventCertificate = {
     useStatementFormat: boolean;
     /** Carga horária do evento — usada na geração automática dos certificados (ex: "4h", "8 horas") */
     certificateHours?: string;
+    /** Percentual mínimo de etapas (com entrada e saída) exigido para o certificado. Padrão: 100. */
+    minAttendancePercent?: number;
     /** Flag que indica se os certificados já foram liberados para os participantes */
     certificateReleased: boolean;
     statusDetails: EventStatusConfig;
@@ -76,6 +78,8 @@ export type IEventCertificate = {
 // Definição do schema do Mongoose
 const TimelineItemSchema = new Schema(
     {
+        // Identidade estável da etapa: é a chave da presença por etapa do participante.
+        id: { type: Schema.Types.ObjectId, required: false },
         startDate: { type: Date, required: true },
         endDate: { type: Date, required: true },
         description: { type: String, required: true },
@@ -106,6 +110,7 @@ const EventCertificateSchema = new Schema<IEventCertificate>(
         documentVersion: { type: String, required: false, default: "2.0" },
         maxParticipants: { type: Number, required: true },
         certificateHours: { type: String, required: false, default: "" },
+        minAttendancePercent: { type: Number, required: false, min: 1, max: 100, default: 100 },
         certificateReleased: { type: Boolean, required: true, default: false },
 
         // Regras de Pagamento

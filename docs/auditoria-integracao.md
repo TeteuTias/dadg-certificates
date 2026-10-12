@@ -6,17 +6,17 @@ Branch `codex/auditoria-integracao`, base `ce4fcfe`. Par: mesma branch no `dadg-
 
 - Guarda de autorização nos handlers, além do proxy. Escritas administrativas exigem sessão/role de administrador; token de aluno não substitui essa sessão.
 - Consulta pública de certificados liberados com DTO sem CPF, e-mail ou ID de perfil, busca literal, paginação e limite por instância. PDF e imagens são servidos pelo backend. O conteúdo nominal do próprio certificado permanece público.
-- Perfil identificado por issuer + subject, incluindo login social; inscrições usam ID interno do perfil e aceite vigente. QR Code de inscrições pagas aparece após confirmação pelo provedor.
+- Perfil identificado por issuer + subject, incluindo login social; inscrições usam ID interno do perfil e aceite vigente. O aluno tem um QR Code pessoal único, assinado pelo backend e exibido no perfil; a leitura só é aceita para inscrição confirmada (nas pagas, após confirmação pelo provedor).
 - Inscrição transacional: janela, capacidade, duplicidade, conflito de horários; índice único evento/perfil obrigatório. Cancelamento gratuito antes do início preserva histórico; pagamento exige organização.
 - Cobrança de evento no Mercado Pago com valor imutável em centavos, reserva de 15 minutos, preferência única, webhook assinado, conciliação com trava e recuperação de falha incerta. CLAM mantém o provedor existente.
-- Entrada, saída e emissão com transação e auditoria. Política inicial de emissão: evento terminou + entrada e saída registradas; máximo de 100 certificados por chamada, com repetição idempotente. Arquivar evento preserva certificados e participantes.
+- Entrada, saída e emissão com transação e auditoria. A presença é registrada por etapa do cronograma. Política de emissão: evento terminou + carga horária definida + percentual mínimo de etapas com entrada e saída (campo do evento, padrão 100%); máximo de 100 certificados por chamada, com repetição idempotente. Arquivar evento preserva certificados e participantes.
 - Biblioteca de certificados separada do histórico de inscrições. Solicitação manual, justificativa do administrador, aprovar/rejeitar/revogar e histórico de decisões. Vínculo automático exige CPF válido e e-mail verificado coincidentes; nome nunca autoriza vínculo. Qualquer solicitação/decisão anterior impede vínculo automático.
 - Upload valida bytes, decodifica imagem (até 40 milhões de pixels) ou PDF (até 50 páginas), limite de 10 MB e compensação R2. Importação XLSX/CSV com prévia, limites e lote transacional deduplicado. XLS antigo precisa ser convertido para XLSX/CSV.
 - HTML do blog sanitizado, leituras limitadas; dependências atualizadas; CI de lint, tipos, testes, auditoria de dependências e build.
 
 ## Pré-requisitos de ativação
 
-Nenhum script de banco desta entrega foi executado em produção. Não habilitar eventos novos antes de preparar os índices e homologar o fluxo. `CERTIFICATE_AUTO_LINK_ENABLED` deve continuar ausente/false até a auditoria do acervo; a revisão manual continua disponível.
+Em 11/10/2026 o `audit-maintenance.ts --mode=apply` foi executado no banco `dadg` de produção, com aprovação explícita e backup prévio (mongodump local `backup-11-10`): zero duplicidades evento/perfil, quatro coleções e quatro índices criados, nenhum documento alterado. Os scripts de QA nunca foram executados contra banco real. Não habilitar eventos novos antes de preparar os índices e homologar o fluxo. `CERTIFICATE_AUTO_LINK_ENABLED` deve continuar ausente/false até a auditoria do acervo; a revisão manual continua disponível.
 
 O usuário exige aprovação explícita antes de qualquer acesso a banco, inclusive inspeção. Para alterações, exige também backup recuperável. Os comandos abaixo são um roteiro, não uma autorização para execução.
 
@@ -62,7 +62,7 @@ No backend, definir `STUDENT_AUTH0_EMAIL_CLAIM=https://dadg.com.br/email` e `STU
 
 - `APP_BASE_URL`: URL HTTPS deste backend; `STUDENT_SITE_URL`: URL do site do aluno.
 - `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_WEBHOOK_SECRET` do ambiente. Eventos notificam `/api/events/webhook`; CLAM preserva sua configuração atual. Homologar assinatura, retries, pagamento aprovado, pendente, estorno e chargeback.
-- `CRON_SECRET`: segredo longo. Agendar GET `/api/cron/reconcile-payments` com `Authorization: Bearer <segredo>`, por exemplo a cada minuto, no agendador da hospedagem. Nenhum agendamento remoto foi ativado nesta entrega. Processa até 10 cobranças de evento + 10 CLAM por chamada.
+- `CRON_SECRET`: segredo longo. O `vercel.json` agenda GET `/api/cron/reconcile-payments` a cada 15 minutos; a Vercel envia `Authorization: Bearer <segredo>` sozinha e só executa o cron em produção (plano Pro). O agendamento passa a valer no primeiro deploy de produção com esse arquivo e com `CRON_SECRET` definido; sem a variável a rota responde 401. Processa até 10 cobranças de evento + 10 CLAM por chamada.
 - Preferência com criação incerta sem confirmação do provedor continua em revisão e mantém a reserva. Não liberar a vaga manualmente enquanto houver cobrança potencialmente pagável. `/event-payments` permite consultar e conciliar. Estornos são feitos no provedor e depois conciliados; o painel não inventa quitação nem dispara reembolso automático.
 - R2: `R2_ENDPOINT_URL` (ou `R2_ENDPOINT`), `R2_ACCESS_KEY`/`R2_ACCESS_KEY_ID`, `R2_SECRET_KEY`/`R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_SUBFOLDER`.
 - Manter chaves de CPF existentes: `PROFILE_CPF_ACTIVE_KEY_VERSION`, `PROFILE_CPF_ENCRYPTION_KEY_<VERSAO>`, `PROFILE_CPF_LOOKUP_KEY`; não rotacionar sem plano próprio.
@@ -104,7 +104,7 @@ Definir o mesmo `PUBLIC_PROXY_RATE_LIMIT_SECRET` aleatório nos dois projetos. O
 
 - `npm run typecheck`: passou nos dois projetos.
 - `npm run lint`: passou; backend mantém um aviso de otimização de imagem em `app/Silvio/page.tsx`.
-- `npm test`: 56 testes no backend e 15 no site, todos passaram (sem banco).
+- `npm test`: 82 testes no backend e 17 no site, todos passaram (sem banco).
 - `npm audit`: zero vulnerabilidades reportadas nos dois lockfiles após as atualizações.
 - `npm run build`: builds completos passaram com credenciais fictícias e banco bloqueado; aviso de importação dinâmica do Auth0 permanece.
 - `qa-audit-integration.ts`: PASS em Mongo local autorizado; confirmou inscrição paralela idempotente, contador, histórico do cancelamento, reserva paga, checkout sem duplicação, repetição de webhook, restrição de cancelamento pago, liberação e DTO público.
@@ -114,3 +114,35 @@ Definir o mesmo `PUBLIC_PROXY_RATE_LIMIT_SECRET` aleatório nos dois projetos. O
 - Navegador interno bloqueou localhost (`ERR_BLOCKED_BY_CLIENT`) e Chrome não estava disponível; validação visual/interativa não foi concluída.
 
 Essas evidências validam o código local; não comprovam configuração do tenant, pagamento externo, storage, cron, conteúdo institucional ou deploy. A ativação de produção permanece pendente dessas etapas e da aprovação de banco correspondente.
+
+## Atualização de 11/10/2026: presença por QR
+
+Correções e mudanças feitas depois da entrega inicial. Tudo validado apenas por lint, tipos, testes sem banco e build; a leitura real com câmera, o Auth0 e os scripts de QA com Mongo ainda não foram exercitados com este código.
+
+### O que mudou
+
+- **QR pessoal único.** Sai o ingresso por inscrição. O perfil do aluno devolve `attendanceQr`, formado pelo ID do perfil e uma assinatura HMAC-SHA256 com `ATTENDANCE_QR_SECRET`; nada é gravado no banco. A leitura passou de `GET` com o código na URL para `POST /api/v1/events/:id/checkin/scan` com `{ token, stageId }` no corpo. Respostas específicas: não inscrito (com o nome do aluno), aguardando pagamento, em revisão e cancelada. O código antigo por inscrição continua aceito durante a transição.
+- **Leitor.** O QR do site voltou a ser escuro sobre fundo claro e o leitor aceita também imagem invertida. Antes disso a leitura não funcionava.
+- **Presença por etapa.** Cada etapa do cronograma tem `id` estável (preservado ao salvar o cronograma) e o participante guarda `attendance: [{ stageId, checkedInAt, checkedOutAt }]`. Os campos `checkedIn`/`checkedOut` ficaram como resumo (primeira entrada, última saída). Conta a etapa com entrada e saída. Evento cujo cronograma ainda não tem `id` segue com uma entrada e uma saída até o cronograma ser salvo em Editar evento; presenças registradas no modelo antigo continuam valendo.
+- **Certificado.** `minAttendancePercent` no evento (1 a 100, padrão 100). A carga horária do evento agora tem campo na criação e na edição; sem ela a liberação responde 409.
+- **Edição de evento.** A tela reenviava o formulário inteiro a cada campo, com `isPaid: false` e `price: 0`. Isso bloqueava qualquer edição de evento com inscritos e tornava gratuito um evento pago sem inscritos. Agora envia só o campo salvo.
+- **Adicionar sem QR.** Duplicidade e evento indisponível respondem 409 com mensagem. O lançamento manual conta a vaga mas não é barrado pela lotação; evento pago continua recusado. A entrada vai para a etapa selecionada.
+- **CPF na lista de presença.** A lista devolve só `cpfMasked` e não envia mais CPF, CPF cifrado nem `qrToken`. A busca por CPF completo é um `POST` na mesma rota.
+- **Operador de presença.** Tipo de acesso `operator` (role de administrador ou de operador). Alcança apenas `/presenca`, `/todosEventos/:id/presenca`, `GET /api/v1/events/attendance`, participantes, leitura, entrada/saída e lançamento manual. A auditoria grava o papel de quem registrou.
+- **Cancelamento.** O índice `qrToken_1` de produção é único e não esparso. Remover o campo ao cancelar faria a segunda inscrição cancelada falhar; o cancelamento e a conciliação passaram a trocar o valor por outro aleatório.
+
+- **Sem boleto.** As cobranças de evento e do CLAM são criadas sem o tipo de pagamento `ticket` (boleto e lotérica). A reserva dura 15 minutos e a conciliação cancela o que estiver pendente, então um boleto seria cancelado antes de compensar. Ficam PIX e cartão.
+
+### Configuração adicional
+
+- `ATTENDANCE_QR_SECRET`: obrigatório, aleatório, com pelo menos 32 caracteres. Sem ele o perfil não mostra o QR e a leitura responde 503. Trocar o valor invalida todos os QR emitidos.
+- `DADG_OPERATOR_ROLE_NAME`: nome exato da role do operador. Ausente, ninguém é operador.
+- Auth0: criar a role, atribuí-la e garantir que ela chegue na claim `https://dadg.com.br/roles` do ID token do painel. Se a Action filtra roles por nome, incluir a nova.
+- Nenhum índice novo. `attendance`, `id` das etapas e `minAttendancePercent` passam a ser gravados conforme o uso; eventos antigos não são convertidos.
+
+### Pendências
+
+- Homologar com dois celulares: entrada e saída em duas etapas, aluno não inscrito, operador barrado nas telas de administrador, emissão com percentual abaixo de 100.
+- Rodar de novo `qa-audit-integration.ts` e `qa-audit-lifecycle.ts`, com aprovação. Eles não cobrem a presença por etapa: as fixtures criam cronograma sem `id`.
+- Ações administrativas para cancelar inscrição, resolver participante em revisão e desfazer lançamento manual continuam sem tela.
+- O leitor ainda carrega o jsQR de CDN em tempo de execução, sem aviso se a carga falhar.

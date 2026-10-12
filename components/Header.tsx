@@ -8,7 +8,7 @@ import "./Header.css";
 
 type HeaderMenu = "certificates" | "events" | null;
 
-export default function Header() {
+export default function Header({ role = "admin" }: { role?: "admin" | "operator" | null }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -141,6 +141,29 @@ export default function Header() {
 
     setSecretError('Senha incorreta. Tenta "Silvio".');
   };
+
+  // Operador de presença: só a lista de presença, sem os menus administrativos.
+  if (role === "operator") {
+    return (
+      <header className="header-container">
+        <nav className="header-nav">
+          <div className="header-topbar">
+            <Link href="/presenca" className="header-logo">
+              DADG Certificates
+            </Link>
+          </div>
+          <div className="header-links is-mobile-open" id="header-navigation">
+            <Link href="/presenca" className="header-link">
+              Presença
+            </Link>
+            <a href="/auth/logout" className="header-link">
+              Sair
+            </a>
+          </div>
+        </nav>
+      </header>
+    );
+  }
 
   return (
     <>

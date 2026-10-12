@@ -631,3 +631,35 @@
     padding: 0.7rem 1.25rem;
 }
 
+
+/* Etapa do cronograma */
+.presenca-stage {
+    padding: 1.25rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.presenca-stage-label {
+    color: #f8fafc;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.presenca-stage-select {
+    width: 100%;
+    font-size: 0.95rem;
+}
+
+.presenca-stage-single {
+    color: #f8fafc;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.presenca-stage-hint {
+    color: #93c5fd;
+    font-size: 0.82rem;
+    margin: 0;
+}

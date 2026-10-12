@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import EventCertificateModel, { IEventCertificate } from '@/lib/models/EventCertificateModel';
 import { buildEventStatusDetails } from '@/lib/events/statusDetails';
+import { pricingChanged } from '@/lib/events/rules';
 
 async function PUTHandler(request: Request) {
     try {
@@ -31,11 +32,24 @@ async function PUTHandler(request: Request) {
             statusDetails,
             ...restUpdateData
         } = formData;
-        const allowed = ["eventName","eventDescription","eventType","eventBenefits","styleContainer","styleContainerVerse","styleFrontTopperText","styleFrontBottomText","styleNameText","templatePath","templateVersePath","maxParticipants","certificateHours","isPaid","price","useStatementFormat"];
+        const allowed = ["eventName","eventDescription","eventType","eventBenefits","styleContainer","styleContainerVerse","styleFrontTopperText","styleFrontBottomText","styleNameText","templatePath","templateVersePath","maxParticipants","certificateHours","minAttendancePercent","isPaid","price","useStatementFormat"];
         const updateData = Object.fromEntries(Object.entries(restUpdateData).filter(([key])=>allowed.includes(key))) as Partial<IEventCertificate>;
         const existing = await EventCertificateModel.findById(_id).lean();
         if (existing && updateData.maxParticipants !== undefined && updateData.maxParticipants < (existing.registrationCount || 0)) return NextResponse.json({success:false,message:"Capacidade inferior às vagas já ocupadas."},{status:409});
-        if (existing?.registrationCount && (updateData.isPaid !== undefined && updateData.isPaid !== existing.isPaid || updateData.price !== undefined && updateData.price !== existing.price)) return NextResponse.json({success:false,message:"Não altere o preço de um evento com inscrições."},{status:409});
+        if (existing?.registrationCount && pricingChanged(existing, updateData)) return NextResponse.json({success:false,message:"Não altere o preço de um evento com inscrições."},{status:409});
+        if (updateData.certificateHours !== undefined) {
+            if (typeof updateData.certificateHours !== "string" || updateData.certificateHours.trim().length > 60) {
+                return NextResponse.json({ success: false, message: "Carga horária inválida: use um texto de até 60 caracteres." }, { status: 400 });
+            }
+            updateData.certificateHours = updateData.certificateHours.trim();
+        }
+        if (updateData.minAttendancePercent !== undefined) {
+            const percent = Number(updateData.minAttendancePercent);
+            if (!Number.isInteger(percent) || percent < 1 || percent > 100) {
+                return NextResponse.json({ success: false, message: "Presença mínima inválida: use um número inteiro de 1 a 100." }, { status: 400 });
+            }
+            updateData.minAttendancePercent = percent;
+        }
 
         if (typeof _id !== 'string') {
             return NextResponse.json(
@@ -51,7 +65,7 @@ async function PUTHandler(request: Request) {
         );
 
         if (statusPayload) {
-            const statusDetailsResult = buildEventStatusDetails(statusPayload);
+            const statusDetailsResult = buildEventStatusDetails(statusPayload, existing?.statusDetails?.timeLine);
 
             if (statusDetailsResult.error) {
                 return NextResponse.json(

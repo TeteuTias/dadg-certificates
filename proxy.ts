@@ -37,7 +37,13 @@ export async function proxy(request: NextRequest) {
       );
     }
 
-    const destination = access.status === 403 ? "/not-allowed" : "/auth/login";
+    // Operador de presença que cai em página exclusiva de administrador volta para a lista de eventos.
+    // Só para a negativa por papel: outras recusas (ex.: origem inválida) seguem para /not-allowed.
+    const isOperator =
+      access.code === "ADMIN_ACCESS_DENIED" &&
+      request.nextUrl.pathname !== "/presenca" &&
+      (await keeper.identifyStaff())?.role === "operator";
+    const destination = isOperator ? "/presenca" : access.status === 403 ? "/not-allowed" : "/auth/login";
     const response = NextResponse.redirect(new URL(destination, request.nextUrl.origin));
     response.headers.set("Cache-Control", "private, no-store");
     return response;

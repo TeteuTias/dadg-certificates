@@ -1,4 +1,4 @@
-export type ProtectedAuthType = "student" | "admin";
+export type ProtectedAuthType = "student" | "admin" | "operator";
 
 export type RouteConfig = {
   path: string;
@@ -32,6 +32,18 @@ const admin = (path: string, method?: RouteConfig["method"]): RouteConfig => ({
   method,
   isPublic: false,
   authType: "admin",
+  allowedOrigins: ADMIN_ORIGINS,
+});
+
+/**
+ * Lista de presença: administrador ou operador de presença (role restrita).
+ * Só o que a operação da porta precisa; o restante do painel segue em `admin`.
+ */
+const operator = (path: string, method?: RouteConfig["method"]): RouteConfig => ({
+  path,
+  method,
+  isPublic: false,
+  authType: "operator",
   allowedOrigins: ADMIN_ORIGINS,
 });
 
@@ -109,10 +121,12 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   admin("^/api/v1/admin/profiles/query$", "POST"),
   admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "GET"),
   admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "PATCH"),
-  admin("^/api/v1/events/[0-9a-fA-F]{24}/participants$", "GET"),
-  admin("^/api/v1/events/[0-9a-fA-F]{24}/checkin/scan$", "GET"),
-  admin("^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/checkin$", "PATCH"),
-  admin("^/api/v1/events/[0-9a-fA-F]{24}/walkin$", "POST"),
+  operator("^/api/v1/events/attendance$", "GET"),
+  operator("^/api/v1/events/[0-9a-fA-F]{24}/participants$", "GET"),
+  operator("^/api/v1/events/[0-9a-fA-F]{24}/participants$", "POST"),
+  operator("^/api/v1/events/[0-9a-fA-F]{24}/checkin/scan$", "POST"),
+  operator("^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/checkin$", "PATCH"),
+  operator("^/api/v1/events/[0-9a-fA-F]{24}/walkin$", "POST"),
   admin("^/api/v1/events/closedForRegistration/[0-9]{4}-[0-9]{2}$", "GET"),
   admin("^/api/v1/blog/admin(/.*)?$"),
   admin("^/api/v1/warnings$", "POST"),
@@ -165,6 +179,9 @@ export const API_ROUTE_MAP: RouteConfig[] = [
 
   // selective-processes (checkout) - liberado para user e admin
   // Permite que usuários logados (student) e admin acessem o endpoint de checkout.
+  // Páginas da lista de presença, antes da regra ampla do painel administrativo.
+  operator("^/presenca$"),
+  operator("^/todosEventos/[0-9a-fA-F]{24}/presenca$"),
   admin("^/$"),
   admin("^/(certificate-claims|createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
   admin("^/teste$"),

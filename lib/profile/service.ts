@@ -4,6 +4,7 @@ import PrivacyAcceptanceModel from "@/lib/models/PrivacyAcceptanceModel";
 import ProfileAuditModel from "@/lib/models/ProfileAuditModel";
 import UserProfileModel, { type UserProfileDocument } from "@/lib/models/UserProfileModel";
 import { cpfLookup, decryptCpf, encryptCpf } from "./crypto";
+import { signAttendanceToken } from "@/lib/events/attendance-token";
 import {
   PROFILE_PRIVACY_NOTICE_HASH,
   PROFILE_PRIVACY_NOTICE_VERSION,
@@ -74,6 +75,7 @@ export async function serializeOwnProfile(identity: ProfileIdentity) {
       complete: false,
       privacyNoticeRequired: true,
       updatedAt: null,
+      attendanceQr: null,
     };
   }
   const cpf = decryptCpf(profile.cpfEncrypted);
@@ -89,6 +91,8 @@ export async function serializeOwnProfile(identity: ProfileIdentity) {
     complete: true,
     privacyNoticeRequired: !privacyAccepted,
     updatedAt: profile.updatedAt.toISOString(),
+    // QR Code pessoal de presença; null enquanto o segredo não estiver configurado.
+    attendanceQr: signAttendanceToken(String(profile._id)),
   };
 }
 
@@ -196,6 +200,7 @@ export async function saveOwnProfile(args: {
     complete: true,
     privacyNoticeRequired: false,
     updatedAt: saved.updatedAt.toISOString(),
+    attendanceQr: signAttendanceToken(String(saved._id)),
   };
 }
 

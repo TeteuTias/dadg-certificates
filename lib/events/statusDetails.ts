@@ -66,11 +66,15 @@ function parseTimelineInput(value: unknown): {
   return { items: value };
 }
 
-function normalizeTimeline(value: unknown): {
+function normalizeTimeline(
+  value: unknown,
+  knownIds: Set<string>,
+): {
   timeLine: TimelineItem[];
   error?: string;
 } {
   const parsed = parseTimelineInput(value);
+  const usedIds = new Set<string>();
 
   if (parsed.error) {
     return { timeLine: [], error: parsed.error };
@@ -119,8 +123,15 @@ function normalizeTimeline(value: unknown): {
       };
     }
 
+    // A presença por etapa aponta para o id: etapas que já existem no evento
+    // mantêm o seu, e só etapas novas recebem um id gerado.
+    const providedId =
+      typeof record.id === "string" ? record.id.toLowerCase() : "";
+    const keepId = knownIds.has(providedId) && !usedIds.has(providedId);
+    if (keepId) usedIds.add(providedId);
+
     timeLine.push({
-      id: new ObjectId(),
+      id: keepId ? new ObjectId(providedId) : new ObjectId(),
       startDate: start.date,
       endDate: end.date,
       description,
@@ -149,6 +160,7 @@ function normalizeTimeline(value: unknown): {
 
 export function buildEventStatusDetails(
   input: StatusDetailsInput,
+  existingTimeline: Array<{ id?: unknown }> = [],
 ): StatusDetailsResult {
   if (
     !EVENT_STATUS_VALUES.includes(input.status as EventStatusConfig["status"])
@@ -165,7 +177,12 @@ export function buildEventStatusDetails(
     input.registrationEndDate,
     "Data de fim das inscricoes",
   );
-  const timelineResult = normalizeTimeline(input.timeLine);
+  const knownIds = new Set(
+    existingTimeline
+      .filter((item) => item?.id)
+      .map((item) => String(item.id).toLowerCase()),
+  );
+  const timelineResult = normalizeTimeline(input.timeLine, knownIds);
 
   if (registrationStart.error) {
     return { error: registrationStart.error };

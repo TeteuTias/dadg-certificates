@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import { ObjectId } from "bson";
 import GateKeeper from "@/lib/security/gatekeeper";
 import { connectToDatabase } from "@/lib/mongodb";
 import {
@@ -8,6 +7,7 @@ import {
   hasCurrentAcceptance,
 } from "@/lib/profile/service";
 import { EventError, verifiedEmail } from "./rules";
+import { participantOwnerFilter } from "./ownership";
 export async function eventIdentity(
   request: NextRequest,
   requireVerified = true,
@@ -29,14 +29,6 @@ export async function eventIdentity(
       428,
       "Aceite o aviso de privacidade vigente.",
     );
-  const legacy = identity.authSubject.match(/^auth0\|([a-f0-9]{24})$/i)?.[1];
-  const ownerFilter = legacy
-    ? {
-        $or: [
-          { profileId: profile._id },
-          { profileId: { $exists: false }, owner: new ObjectId(legacy) },
-        ],
-      }
-    : { profileId: profile._id };
+  const ownerFilter = participantOwnerFilter(profile);
   return { user, identity, profile, email, ownerFilter };
 }

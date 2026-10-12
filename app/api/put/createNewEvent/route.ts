@@ -18,6 +18,8 @@ async function PUTHandler(request: Request) {
     const isPaidRaw = formData.get("isPaid");
     const priceRaw = formData.get("price");
     const templateForm = formData.get("templateForm") as string
+    const certificateHoursRaw = formData.get("certificateHours");
+    const certificateHours = typeof certificateHoursRaw === "string" ? certificateHoursRaw.trim() : "";
 
     // Pegando dados do status
     const statusRaw = formData.get("status") as string;
@@ -32,6 +34,7 @@ async function PUTHandler(request: Request) {
     if (!eventType || typeof eventType !== "string") return NextResponse.json({ message: "Forneça o tipo do evento." }, { status: 400 });
     if (!eventType || typeof eventType !== "string") return NextResponse.json({ message: "Forneça o tipo do evento." }, { status: 400 });
     if (!templateForm || typeof templateForm !== "string") return NextResponse.json({ message: "Forneça o formato do template do evento." }, { status: 400 });
+    if (certificateHours.length > 60) return NextResponse.json({ message: "Carga horária inválida: use um texto de até 60 caracteres." }, { status: 400 });
 
 
     const maxParticipants = Number(maxParticipantsRaw);
@@ -154,7 +157,7 @@ async function PUTHandler(request: Request) {
         registrationCount: 0,
         documentVersion: "3.0",
         useStatementFormat: false,
-        certificateHours: "",
+        certificateHours,
         certificateReleased: false,
         statusDetails
     };

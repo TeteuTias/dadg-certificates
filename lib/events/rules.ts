@@ -56,6 +56,22 @@ export function registrationOpen(
     new Date(d.registrationEndDate) >= now
   );
 }
+/**
+ * Indica se uma atualização muda a cobrança do evento. Evento gratuito pode
+ * estar gravado sem preço ou com preço zero; os dois casos são equivalentes.
+ */
+export function pricingChanged(
+  existing: { isPaid?: boolean; price?: number | null },
+  update: { isPaid?: unknown; price?: unknown },
+) {
+  const paidChanged =
+    update.isPaid !== undefined &&
+    Boolean(update.isPaid) !== Boolean(existing.isPaid);
+  const priceChanged =
+    update.price !== undefined &&
+    Number(update.price ?? 0) !== Number(existing.price ?? 0);
+  return paidChanged || priceChanged;
+}
 export function canSelfCancel(
   event: {
     isPaid?: boolean;

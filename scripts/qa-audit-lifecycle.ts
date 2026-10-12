@@ -204,6 +204,7 @@ async function main() {
 
     Keeper.prototype.validate=async()=>({authorized:true});
     Keeper.prototype.identifyAdmin=async()=>({sub:"auth0|fixture-admin"});
+    Keeper.prototype.identifyStaff=async()=>({user:{sub:"auth0|fixture-admin"},role:"admin"});
     const {POST:claim}=await import("../app/api/v1/user/certificates/claims/route");
     const {PATCH:review}=await import("../app/api/v1/admin/certificate-claims/[id]/route");
     const {POST:autoLink}=await import("../app/api/v1/user/certificates/link/route");

@@ -1,24 +1,20 @@
 import type { IEventCertificate } from "@/lib/models/EventCertificateModel";
-import { ObjectId } from "bson";
 import type { ProfileIdentity } from "./service";
 import { findProfile } from "./service";
 import Participant from "@/lib/models/EventParticipant";
 import Certificate from "@/lib/models/CertificateModel";
 import { EventOrder } from "@/lib/events/PaymentOrder";
 import { canSelfCancel } from "@/lib/events/rules";
+import { participantOwnerFilter } from "@/lib/events/ownership";
+import {
+  attendanceSummary,
+  eventStages,
+  stagePresence,
+} from "@/lib/events/attendance";
 export async function getProfileEvents(identity: ProfileIdentity) {
   const profile = await findProfile(identity);
   if (!profile) return [];
-  const legacy = identity.authSubject.match(/^auth0\|([a-f0-9]{24})$/i)?.[1];
-  const filter = legacy
-    ? {
-        $or: [
-          { profileId: profile._id },
-          { profileId: { $exists: false }, owner: new ObjectId(legacy) },
-        ],
-      }
-    : { profileId: profile._id };
-  const participants = await Participant.find(filter)
+  const participants = await Participant.find(participantOwnerFilter(profile))
     .populate<{ eventId: IEventCertificate }>("eventId")
     .sort({ createdAt: -1 })
     .lean();
@@ -34,6 +30,18 @@ export async function getProfileEvents(identity: ProfileIdentity) {
     const order = p.activePaymentId
       ? await EventOrder.findById(p.activePaymentId).lean()
       : null;
+    const summary = attendanceSummary(event, p);
+    const stages = (eventStages(event) || []).map((stage) => {
+      const presence = stagePresence(p, stage.id);
+      return {
+        id: stage.id,
+        description: stage.description,
+        startDate: stage.startDate.toISOString(),
+        endDate: stage.endDate.toISOString(),
+        checkedIn: presence.checkedIn,
+        checkedOut: presence.checkedOut,
+      };
+    });
     result.push({
       participationId: String(p._id),
       eventId: String(event._id),
@@ -55,6 +63,13 @@ export async function getProfileEvents(identity: ProfileIdentity) {
       qrToken: !p.status || p.status === "CONFIRMED" ? p.qrToken : null,
       checkedIn: p.checkedIn === true,
       checkedInAt: p.checkedInAt?.toISOString() || null,
+      checkedOut: p.checkedOut === true,
+      checkedOutAt: p.checkedOutAt?.toISOString() || null,
+      // Presença por etapa: conta a etapa com entrada e saída registradas.
+      stages,
+      attendedStages: summary.attended,
+      totalStages: summary.total,
+      minAttendancePercent: summary.required,
       certificateReleased: event.certificateReleased === true,
       paymentUrl:
         order?.status === "PENDING" && order.expiresAt > new Date()

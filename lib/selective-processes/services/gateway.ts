@@ -62,6 +62,8 @@ export class MpGateway implements Gateway {
         failure: `${(process.env.STUDENT_SITE_URL || "https://www.dadg.com.br").replace(/\/$/, "")}/perfil`,
       } : { success: process.env.MERCADOPAGO_BACK_URL_SUCCESS, pending: process.env.MERCADOPAGO_BACK_URL_PENDING, failure: process.env.MERCADOPAGO_BACK_URL_FAILURE },
       expires: true, expiration_date_from: new Date().toISOString(), expiration_date_to: expiresAt.toISOString(),
+      // Sem boleto (eventos e CLAM): a reserva dura 15 minutos e o boleto pendente seria cancelado antes de compensar.
+      payment_methods: { excluded_payment_types: [{ id: 'ticket' }] },
     });
     if (!pref.id || !pref.init_point || new URL(pref.init_point).protocol !== 'https:') throw new ClamError('PAYMENT_PROVIDER_UNAVAILABLE', 503);
     return pref;

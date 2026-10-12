@@ -5,6 +5,8 @@ import { EventOrder } from "@/lib/events/PaymentOrder";
 import { reconcileEventOrder } from "@/lib/events/reconcile";
 import { PaymentSession } from "@/lib/selective-processes/models/PaymentSessionModel";
 import { reconcileSession } from "@/lib/selective-processes/services/checkout";
+// Até 20 conciliações em sequência, cada uma com várias chamadas ao Mercado Pago.
+export const maxDuration = 60;
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const actual = Buffer.from(request.headers.get("authorization") || "");

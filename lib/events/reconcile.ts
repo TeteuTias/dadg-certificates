@@ -109,7 +109,8 @@ export async function reconcileEventOrder(
               p.status = "CANCELLED";
               p.cancelledAt = new Date();
               p.cancellationReason = status;
-              p.qrToken = undefined;
+              // Mesmo motivo do cancelamento pelo aluno: o índice único não é esparso.
+              p.qrToken = randomUUID();
               const released = await Event.updateOne(
                 { _id: order.eventId, registrationCount: { $gt: 0 } },
                 { $inc: { registrationCount: -1 } },

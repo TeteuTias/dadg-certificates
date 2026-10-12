@@ -23,6 +23,15 @@ export interface IEventParticipant {
     checkedOut?: boolean;
     /** Momento em que a saída foi confirmada */
     checkedOutAt?: Date | null;
+    /**
+     * Presença por etapa do cronograma. Os campos checkedIn/checkedOut acima
+     * ficam como resumo: primeira entrada e última saída registradas.
+     */
+    attendance?: {
+        stageId: ObjectId;
+        checkedInAt?: Date | null;
+        checkedOutAt?: Date | null;
+    }[];
     /** Referência ao certificado gerado após a liberação automática */
     certificateId?: ObjectId | null;
     createdAt?: Date;
@@ -88,6 +97,19 @@ const EventParticipantSchema = new Schema<IEventParticipant>(
         checkedOutAt: {
             type: Date,
             required: false,
+        },
+        attendance: {
+            type: [
+                new Schema(
+                    {
+                        stageId: { type: Schema.Types.ObjectId, required: true },
+                        checkedInAt: { type: Date, required: false },
+                        checkedOutAt: { type: Date, required: false },
+                    },
+                    { _id: false },
+                ),
+            ],
+            default: undefined,
         },
         certificateId: {
             type: Schema.Types.ObjectId,
