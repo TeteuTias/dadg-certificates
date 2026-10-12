@@ -56,3 +56,10 @@ export function toLocalDateTime(value: string | Date) {
   if (!Number.isFinite(date.getTime())) return '';
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
+
+export function normalizeLeagueAcronym(value?: string) {
+  const acronym = value?.trim().toUpperCase();
+  if (!acronym) return undefined;
+  if (!/^[A-ZÀ-Ü0-9_-]{1,30}$/i.test(acronym)) throw new ClamError('INVALID_EXAM_ACRONYM', 400);
+  return acronym;
+}

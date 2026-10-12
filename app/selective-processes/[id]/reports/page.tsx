@@ -24,9 +24,9 @@ type Summary = {
   counts: Array<{ examId: string; count: number }>;
 };
 const input =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white";
+  "clam-input mt-2";
 const button =
-  "inline-flex items-center justify-center rounded-lg bg-blue-700 px-4 py-2 font-medium text-white disabled:opacity-50";
+  "clam-button clam-button-primary";
 const errors: Record<string, string> = {
   IMPORT_PREVIEW_STALE:
     "Os dados mudaram depois da prévia. Confira novamente o arquivo.",
@@ -178,16 +178,17 @@ export default function ReportsPage() {
       : ![config.day1, config.day2].includes(e.date),
   );
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+    <main className="clam-shell space-y-6">
       <Link
         href={`/selective-processes/${id}`}
-        className="text-blue-200 underline"
+        className="clam-button w-fit"
       >
         Voltar ao processo
       </Link>
-      <header>
-        <h1 className="text-2xl font-semibold">Relatórios e correção</h1>
-        <p className="mt-2 text-blue-100">
+      <header className="clam-hero">
+        <p className="clam-kicker">Operação da seleção</p>
+        <h1 className="mt-2 text-3xl font-black text-white">Relatórios e correção</h1>
+        <p className="clam-muted mt-2">
           Listas de candidatos com pagamento aprovado e direito ativo nas
           provas.
         </p>
@@ -195,16 +196,16 @@ export default function ReportsPage() {
       {message && (
         <p
           role="status"
-          className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-blue-950"
+          className="clam-feedback clam-feedback-success"
         >
           {message}
         </p>
       )}
       {!summary ? (
-        <p>Carregando relatórios...</p>
+        <p className="clam-panel">Carregando relatórios...</p>
       ) : (
         <>
-          <section className="rounded-xl border border-white/20 bg-white/5 p-5">
+          <section className="clam-panel">
             <h2 className="font-semibold">Conferência antes do download</h2>
             <p className="my-3">
               {summary.total} inscrições válidas · {summary.pendingChoices}{" "}
@@ -239,7 +240,7 @@ export default function ReportsPage() {
               Atualizar conferência
             </button>
           </section>
-          <section className="space-y-4 rounded-xl border border-white/20 bg-white/5 p-5">
+          <section className="clam-panel space-y-4">
             <h2 className="font-semibold">Dias, vagas e questões</h2>
             <label className="block max-w-sm">
               Separação dos dias
@@ -392,7 +393,7 @@ export default function ReportsPage() {
               inscrições permanece independente.
             </p>
           </section>
-          <section className="space-y-4 rounded-xl border border-white/20 bg-white/5 p-5">
+          <section className="clam-panel space-y-4">
             <h2 className="font-semibold">Baixar planilhas</h2>
             <p className="text-sm">
               Os downloads usam a configuração salva. A relação geral inclui CPF
@@ -433,7 +434,7 @@ export default function ReportsPage() {
               ))}
             </div>
           </section>
-          <section className="space-y-4 rounded-xl border border-white/20 bg-white/5 p-5">
+          <section className="clam-panel space-y-4">
             <h2 className="font-semibold">Importar arquivo</h2>
             <p>
               Use os modelos. Na correção, preencha somente a coluna Nota com
