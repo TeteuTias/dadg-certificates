@@ -145,4 +145,4 @@ Correções e mudanças feitas depois da entrega inicial. Tudo validado apenas p
 - Homologar com dois celulares: entrada e saída em duas etapas, aluno não inscrito, operador barrado nas telas de administrador, emissão com percentual abaixo de 100.
 - Rodar de novo `qa-audit-integration.ts` e `qa-audit-lifecycle.ts`, com aprovação. Eles não cobrem a presença por etapa: as fixtures criam cronograma sem `id`.
 - Ações administrativas para cancelar inscrição, resolver participante em revisão e desfazer lançamento manual continuam sem tela.
-- O leitor ainda carrega o jsQR de CDN em tempo de execução, sem aviso se a carga falhar.
+- Resolvido: o leitor usa o jsQR 1.4.0 empacotado como dependência, sem script externo em tempo de execução.

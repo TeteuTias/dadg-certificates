@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PoppinsFontLib } from "@/public/fonts/lib/Poppins";
 import "./page.css";
+import jsQR from "jsqr";
 
 interface Participant {
     _id: string;
@@ -50,9 +51,6 @@ interface Meta {
     checkedIn: number;
     absent: number;
 }
-
-type QrDecoder=(data:Uint8ClampedArray,width:number,height:number,options:{inversionAttempts:string})=>{data:string}|null;
-declare global {interface Window {jsQR?:QrDecoder}}
 
 type ScanState = "idle" | "scanning" | "validating" | "success" | "error" | "duplicate";
 
@@ -95,7 +93,6 @@ export default function PresencaPage() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animFrameRef = useRef<number | null>(null);
-    const jsQRRef = useRef<QrDecoder|null>(null);
 
     // Walk-in modal
     const [showWalkin, setShowWalkin] = useState(false);
@@ -141,16 +138,6 @@ export default function PresencaPage() {
             .catch(() => { if (active) setCpfMatchIds(new Set<string>()); });
         return () => { active = false; };
     }, [searchQuery, eventId]);
-
-    // Carrega jsQR via CDN (sem dependência extra)
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        if (window.jsQR) { jsQRRef.current = window.jsQR ?? null; return; }
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
-        script.onload = () => { jsQRRef.current = window.jsQR ?? null; };
-        document.head.appendChild(script);
-    }, []);
 
     const stopCamera = useCallback(() => {
         if (animFrameRef.current) { cancelAnimationFrame(animFrameRef.current); animFrameRef.current = null; }
@@ -212,8 +199,7 @@ export default function PresencaPage() {
     const scanFrame = useCallback(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
-        const jsQR = jsQRRef.current;
-        if (!video || !canvas || !jsQR || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
             animFrameRef.current = requestAnimationFrame(scanFrame); return;
         }
         const ctx = canvas.getContext("2d");
