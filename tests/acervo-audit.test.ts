@@ -60,3 +60,29 @@ test("auditoria do acervo aponta CPF com vários e-mails, e-mail com vários CPF
   assert.equal(conflicts.emailsComVariosCpfs, 1);
   assert.equal(conflicts.cpfsComVariosNomes, 1);
 });
+
+test("auditoria do acervo mede o teto da regra por CPF e nome e as hipóteses de dado perdido", () => {
+  const audit = createAcervoAudit();
+  [
+    // CPF consistente: mesmo nome, e-mails só dele. Conta inclusive o de e-mail inválido.
+    ready({ ownerCpf: "52998224725", ownerEmail: "ana@x.com", ownerName: "Ana Souza" }),
+    ready({ ownerCpf: "529.982.247-25", ownerEmail: "teste", ownerName: "ANA SOUZA" }),
+    // CPF com outro nome num certificado já vinculado: fica fora da regra.
+    ready({ ownerCpf: "11144477735", ownerEmail: "bia@x.com", ownerName: "Bia Lima" }),
+    { ownerCpf: "11144477735", ownerEmail: "b@x.com", ownerName: "Beatriz Lima", isReady: true, profileId: "p" },
+    // Zero à esquerda perdido, como texto e como número.
+    ready({ ownerCpf: "1234567890", ownerEmail: "a@x.com, b@y.com" }),
+    ready({ ownerCpf: 1234567890, ownerEmail: "c@gmail" }),
+    ready({ ownerCpf: "", ownerEmail: "d@.com" }),
+  ].forEach(audit.add);
+  const r = audit.result();
+  assert.deepEqual(r.regraCpfENome, { cpfsSemConflito: 1, certificadosAlcancaveis: 2 });
+  assert.deepEqual(r.hipoteses, {
+    cpfGravadoComoNumero: 1,
+    cpfRecuperavelComZerosAEsquerda: 2,
+    emailInvalidoSemArroba: 1,
+    emailInvalidoComMaisDeUmValorNoCampo: 1,
+    emailInvalidoSemPontoNoDominio: 1,
+    emailInvalidoOutro: 1,
+  });
+});
