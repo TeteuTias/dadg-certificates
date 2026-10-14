@@ -100,6 +100,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   admin("^/api/v1/admin/certificate-claims/[^/]+$", "PATCH"),
   admin("^/api/v1/events/[0-9a-fA-F]{24}/certificates$"),
   admin("^/api/v1/events/[0-9a-fA-F]{24}/payments/[0-9a-fA-F]{24}/reconcile$", "POST"),
+  admin("^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/cancel$", "POST"),
   admin("^/api/v1/admin/event-payments$", "GET"),
   admin("^/event-payments$"),
   // Autosserviço autenticado do aluno.

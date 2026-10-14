@@ -151,6 +151,7 @@ test("operador alcança só a lista de presença", () => {
     ["PUT", "/api/put/updateEvent"],
     ["GET", "/api/get/allEvents"],
     ["DELETE", `/api/v1/events/${eventId}/participants`],
+    ["POST", `/api/v1/events/${eventId}/registration/${eventId}/cancel`],
   ];
   for (const [method, path] of adminOnly)
     assert.equal(authTypeFor(method, path), "admin", `${method} ${path}`);

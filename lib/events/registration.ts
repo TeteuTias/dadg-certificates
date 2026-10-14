@@ -3,7 +3,7 @@ import type { IEventCertificate } from "@/lib/models/EventCertificateModel";
 import mongoose from "mongoose";
 import { randomUUID } from "node:crypto";
 import Event from "@/lib/models/EventCertificateModel";
-import Participant from "@/lib/models/EventParticipant";
+import Participant, { type IEventParticipant } from "@/lib/models/EventParticipant";
 import { EventOrder } from "./PaymentOrder";
 import { EventError, overlaps, registrationOpen, canSelfCancel } from "./rules";
 import { eventIdentity } from "./identity";
@@ -250,35 +250,89 @@ export async function cancelRegistration(request: NextRequest, id: string) {
           409,
           "Solicite o cancelamento à organização. Inscrições pagas ou com presença exigem revisão.",
         );
-      await EventAudit.create(
-        [
-          {
-            eventId: id,
-            participantId: participant._id,
-            actor: identity.identity.authSubject,
-            action: "registration.cancelled",
-            details: "student",
-          },
-        ],
-        { session },
-      );
-      participant.status = "CANCELLED";
-      participant.cancelledAt = new Date();
-      participant.cancellationReason = "student";
-      // O índice único de qrToken em produção não é esparso: remover o campo
-      // faria a segunda inscrição cancelada colidir. Trocar o valor invalida o código.
-      participant.qrToken = randomUUID();
-      await participant.save({ session });
-      const released = await Event.updateOne(
-        { _id: id, registrationCount: { $gt: 0 } },
-        { $inc: { registrationCount: -1 } },
-        { session },
-      );
-      if (!released.modifiedCount)
-        throw new EventError("COUNTER_REVIEW_REQUIRED");
+      await closeRegistration(session, id, participant, identity.identity.authSubject, "student", "student");
     });
   } finally {
     await session.endSession();
   }
   return { status: "CANCELLED" };
+}
+
+/**
+ * Cancelamento pelo administrador de inscrição em evento gratuito, inclusive
+ * lançamento manual e inscrição com presença. A presença fica no histórico e,
+ * como a inscrição sai das listas ativas, não gera certificado. Inscrição paga
+ * segue pelo estorno no provedor e pela conciliação.
+ */
+export async function cancelRegistrationByAdmin(
+  id: string,
+  participantId: string,
+  actor: string,
+  reason: string,
+) {
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const participant = await Participant.findOne({
+        _id: participantId,
+        eventId: id,
+      }).session(session);
+      const event = await Event.findById(id).select("isPaid").session(session);
+      if (!participant || !event)
+        throw new EventError("REGISTRATION_NOT_FOUND", 404, "Inscrição não encontrada.");
+      if (participant.status === "CANCELLED") return;
+      if (event.isPaid)
+        throw new EventError(
+          "PAID_REGISTRATION",
+          409,
+          "Inscrição paga: faça o estorno no Mercado Pago e concilie em Cobranças.",
+        );
+      if (participant.certificateId)
+        throw new EventError(
+          "CERTIFICATE_ALREADY_ISSUED",
+          409,
+          "Certificado já emitido: a inscrição não pode ser cancelada.",
+        );
+      await closeRegistration(session, id, participant, actor, `admin: ${reason}`, "admin");
+    });
+  } finally {
+    await session.endSession();
+  }
+  return { status: "CANCELLED" };
+}
+
+async function closeRegistration(
+  session: mongoose.ClientSession,
+  eventId: string,
+  participant: mongoose.HydratedDocument<IEventParticipant>,
+  actor: string,
+  details: string,
+  reason: string,
+) {
+  await EventAudit.create(
+    [
+      {
+        eventId,
+        participantId: participant._id,
+        actor,
+        action: "registration.cancelled",
+        details,
+      },
+    ],
+    { session },
+  );
+  participant.status = "CANCELLED";
+  participant.cancelledAt = new Date();
+  participant.cancellationReason = reason;
+  // O índice único de qrToken em produção não é esparso: remover o campo
+  // faria a segunda inscrição cancelada colidir. Trocar o valor invalida o código.
+  participant.qrToken = randomUUID();
+  await participant.save({ session });
+  const released = await Event.updateOne(
+    { _id: eventId, registrationCount: { $gt: 0 } },
+    { $inc: { registrationCount: -1 } },
+    { session },
+  );
+  if (!released.modifiedCount)
+    throw new EventError("COUNTER_REVIEW_REQUIRED");
 }

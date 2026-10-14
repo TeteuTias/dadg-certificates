@@ -14,6 +14,7 @@ import {
     RefreshCw,
     Search,
     UserPlus,
+    UserX,
     Users,
     XCircle,
     AlertTriangle,
@@ -420,7 +421,7 @@ export default function PresencaPage() {
                 ) : (
                     <div className="presenca-list">
                         {filteredParticipants.map(p => (
-                            <ParticipantRow key={p._id} participant={p} eventId={eventId} stageId={stageId} onCheckinSuccess={fetchParticipants} />
+                            <ParticipantRow key={p._id} participant={p} eventId={eventId} stageId={stageId} canCancel={viewerRole === "admin"} onCheckinSuccess={fetchParticipants} />
                         ))}
                     </div>
                 )}
@@ -472,7 +473,7 @@ export default function PresencaPage() {
     );
 }
 
-function ParticipantRow({ participant, eventId, stageId, onCheckinSuccess }: { participant: Participant; eventId: string; stageId: string | null; onCheckinSuccess: () => void | Promise<void> }) {
+function ParticipantRow({ participant, eventId, stageId, canCancel, onCheckinSuccess }: { participant: Participant; eventId: string; stageId: string | null; canCancel: boolean; onCheckinSuccess: () => void | Promise<void> }) {
     const [isChecking, setIsChecking] = useState(false);
     const [actionError, setActionError] = useState("");
 
@@ -500,6 +501,26 @@ function ParticipantRow({ participant, eventId, stageId, onCheckinSuccess }: { p
             await onCheckinSuccess();
         } catch (error) {
             setActionError(error instanceof Error ? error.message : "Erro de conexão ao registrar presença.");
+        } finally { setIsChecking(false); }
+    };
+
+    const handleCancel = async () => {
+        const reason = prompt(`Cancelar a inscrição de ${participant.ownerName}? A vaga é liberada e a presença registrada não gera certificado.\n\nMotivo (obrigatório):`)?.trim();
+        if (!reason) return;
+        setIsChecking(true);
+        setActionError("");
+        try {
+            const res = await fetch(`/api/v1/events/${eventId}/registration/${participant._id}/cancel`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ reason }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || "Não foi possível cancelar a inscrição.");
+            await onCheckinSuccess();
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : "Erro de conexão ao cancelar a inscrição.");
         } finally { setIsChecking(false); }
     };
 
@@ -543,6 +564,12 @@ function ParticipantRow({ participant, eventId, stageId, onCheckinSuccess }: { p
                     <button onClick={() => handleManualAction("checkin")} disabled={isChecking} className="glass-button manual-checkin-btn">
                         {isChecking ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />}
                         Check-in manual
+                    </button>
+                )}
+                {canCancel && !participant.certificateId && (
+                    <button onClick={handleCancel} disabled={isChecking} className="glass-button manual-remove-presence-btn">
+                        {isChecking ? <Loader2 size={14} className="spin" /> : <UserX size={14} />}
+                        Cancelar inscrição
                     </button>
                 )}
                 {participant.certificateId && (

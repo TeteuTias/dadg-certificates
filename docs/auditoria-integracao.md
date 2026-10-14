@@ -144,5 +144,5 @@ Correções e mudanças feitas depois da entrega inicial. Tudo validado apenas p
 
 - Homologar com dois celulares: entrada e saída em duas etapas, aluno não inscrito, operador barrado nas telas de administrador, emissão com percentual abaixo de 100.
 - Rodar de novo `qa-audit-integration.ts` e `qa-audit-lifecycle.ts`, com aprovação. Eles não cobrem a presença por etapa: as fixtures criam cronograma sem `id`.
-- Ações administrativas para cancelar inscrição, resolver participante em revisão e desfazer lançamento manual continuam sem tela.
+- Resolvido em parte: na lista de presença o administrador cancela inscrição de evento gratuito, inclusive lançamento manual e inscrição com presença, com motivo obrigatório gravado em `events.audit` (`POST /api/v1/events/:id/registration/:participantId/cancel`). A vaga volta, a presença fica no histórico e não gera certificado; com certificado emitido o cancelamento é recusado. O operador não tem o botão nem a rota. Continuam sem tela: inscrição paga (segue pelo estorno no provedor e pela conciliação) e participante em revisão, cuja resolução depende de regra da organização.
 - Resolvido: o leitor usa o jsQR 1.4.0 empacotado como dependência, sem script externo em tempo de execução.
