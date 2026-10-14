@@ -10,6 +10,23 @@ const OTHER_CPF = "11144477735";
 
 type Json = Record<string, unknown>;
 
+test("CPF do acervo é lido em qualquer formato, como número e sem os zeros à esquerda", () => {
+  const { certificateCpf, cpfSearchFilter } = matching;
+  for (const stored of ["52998224725", "529.982.247-25", "529 982 247 25", "529.982.247/25", 52998224725])
+    assert.equal(certificateCpf(stored), CPF, String(stored));
+  for (const stored of ["1234567890", "123.456.789-0", 1234567890]) assert.equal(certificateCpf(stored), "01234567890", String(stored));
+  assert.equal(certificateCpf("52998224724"), "", "dígito verificador errado");
+  assert.equal(certificateCpf("5299822472"), "", "dígito perdido no meio não vira CPF válido");
+  assert.equal(certificateCpf({ cifrado: true }), "");
+
+  const filter = cpfSearchFilter("01234567890") as { $or: [{ ownerCpf: { $regex: string } }, { ownerCpf: number }] };
+  const pattern = new RegExp(filter.$or[0].ownerCpf.$regex);
+  for (const stored of ["01234567890", "012.345.678-90", "1234567890", "123.456.789-0", " 1234567890 "])
+    assert.ok(pattern.test(stored), stored);
+  assert.equal(pattern.test("11234567890"), false);
+  assert.equal(filter.$or[1].ownerCpf, 1234567890);
+});
+
 test("nome comparável ignora acento, caixa e espaços extras", () => {
   assert.equal(normalizeName("  Ána   SOUZA "), "ana souza");
   assert.equal(normalizeName(null), "");
@@ -122,6 +139,36 @@ test("rota não vincula por nome quando o acervo do CPF tem conflito", () =>
     ]);
     assert.equal((await (await nameVariant.post()).json()).linked, 0);
   }));
+
+test("pedido manual guarda o e-mail informado como evidência e recusa e-mail inválido", async () => {
+  const upserts: Json[] = [];
+  const route = loadIsolated("app/api/v1/user/certificates/claims/route.ts", {
+    "next/server": {},
+    "@/lib/security/route-access": { withRouteAccess: (fn: unknown) => fn },
+    "@/lib/events/identity": { eventIdentity: async () => ({ profile: { _id: "perfil" } }) },
+    "@/lib/certificates/Claim": {
+      CertificateClaim: {
+        countDocuments: async () => 0,
+        updateOne: async (_filter: Json, update: Json) => {
+          upserts.push(update.$setOnInsert as Json);
+        },
+      },
+    },
+    "@/lib/models/CertificateModel": {
+      findOne: () => ({ select: () => ({ lean: async () => ({ _id: "6a92fab72fd46137ff827a87" }) }) }),
+    },
+    "@/lib/events/rules": { EventError: class extends Error {} },
+    "@/lib/certificates/matching": matching,
+  });
+  const post = (body: Json) =>
+    route.POST({ json: async () => ({ certificateId: "6a92fab72fd46137ff827a87", message: "Participei deste evento.", ...body }) });
+
+  assert.equal((await post({ evidenceEmail: "teste" })).status, 400);
+  assert.equal((await post({ evidenceEmail: " Antigo@Y.com " })).status, 200);
+  assert.equal(upserts[0].evidenceEmail, "antigo@y.com");
+  assert.equal((await post({})).status, 200);
+  assert.equal("evidenceEmail" in upserts[1], false);
+});
 
 test("troca de nome ou CPF devolve à revisão só os vínculos por CPF e nome não revisados", async () => {
   const unset: Json[] = [];

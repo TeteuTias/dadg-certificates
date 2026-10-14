@@ -5,9 +5,17 @@ const SOURCES: Record<string, string> = {
   automatic: "Automático: CPF e e-mail verificado",
   "automatic-name-cpf": "Automático: CPF e nome completo (e-mail diferente)",
 };
+const LABELS: Record<string, string> = {
+  APPROVED: "Aprovar",
+  REJECTED: "Rejeitar",
+  REVOKED: "Revogar vínculo",
+};
 type Claim = {
   _id: string;
+  profileId: string;
   message?: string;
+  evidenceEmail?: string;
+  evidenceEmailMatches?: boolean | null;
   source?: string;
   reason?: string;
   profile?: { name: string; registrationNumber?: string };
@@ -35,33 +43,67 @@ export default function Claims() {
   useEffect(() => {
     void load().catch((e) => setError(e.message));
   }, [load]);
-  async function review(id: string, decision: string) {
+
+  // Revisão agrupada por pessoa: a mesma decisão e fundamento valem para cada pedido do grupo.
+  async function review(ids: string[], decision: string, text: string) {
     setBusy(true);
     setError("");
-    try {
+    const failures: string[] = [];
+    for (const id of ids) {
       const r = await fetch(
         `/api/v1/admin/certificate-claims/${encodeURIComponent(id)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: decision, reason: reason[id] }),
+          body: JSON.stringify({ status: decision, reason: text }),
         },
-      );
-      const body = await r.json();
-      if (!r.ok) throw new Error(body.error);
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
+      ).catch(() => null);
+      const body = r ? await r.json().catch(() => ({})) : {};
+      if (!r?.ok) failures.push(body.error || "Falha de conexão.");
     }
+    if (failures.length)
+      setError(`${failures.length} de ${ids.length} não foram salvos: ${failures[0]}`);
+    await load().catch((e) => setError(e.message));
+    setBusy(false);
   }
+
+  const decisions =
+    status === "PENDING" ? ["APPROVED", "REJECTED"] : status === "APPROVED" ? ["REVOKED"] : [];
+  const groups = new Map<string, Claim[]>();
+  for (const c of items) groups.set(c.profileId, [...(groups.get(c.profileId) || []), c]);
+
+  const reasonField = (key: string, label: string) => (
+    <label>
+      {label}
+      <textarea
+        minLength={10}
+        maxLength={1000}
+        className="block w-full border p-2"
+        value={reason[key] || ""}
+        onChange={(e) => setReason({ ...reason, [key]: e.target.value })}
+      />
+    </label>
+  );
+  const buttons = (key: string, ids: string[], suffix = "") =>
+    decisions.map((d) => (
+      <button
+        className="m-2 rounded border p-2"
+        disabled={busy || (reason[key] || "").trim().length < 10}
+        key={d}
+        onClick={() => void review(ids, d, (reason[key] || "").trim())}
+      >
+        {LABELS[d]}
+        {suffix}
+      </button>
+    ));
+
   return (
     <main className="mx-auto max-w-4xl p-8">
       <h1 className="text-2xl font-bold">Vínculos de certificados</h1>
       <p>
         Confirme documentos ou registros de participação. Nome igual não
-        comprova titularidade.
+        comprova titularidade. Os pedidos aparecem agrupados por pessoa; cada
+        certificado precisa ter evidência própria antes de aprovar o grupo.
       </p>
       <label>
         Estado{" "}
@@ -83,54 +125,46 @@ export default function Claims() {
         </select>
       </label>
       {error && <p role="alert">{error}</p>}
-      {items.map((c) => (
-        <section className="my-5 rounded border p-5" key={c._id}>
-          <h2>
-            {c.profile?.name} — RA{" "}
-            {c.profile?.registrationNumber || "não informado"}
+      {[...groups.entries()].map(([profileId, claims]) => (
+        <section className="my-6 rounded border p-5" key={profileId}>
+          <h2 className="text-lg font-semibold">
+            {claims[0].profile?.name} — RA{" "}
+            {claims[0].profile?.registrationNumber || "não informado"} ·{" "}
+            {claims.length} {claims.length === 1 ? "certificado" : "certificados"}
           </h2>
-          <p>
-            {c.certificate?.eventName} / {c.certificate?.ownerName}
-          </p>
-          <p>
-            {c.certificate?.ownerEmail} / {c.certificate?.ownerCpf}
-          </p>
-          <p>Origem: {SOURCES[c.source || "manual"] || c.source}</p>
-          {c.message && <p>Solicitação: {c.message}</p>}
-          {c.reason && <p>Motivo registrado: {c.reason}</p>}
-          <label>
-            Fundamento da decisão
-            <textarea
-              minLength={10}
-              maxLength={1000}
-              className="block w-full border p-2"
-              value={reason[c._id] || ""}
-              onChange={(e) =>
-                setReason({ ...reason, [c._id]: e.target.value })
-              }
-            />
-          </label>
-          {(status === "PENDING"
-            ? ["APPROVED", "REJECTED"]
-            : status === "APPROVED"
-              ? ["REVOKED"]
-              : []
-          ).map((d) => (
-            <button
-              className="m-2 rounded border p-2"
-              disabled={busy || (reason[c._id] || "").trim().length < 10}
-              key={d}
-              onClick={() => void review(c._id, d)}
-            >
-              {
-                {
-                  APPROVED: "Aprovar",
-                  REJECTED: "Rejeitar",
-                  REVOKED: "Revogar vínculo",
-                }[d]
-              }
-            </button>
+          {claims.map((c) => (
+            <article className="my-4 rounded border p-4" key={c._id}>
+              <p>
+                {c.certificate?.eventName} / {c.certificate?.ownerName}
+              </p>
+              <p>
+                {c.certificate?.ownerEmail} / {c.certificate?.ownerCpf}
+              </p>
+              <p>Origem: {SOURCES[c.source || "manual"] || c.source}</p>
+              {c.evidenceEmail && (
+                <p>
+                  E-mail informado pelo aluno: {c.evidenceEmail} —{" "}
+                  {c.evidenceEmailMatches
+                    ? "confere com o do certificado"
+                    : "diferente do certificado"}
+                </p>
+              )}
+              {c.message && <p>Solicitação: {c.message}</p>}
+              {c.reason && <p>Motivo registrado: {c.reason}</p>}
+              {reasonField(c._id, "Fundamento da decisão")}
+              {buttons(c._id, [c._id])}
+            </article>
           ))}
+          {claims.length > 1 && decisions.length > 0 && (
+            <div className="mt-2 border-t pt-3">
+              {reasonField(`grupo:${profileId}`, "Fundamento para todos desta pessoa")}
+              {buttons(
+                `grupo:${profileId}`,
+                claims.map((c) => c._id),
+                ` todos (${claims.length})`,
+              )}
+            </div>
+          )}
         </section>
       ))}
     </main>

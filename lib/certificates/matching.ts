@@ -1,10 +1,30 @@
 import { isValidCpf } from "@/lib/profile/validation";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const validCpf = (value: unknown) => {
-  const cpf = typeof value === "string" ? value.replace(/\D/g, "") : "";
+
+/**
+ * CPF de um certificado como o acervo guardou: texto em qualquer formato ou
+ * número. Planilhas antigas perderam zeros à esquerda; com 9 ou 10 dígitos o
+ * valor é completado com zeros e só vale se o dígito verificador conferir.
+ */
+export function certificateCpf(value: unknown) {
+  const raw =
+    typeof value === "number" && Number.isSafeInteger(value) ? String(value)
+    : typeof value === "string" ? value.replace(/\D/g, "")
+    : "";
+  const cpf = raw.length === 9 || raw.length === 10 ? raw.padStart(11, "0") : raw;
   return cpf.length === 11 && isValidCpf(cpf) ? cpf : "";
-};
+}
+
+/** Filtro que acha o CPF do perfil em qualquer forma em que o acervo o guardou. */
+export function cpfSearchFilter(cpf: string) {
+  const core = cpf.replace(/^0+/, "");
+  const zeros = cpf.length - core.length;
+  const pattern = `^\\D*${zeros ? `(?:0\\D*){0,${zeros}}` : ""}${[...core].join("\\D*")}\\D*$`;
+  return { $or: [{ ownerCpf: { $regex: pattern } }, { ownerCpf: Number(cpf) }] };
+}
+
+const validCpf = certificateCpf;
 
 /** Nome comparável: sem acento, minúsculo e com espaços simples. */
 export function normalizeName(value: unknown) {
@@ -25,11 +45,10 @@ export function canAutoLink(
   email: string,
   verified: boolean,
 ) {
-  const sourceCpf = String(certificate.ownerCpf || "").replace(/\D/g, "");
+  const sourceCpf = certificateCpf(certificate.ownerCpf);
   return (
     verified &&
-    sourceCpf.length === 11 &&
-    isValidCpf(sourceCpf) &&
+    sourceCpf !== "" &&
     sourceCpf === cpf &&
     String(certificate.ownerEmail || "")
       .trim()

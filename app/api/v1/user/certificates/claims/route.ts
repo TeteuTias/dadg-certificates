@@ -4,6 +4,7 @@ import { eventIdentity } from "@/lib/events/identity";
 import { CertificateClaim } from "@/lib/certificates/Claim";
 import Certificate from "@/lib/models/CertificateModel";
 import { EventError } from "@/lib/events/rules";
+import { normalizeEmail } from "@/lib/certificates/matching";
 export const POST = withRouteAccess(async (request: NextRequest) => {
   try {
     const { profile } = await eventIdentity(request);
@@ -19,6 +20,16 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
           error:
             "Informe o código e uma justificativa entre 10 e 1.000 caracteres.",
         },
+        { status: 400 },
+      );
+    // Evidência opcional para o administrador: o e-mail que o aluno usava nas inscrições.
+    const evidenceEmail =
+      typeof body.evidenceEmail === "string" && body.evidenceEmail.trim()
+        ? normalizeEmail(body.evidenceEmail)
+        : "";
+    if (typeof body.evidenceEmail === "string" && body.evidenceEmail.trim() && !evidenceEmail)
+      return Response.json(
+        { error: "Informe um e-mail válido ou deixe o campo em branco." },
         { status: 400 },
       );
     const certificate = await Certificate.findOne({
@@ -58,6 +69,7 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
           certificateId: certificate._id,
           profileId: profile._id,
           message: body.message.trim(),
+          ...(evidenceEmail ? { evidenceEmail } : {}),
           status: "PENDING",
           source: "manual",
         },

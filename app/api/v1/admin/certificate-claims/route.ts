@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { CertificateClaim } from "@/lib/certificates/Claim";
 import Profile from "@/lib/models/UserProfileModel";
 import Certificate from "@/lib/models/CertificateModel";
+import { normalizeEmail } from "@/lib/certificates/matching";
 export const GET = withRouteAccess(async (request: NextRequest) => {
   await connectToDatabase();
   const status = request.nextUrl.searchParams.get("status") || "PENDING";
@@ -26,7 +27,10 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
         .select("ownerName eventName ownerEmail ownerCpf")
         .lean(),
     ]);
-    data.push({ ...c, profile, certificate });
+    const evidenceEmailMatches = c.evidenceEmail
+      ? normalizeEmail(certificate?.ownerEmail) === c.evidenceEmail
+      : null;
+    data.push({ ...c, profile, certificate, evidenceEmailMatches });
   }
   return Response.json(
     { data },

@@ -12,6 +12,7 @@ const schema = new Schema(
     // automatic: CPF e e-mail verificado; automatic-name-cpf: CPF e nome completo, e-mail diferente.
     source: { type: String, enum: ["manual", "automatic", "automatic-name-cpf"] },
     message: String,
+    evidenceEmail: String,
     reason: String,
     reviewedBy: String,
     reviewedAt: Date,

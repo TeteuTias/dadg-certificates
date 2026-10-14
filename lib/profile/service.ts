@@ -158,7 +158,11 @@ export async function saveOwnProfile(args: {
     }
   } catch (error) {
     if (isDuplicateKeyError(error)) {
-      throw new ProfileRequestError(409, "CPF_ALREADY_IN_USE", "Este CPF já está associado a um perfil.");
+      throw new ProfileRequestError(
+        409,
+        "CPF_ALREADY_IN_USE",
+        "Este CPF já está associado a outra conta. Se ele é seu, fale com o DADG pela Ouvidoria do site para resolvermos.",
+      );
     }
     throw error;
   }

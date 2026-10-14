@@ -9,6 +9,7 @@ import {
   canAutoLink,
   canLinkByNameAndCpf,
   cpfIsConsistent,
+  cpfSearchFilter,
   normalizeEmail,
 } from "@/lib/certificates/matching";
 import { escapeSearch } from "@/lib/certificates/public-contract";
@@ -25,11 +26,8 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
   try {
     const { profile, email } = await eventIdentity(request);
     const cpf = decryptCpf(profile.cpfEncrypted).replace(/\D/g, "");
-    const formattedCpf = cpf.replace(
-      /^(\d{3})(\d{3})(\d{3})(\d{2})$/,
-      "$1.$2.$3-$4",
-    );
-    const cpfFilter = { ownerCpf: { $in: [cpf, formattedCpf] } };
+    // Qualquer formato, CPF gravado como número e zeros à esquerda perdidos.
+    const cpfFilter = cpfSearchFilter(cpf);
     const candidates = await Certificate.find({
       isReady: true,
       profileId: null,

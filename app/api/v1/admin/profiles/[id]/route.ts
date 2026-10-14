@@ -17,6 +17,7 @@ import {
   PROFILE_PRIVACY_NOTICE_VERSION,
 } from "@/lib/profile/privacy-notice";
 import { isDuplicateKeyError } from "@/lib/profile/service";
+import { returnNameCpfLinksToReview } from "@/lib/certificates/review";
 import {
   formatCpf,
   academicFields,
@@ -208,6 +209,9 @@ async function PATCHHandler(request: NextRequest, { params }: Context) {
         { headers },
       );
 
+    // Mesma trava da edição pelo aluno: nome ou CPF novo devolve à revisão os vínculos por CPF e nome.
+    if (fields.includes("name") || fields.includes("cpf"))
+      await returnNameCpfLinksToReview(profile._id);
     try {
       await UserProfileModel.updateOne(
         { _id: profile._id },
