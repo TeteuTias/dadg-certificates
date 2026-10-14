@@ -5,7 +5,12 @@ import { eventIdentity } from "@/lib/events/identity";
 import { CertificateClaim } from "@/lib/certificates/Claim";
 import Certificate from "@/lib/models/CertificateModel";
 import { decryptCpf } from "@/lib/profile/crypto";
-import { canAutoLink } from "@/lib/certificates/matching";
+import {
+  canAutoLink,
+  canLinkByNameAndCpf,
+  cpfIsConsistent,
+  normalizeEmail,
+} from "@/lib/certificates/matching";
 import { escapeSearch } from "@/lib/certificates/public-contract";
 import { EventError } from "@/lib/events/rules";
 export const POST = withRouteAccess(async (request: NextRequest) => {
@@ -24,17 +29,45 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
       /^(\d{3})(\d{3})(\d{3})(\d{2})$/,
       "$1.$2.$3-$4",
     );
+    const cpfFilter = { ownerCpf: { $in: [cpf, formattedCpf] } };
     const candidates = await Certificate.find({
       isReady: true,
       profileId: null,
-      ownerCpf: { $in: [cpf, formattedCpf] },
-      ownerEmail: { $regex: `^${escapeSearch(email)}$`, $options: "i" },
+      ...cpfFilter,
     })
       .limit(100)
       .lean();
+
+    // Conferência do acervo para o vínculo por nome, feita uma vez e só se precisar.
+    let consistent: boolean | undefined;
+    const cpfConsistent = async () => {
+      if (consistent !== undefined) return consistent;
+      const sameCpf = await Certificate.find(cpfFilter)
+        .select("ownerName ownerEmail")
+        .lean();
+      const emails = [...new Set(sameCpf.map((c) => normalizeEmail(c.ownerEmail)).filter(Boolean))];
+      const sharing = emails.length
+        ? await Certificate.find({
+            ownerEmail: {
+              $regex: `^\\s*(${emails.map(escapeSearch).join("|")})\\s*$`,
+              $options: "i",
+            },
+          })
+            .select("ownerCpf")
+            .lean()
+        : [];
+      consistent = cpfIsConsistent(sameCpf, sharing, cpf);
+      return consistent;
+    };
+
     let linked = 0;
     for (const certificate of candidates) {
-      if (!canAutoLink(certificate, cpf, email, true)) continue;
+      const byEmail = canAutoLink(certificate, cpf, email, true);
+      const byName =
+        !byEmail &&
+        canLinkByNameAndCpf(certificate, cpf, profile.name) &&
+        (await cpfConsistent());
+      if (!byEmail && !byName) continue;
       const session = await mongoose.startSession();
       let attached = false;
       try {
@@ -59,14 +92,15 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
                   certificateId: certificate._id,
                   profileId: profile._id,
                   status: "APPROVED",
-                  source: "automatic",
-                  reason:
-                    "CPF válido e e-mail autenticado verificado correspondentes",
+                  source: byEmail ? "automatic" : "automatic-name-cpf",
+                  reason: byEmail
+                    ? "CPF válido e e-mail autenticado verificado correspondentes"
+                    : "CPF válido e nome completo correspondentes; e-mail do certificado diferente do da conta",
                   reviewedAt: new Date(),
                   history: [
                     {
                       status: "APPROVED",
-                      reason: "CPF e e-mail verificados",
+                      reason: byEmail ? "CPF e e-mail verificados" : "CPF e nome completo",
                       actor: "automatic",
                       at: new Date(),
                     },

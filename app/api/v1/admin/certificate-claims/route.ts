@@ -9,7 +9,10 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
   const status = request.nextUrl.searchParams.get("status") || "PENDING";
   if (!["PENDING", "APPROVED", "REJECTED", "REVOKED"].includes(status))
     return Response.json({ error: "Estado inválido" }, { status: 400 });
-  const claims = await CertificateClaim.find({ status })
+  const source = request.nextUrl.searchParams.get("source");
+  if (source && !["manual", "automatic", "automatic-name-cpf"].includes(source))
+    return Response.json({ error: "Origem inválida" }, { status: 400 });
+  const claims = await CertificateClaim.find(source ? { status, source } : { status })
     .sort({ createdAt: 1 })
     .limit(100)
     .lean();

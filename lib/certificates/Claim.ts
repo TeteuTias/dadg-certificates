@@ -9,7 +9,8 @@ const schema = new Schema(
       enum: ["PENDING", "APPROVED", "REJECTED", "REVOKED"],
       required: true,
     },
-    source: { type: String, enum: ["manual", "automatic"] },
+    // automatic: CPF e e-mail verificado; automatic-name-cpf: CPF e nome completo, e-mail diferente.
+    source: { type: String, enum: ["manual", "automatic", "automatic-name-cpf"] },
     message: String,
     reason: String,
     reviewedBy: String,
