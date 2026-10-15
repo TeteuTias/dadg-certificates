@@ -5,6 +5,8 @@ import ProfileAuditModel from "@/lib/models/ProfileAuditModel";
 import UserProfileModel, { type UserProfileDocument } from "@/lib/models/UserProfileModel";
 import { cpfLookup, decryptCpf, encryptCpf } from "./crypto";
 import { signAttendanceToken } from "@/lib/events/attendance-token";
+import { normalizeName } from "@/lib/certificates/matching";
+import { returnNameCpfLinksToReview } from "@/lib/certificates/review";
 import {
   PROFILE_PRIVACY_NOTICE_HASH,
   PROFILE_PRIVACY_NOTICE_VERSION,
@@ -125,6 +127,10 @@ export async function saveOwnProfile(args: {
     : ["name", "cpf", "period"];
   for (const field of academicFields) if (data[field] !== undefined && data[field] !== existing?.[field]) changedFields.push(field);
 
+  // Antes de gravar: trocar nome ou CPF devolve à revisão os vínculos feitos por CPF e nome.
+  if (existing && (existing.cpfLookup !== lookup || normalizeName(existing.name) !== normalizeName(data.name)))
+    await returnNameCpfLinksToReview(existing._id);
+
   try {
     if (existing) {
       await UserProfileModel.updateOne(
@@ -152,7 +158,11 @@ export async function saveOwnProfile(args: {
     }
   } catch (error) {
     if (isDuplicateKeyError(error)) {
-      throw new ProfileRequestError(409, "CPF_ALREADY_IN_USE", "Este CPF já está associado a um perfil.");
+      throw new ProfileRequestError(
+        409,
+        "CPF_ALREADY_IN_USE",
+        "Este CPF já está associado a outra conta. Se ele é seu, fale com o DADG pela Ouvidoria do site para resolvermos.",
+      );
     }
     throw error;
   }
