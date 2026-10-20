@@ -53,10 +53,57 @@ export default function UsuarioDetalhePage() {
           <button type="submit" disabled={status==="saving"} className="users-detail-save">{status==="saving"?<LoaderCircle className="animate-spin" size={18}/>:<Save size={18}/>} {status==="saving"?"Salvando...":"Salvar correção"}</button>
         </form>
       </section>
-      <aside className="users-admin-panel users-detail-card"><h2>Privacidade</h2><div className="users-privacy-state"><ShieldCheck size={22}/><div><strong>{profile.privacy.accepted?"Aceite vigente":"Novo aceite necessário"}</strong><p>{profile.privacy.noticeVersion}</p>{profile.privacy.acceptedAt?<p>{new Date(profile.privacy.acceptedAt).toLocaleString("pt-BR")}</p>:null}</div></div><p className="users-detail-note">O administrador não pode aceitar a LGPD em nome do aluno.</p></aside>
+      <aside className="users-admin-panel users-detail-card"><h2>Privacidade</h2><div className="users-privacy-state"><ShieldCheck size={22}/><div><strong>{profile.privacy.accepted?"Aceite vigente":"Novo aceite necessário"}</strong><p>{profile.privacy.noticeVersion}</p>{profile.privacy.acceptedAt?<p>{new Date(profile.privacy.acceptedAt).toLocaleString("pt-BR")}</p>:null}</div></div><p className="users-detail-note">O administrador não pode aceitar a LGPD em nome do aluno.</p><OperatorToggle profileId={params.id} onChanged={load} /></aside>
       <section className="users-admin-panel users-detail-card users-audit"><h2>Histórico de alterações</h2>{audit.length?audit.map(entry=><article key={entry.id}><div><strong>{entry.action}</strong><span>{new Date(entry.createdAt).toLocaleString("pt-BR")}</span></div><p>Campos: {entry.changedFields.join(", ")}. Ator: {entry.actorSubject}</p></article>):<p className="users-detail-note">Nenhuma alteração registrada.</p>}</section>
     </div> : null}
     {status === "error" && !profile ? <div className="users-admin-error" role="alert">{message}</div> : null}
     <style jsx global>{`.users-detail-grid{max-width:1180px;margin:1.25rem auto 0;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.6fr);gap:1.25rem}.users-detail-card{padding:1.5rem}.users-detail-card h2{color:#fff;font-size:1.25rem;font-weight:800;margin-bottom:1.25rem}.users-detail-form{display:grid;gap:1rem}.users-detail-form label{display:grid;gap:.4rem}.users-detail-form label>span{color:#94a3b8;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.users-detail-form input,.users-detail-form select{height:50px;border:1px solid #334155;border-radius:14px;background:#0f172a;color:#f8fafc;padding:0 1rem;outline:none}.users-detail-form input:focus,.users-detail-form select:focus{border-color:#3b82f6;box-shadow:0 0 0 4px rgba(59,130,246,.12)}.users-detail-save{height:50px;border-radius:14px;background:#2563eb;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;gap:.5rem}.users-detail-save:disabled{opacity:.6}.users-detail-success{border:1px solid #065f46;background:rgba(6,95,70,.2);color:#a7f3d0;border-radius:14px;padding:1rem}.users-privacy-state{display:flex;gap:.8rem;color:#6ee7b7}.users-privacy-state p,.users-detail-note{color:#94a3b8;font-size:.82rem;margin-top:.25rem}.users-audit{grid-column:1/-1}.users-audit article{padding:1rem 0;border-top:1px solid #1e293b}.users-audit article>div{display:flex;justify-content:space-between;gap:1rem}.users-audit article span,.users-audit article p{color:#94a3b8;font-size:.8rem}.users-admin-link{display:inline-flex;align-items:center;gap:.35rem}@media(max-width:760px){.users-detail-grid{grid-template-columns:1fr}}`}</style>
   </main>;
+}
+
+/** Role de operador de presença no Auth0: só lista de presença e leitura de QR. */
+function OperatorToggle({ profileId, onChanged }: { profileId: string; onChanged: () => void | Promise<void> }) {
+  const [state, setState] = useState<{ configured: boolean; isOperator: boolean | null } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/v1/admin/profiles/${profileId}/operator`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!active) return;
+        if (!response.ok) setError(data.error || "Não foi possível consultar a role.");
+        else setState({ configured: data.configured, isOperator: data.isOperator });
+      })
+      .catch(() => active && setError("Não foi possível consultar a role."));
+    return () => { active = false; };
+  }, [profileId]);
+
+  async function toggle() {
+    if (!state?.configured || state.isOperator === null) return;
+    const enabled = !state.isOperator;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`/api/v1/admin/profiles/${profileId}/operator`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled }) });
+      const data = await response.json();
+      if (!response.ok) { setError(data.error || "Não foi possível atualizar a role."); return; }
+      setState({ configured: true, isOperator: data.isOperator });
+      await onChanged();
+    } catch { setError("Não foi possível atualizar a role."); } finally { setBusy(false); }
+  }
+
+  const on = state?.isOperator === true;
+  return <div className="users-operator">
+    <h2>Operador de presença</h2>
+    {state && !state.configured ? <p className="users-detail-note">Gestão de operadores não configurada no servidor (Auth0 de gerenciamento e DADG_OPERATOR_ROLE_NAME).</p> : <>
+      <div className="users-operator-row">
+        <span id={`operator-${profileId}`}>{state === null && !error ? "Consultando..." : on ? "Ativo" : "Inativo"}</span>
+        <button type="button" role="switch" aria-checked={on} aria-labelledby={`operator-${profileId}`} disabled={busy || state?.isOperator == null} onClick={() => void toggle()} className={`users-switch${on ? " is-on" : ""}`}><span /></button>
+      </div>
+      <p className="users-detail-note">Acesso apenas à lista de presença e à leitura de QR. Vale no próximo login da pessoa no painel.</p>
+    </>}
+    {error ? <div role="alert" className="users-admin-error">{error}</div> : null}
+    <style jsx>{`.users-operator{margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid #1e293b}.users-operator-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;color:#e2e8f0;font-weight:700}.users-switch{position:relative;width:52px;height:30px;border-radius:999px;background:#334155;transition:background .2s}.users-switch.is-on{background:#2563eb}.users-switch:disabled{opacity:.5}.users-switch span{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}.users-switch.is-on span{transform:translateX(22px)}.users-switch:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}`}</style>
+  </div>;
 }
