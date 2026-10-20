@@ -25,7 +25,7 @@ async function handle(request: NextRequest, { params }: Context) {
         eventId: id,
         ...identity.ownerFilter,
       }).lean();
-      if (!p) throw new EventError("REGISTRATION_NOT_FOUND", 404);
+      if (!p) throw new EventError("REGISTRATION_NOT_FOUND", 404, "Inscrição não encontrada.");
       const order = p.activePaymentId
         ? await EventOrder.findById(p.activePaymentId).lean()
         : null;

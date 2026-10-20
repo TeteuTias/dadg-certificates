@@ -4,6 +4,7 @@ import CreateNewEvent from "@/lib/models/src/certificatesHandler/put/CreateNewEv
 import { connectToDatabase } from "@/lib/mongodb";
 import type { IEventCertificate } from "@/lib/models/EventCertificateModel";
 import { buildEventStatusDetails } from "@/lib/events/statusDetails";
+import { validPaidPrice } from "@/lib/events/rules";
 
 async function PUTHandler(request: Request) {
     const formData = await request.formData();
@@ -44,7 +45,7 @@ async function PUTHandler(request: Request) {
     let price: number | undefined = undefined;
     if (isPaid) {
         price = Number(priceRaw);
-        if (isNaN(price) || price < 0) return NextResponse.json({ message: "O evento é pago, forneça um valor válido." }, { status: 400 });
+        if (!validPaidPrice(price)) return NextResponse.json({ message: "Evento pago precisa de um valor maior que zero." }, { status: 400 });
     }
     const statusDetailsResult = buildEventStatusDetails({
         status: statusRaw,

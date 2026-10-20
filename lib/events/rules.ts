@@ -2,7 +2,7 @@ export class EventError extends Error {
   constructor(
     public code: string,
     public status = 409,
-    message = code,
+    message = "Não foi possível processar a solicitação.",
   ) {
     super(message);
   }
@@ -71,6 +71,14 @@ export function pricingChanged(
     update.price !== undefined &&
     Number(update.price ?? 0) !== Number(existing.price ?? 0);
   return paidChanged || priceChanged;
+}
+/**
+ * Evento pago precisa de um valor que vire centavos inteiros seguros e
+ * positivos; é a mesma conta feita na inscrição (INVALID_EVENT_PRICE).
+ */
+export function validPaidPrice(price: unknown) {
+  const cents = Math.round(Number(price) * 100);
+  return Number.isSafeInteger(cents) && cents > 0;
 }
 export function canSelfCancel(
   event: {
