@@ -106,6 +106,12 @@ test("email não verificado bloqueia inscrição", () => {
     verifiedEmail({ email: "A@B.com", email_verified: true }),
     "a@b.com",
   );
+  // Inscrição aceita e-mail não confirmado, mas ainda exige um e-mail válido.
+  assert.equal(
+    verifiedEmail({ email: "A@B.com", email_verified: false }, false),
+    "a@b.com",
+  );
+  assert.throws(() => verifiedEmail({ email: "", email_verified: false }, false));
 });
 test("HTML remove script, handlers e URLs executáveis", () => {
   const html = safeBlogHtml(

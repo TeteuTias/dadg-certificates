@@ -7,12 +7,15 @@ export class EventError extends Error {
     super(message);
   }
 }
-export function verifiedEmail(user: Record<string, unknown>) {
+export function verifiedEmail(
+  user: Record<string, unknown>,
+  requireVerified = true,
+) {
   const email = user[process.env.STUDENT_AUTH0_EMAIL_CLAIM || "email"];
   const verified =
     user[process.env.STUDENT_AUTH0_EMAIL_VERIFIED_CLAIM || "email_verified"];
   if (
-    verified !== true ||
+    (requireVerified && verified !== true) ||
     typeof email !== "string" ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   )
