@@ -11,7 +11,7 @@ import { decryptCpf } from "@/lib/profile/crypto";
 import { MpGateway } from "@/lib/selective-processes/services/gateway";
 import type { NextRequest } from "next/server";
 export async function register(request: NextRequest, id: string) {
-  const identity = await eventIdentity(request);
+  const identity = await eventIdentity(request, true, false);
   const indexes = await Participant.collection.listIndexes().toArray();
   if (!indexes.some((i) => i.name === "event_profile_unique" && i.unique))
     throw new EventError(

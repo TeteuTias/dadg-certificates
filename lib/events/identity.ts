@@ -11,6 +11,8 @@ import { participantOwnerFilter } from "./ownership";
 export async function eventIdentity(
   request: NextRequest,
   requireVerified = true,
+  // Inscrição em evento não exige e-mail confirmado: não há envio de e-mails de verificação.
+  requireVerifiedEmail = requireVerified,
 ) {
   const user = await new GateKeeper(request).identifyStudent();
   if (!user)
@@ -21,7 +23,7 @@ export async function eventIdentity(
   if (!profile)
     throw new EventError("PROFILE_INCOMPLETE", 428, "Complete seu perfil.");
   const email = requireVerified
-    ? verifiedEmail(user)
+    ? verifiedEmail(user, requireVerifiedEmail)
     : String(user[process.env.STUDENT_AUTH0_EMAIL_CLAIM || "email"] || "");
   if (requireVerified && !(await hasCurrentAcceptance(profile._id)))
     throw new EventError(
