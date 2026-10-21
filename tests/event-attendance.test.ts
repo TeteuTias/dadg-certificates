@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EventError, pricingChanged } from "../lib/events/rules";
+import { EventError, pricingChanged, validPaidPrice } from "../lib/events/rules";
 import { buildEventStatusDetails } from "../lib/events/statusDetails";
 import {
   applyAttendance,
@@ -50,6 +50,12 @@ test("cobrança só muda quando preço ou gratuidade mudam de fato", () => {
   assert.equal(pricingChanged(paid, { isPaid: true, price: 49.9 }), false);
   assert.equal(pricingChanged(paid, { price: 59.9 }), true);
   assert.equal(pricingChanged(paid, { isPaid: false }), true);
+});
+
+test("evento pago só aceita valor que vire centavos positivos", () => {
+  for (const price of [49.9, "49.90", 0.01, 0.005]) assert.equal(validPaidPrice(price), true, String(price));
+  for (const price of [0, "0", "", null, undefined, -1, 0.004, "abc", Number.NaN, Infinity, 1e20])
+    assert.equal(validPaidPrice(price), false, String(price));
 });
 
 test("salvar o cronograma preserva a identidade das etapas existentes", () => {

@@ -94,7 +94,11 @@ export async function register(request: NextRequest, id: string) {
         event.isPaid &&
         (!Number.isSafeInteger(amountCents) || amountCents <= 0)
       )
-        throw new EventError("INVALID_EVENT_PRICE");
+        throw new EventError(
+          "INVALID_EVENT_PRICE",
+          409,
+          "Este evento está com o valor configurado incorretamente. Avise a organização.",
+        );
       if (
         event.isPaid &&
         (!process.env.MERCADOPAGO_ACCESS_TOKEN ||
@@ -166,7 +170,12 @@ export async function register(request: NextRequest, id: string) {
   }
   if (!orderId) return { participantId, status: "CONFIRMED" };
   const order = await EventOrder.findById(orderId);
-  if (!order) throw new EventError("PAYMENT_ORDER_NOT_FOUND", 503);
+  if (!order)
+    throw new EventError(
+      "PAYMENT_ORDER_NOT_FOUND",
+      503,
+      "Não foi possível localizar sua cobrança. Atualize a página em instantes.",
+    );
   if (order.status === "PAID") return { participantId, status: "CONFIRMED" };
   if (
     order.status === "PENDING" &&
@@ -242,7 +251,7 @@ export async function cancelRegistration(request: NextRequest, id: string) {
       }).session(session);
       const event = await Event.findById(id).session(session);
       if (!participant || !event)
-        throw new EventError("REGISTRATION_NOT_FOUND", 404);
+        throw new EventError("REGISTRATION_NOT_FOUND", 404, "Inscrição não encontrada.");
       if (participant.status === "CANCELLED") return;
       if (!canSelfCancel(event, participant))
         throw new EventError(
@@ -334,5 +343,9 @@ async function closeRegistration(
     { session },
   );
   if (!released.modifiedCount)
-    throw new EventError("COUNTER_REVIEW_REQUIRED");
+    throw new EventError(
+      "COUNTER_REVIEW_REQUIRED",
+      409,
+      "Não foi possível concluir agora. Tente novamente ou fale com a organização.",
+    );
 }

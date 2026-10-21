@@ -5,8 +5,8 @@ export type ProfileAuditDocument = {
   profileId: Types.ObjectId;
   actorIssuer: string;
   actorSubject: string;
-  action: "profile.created" | "profile.updated" | "profile.admin_updated";
-  changedFields: Array<"name" | "cpf" | "period" | "registrationNumber" | "birthDate" | "phone" | "contactEmail">;
+  action: "profile.created" | "profile.updated" | "profile.admin_updated" | "profile.operator_granted" | "profile.operator_revoked";
+  changedFields: Array<"name" | "cpf" | "period" | "registrationNumber" | "birthDate" | "phone" | "contactEmail" | "operatorRole">;
   createdAt: Date;
 };
 
@@ -16,11 +16,11 @@ const ProfileAuditSchema = new Schema<ProfileAuditDocument>({
   actorSubject: { type: String, required: true, immutable: true },
   action: {
     type: String,
-    enum: ["profile.created", "profile.updated", "profile.admin_updated"],
+    enum: ["profile.created", "profile.updated", "profile.admin_updated", "profile.operator_granted", "profile.operator_revoked"],
     required: true,
     immutable: true,
   },
-  changedFields: [{ type: String, enum: ["name", "cpf", "period", "registrationNumber", "birthDate", "phone", "contactEmail"], required: true, immutable: true }],
+  changedFields: [{ type: String, enum: ["name", "cpf", "period", "registrationNumber", "birthDate", "phone", "contactEmail", "operatorRole"], required: true, immutable: true }],
   createdAt: { type: Date, required: true, default: Date.now, immutable: true },
 }, {
   collection: "users.profileAudit",

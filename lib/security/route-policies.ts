@@ -122,6 +122,8 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   admin("^/api/v1/admin/profiles/query$", "POST"),
   admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "GET"),
   admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}$", "PATCH"),
+  admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}/operator$", "GET"),
+  admin("^/api/v1/admin/profiles/[0-9a-fA-F]{24}/operator$", "PUT"),
   operator("^/api/v1/events/attendance$", "GET"),
   operator("^/api/v1/events/[0-9a-fA-F]{24}/participants$", "GET"),
   operator("^/api/v1/events/[0-9a-fA-F]{24}/participants$", "POST"),

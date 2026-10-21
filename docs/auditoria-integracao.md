@@ -141,6 +141,7 @@ Correções e mudanças feitas depois da entrega inicial. Tudo validado apenas p
 
 - `ATTENDANCE_QR_SECRET`: obrigatório, aleatório, com pelo menos 32 caracteres. Sem ele o perfil não mostra o QR e a leitura responde 503. Trocar o valor invalida todos os QR emitidos.
 - `DADG_OPERATOR_ROLE_NAME`: nome exato da role do operador. Ausente, ninguém é operador.
+- `AUTH0_MANAGEMENT_CLIENT_ID` e `AUTH0_MANAGEMENT_CLIENT_SECRET`: aplicação Machine to Machine do Auth0 autorizada na Auth0 Management API com `read:roles`, `read:users`, `create:role_members` e `delete:role_members`. Com elas e `DADG_OPERATOR_ROLE_NAME`, a página `/usuarios/[id]` mostra um toggle para dar e tirar a role de operador; cada mudança vai para o histórico do perfil. Sem elas, o toggle aparece como não configurado e a role continua sendo atribuída no painel do Auth0.
 - Auth0: criar a role, atribuí-la e garantir que ela chegue na claim `https://dadg.com.br/roles` do ID token do painel. Se a Action filtra roles por nome, incluir a nova.
 - Nenhum índice novo. `attendance`, `id` das etapas e `minAttendancePercent` passam a ser gravados conforme o uso; eventos antigos não são convertidos.
 

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import EventCertificateModel, { IEventCertificate } from '@/lib/models/EventCertificateModel';
 import { buildEventStatusDetails } from '@/lib/events/statusDetails';
-import { pricingChanged } from '@/lib/events/rules';
+import { pricingChanged, validPaidPrice } from '@/lib/events/rules';
 
 async function PUTHandler(request: Request) {
     try {
@@ -37,6 +37,12 @@ async function PUTHandler(request: Request) {
         const existing = await EventCertificateModel.findById(_id).lean();
         if (existing && updateData.maxParticipants !== undefined && updateData.maxParticipants < (existing.registrationCount || 0)) return NextResponse.json({success:false,message:"Capacidade inferior às vagas já ocupadas."},{status:409});
         if (existing?.registrationCount && pricingChanged(existing, updateData)) return NextResponse.json({success:false,message:"Não altere o preço de um evento com inscrições."},{status:409});
+        // Só valida quando a cobrança é tocada, para não travar outras edições em eventos legados.
+        if (existing && (updateData.isPaid !== undefined || updateData.price !== undefined)) {
+            const finalPaid = updateData.isPaid !== undefined ? Boolean(updateData.isPaid) : Boolean(existing.isPaid);
+            const finalPrice = updateData.price !== undefined ? updateData.price : existing.price;
+            if (finalPaid && !validPaidPrice(finalPrice)) return NextResponse.json({success:false,message:"Evento pago precisa de um valor maior que zero."},{status:400});
+        }
         if (updateData.certificateHours !== undefined) {
             if (typeof updateData.certificateHours !== "string" || updateData.certificateHours.trim().length > 60) {
                 return NextResponse.json({ success: false, message: "Carga horária inválida: use um texto de até 60 caracteres." }, { status: 400 });

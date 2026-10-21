@@ -356,7 +356,7 @@ const CreateEventCertificateForm: React.FC = () => {
                                     onChange={(value) => setPrice(value === "" ? "" : Number(value))}
                                     required={isPaid}
                                     type="number"
-                                    min={0}
+                                    min={0.01}
                                     step="0.01"
                                     placeholder="49.90"
                                 />
