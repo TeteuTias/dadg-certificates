@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, ClipboardList, Eye, FolderOpen, Menu, Newspaper, Plus, Sparkles, UsersRound, X } from "lucide-react";
+import { ChevronDown, ClipboardList, Eye, FolderOpen, Link2, Menu, Newspaper, Plus, Sparkles, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import "./Header.css";
 
@@ -173,7 +173,6 @@ export default function Header({ role = "admin" }: { role?: "admin" | "operator"
         }`}
       >
         <nav className="header-nav" ref={headerNavRef}>
-<Link href="/certificate-claims">Vínculos de certificados</Link>
           <div className="header-topbar">
             <Link
               href="/"
@@ -245,6 +244,16 @@ export default function Header({ role = "admin" }: { role?: "admin" | "operator"
                     <div>
                       <strong>Criar certificado</strong>
                       <span>Escolher evento e emitir</span>
+                    </div>
+                  </Link>
+
+                  <Link href="/certificate-claims" className="header-dropdown-link" onClick={closeNavigation}>
+                    <div className="header-dropdown-icon">
+                      <Link2 size={16} />
+                    </div>
+                    <div>
+                      <strong>Vínculos de certificados</strong>
+                      <span>Revisar pedidos de vínculo</span>
                     </div>
                   </Link>
                 </div>

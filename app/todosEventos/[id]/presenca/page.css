@@ -103,8 +103,21 @@
 
 .scanner-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
+}
+
+.scanner-mode-toggle {
+    display: flex;
+    gap: 0.6rem;
+    margin-left: auto;
+}
+
+.scanner-mode-toggle .glass-button {
+    padding: 5px 10px;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .scanner-header h2 {
@@ -188,8 +201,8 @@
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 200px;
-    height: 200px;
+    width: min(200px, 62%);
+    aspect-ratio: 1;
     transform: translate(-50%, -50%);
     border: 3px solid rgba(96, 165, 250, 0.9);
     border-radius: 12px;
@@ -244,6 +257,8 @@
 }
 
 .scanner-feedback p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
     color: #93c5fd;
     margin: 0;
 }
@@ -375,6 +390,7 @@
 
 .participant-email,
 .participant-cpf {
+    overflow-wrap: anywhere;
     color: #93c5fd;
     font-size: 0.78rem;
 }
@@ -472,8 +488,12 @@
 /* Responsive */
 @media (max-width: 768px) {
     .presenca-page { padding: 1.25rem 1rem 3rem; }
+    .scanner-card { padding: 1.25rem; }
+    .scanner-idle { padding: 0.5rem 0; }
+    .scanner-mode-toggle { width: 100%; margin-left: 0; }
+    .scanner-mode-toggle .glass-button { flex: 1; }
     .participant-row { flex-wrap: wrap; }
-    .participant-actions { flex-direction: row; align-items: center; flex-wrap: wrap; }
+    .participant-actions { width: 100%; flex-direction: row; align-items: center; flex-wrap: wrap; }
     .presenca-controls { flex-direction: column; align-items: stretch; }
     .presenca-search { min-width: 0; }
     .presenca-header-actions { flex-direction: column; }

@@ -115,6 +115,12 @@ button {
   color: rgba(224, 231, 255, 0.5);
 }
 
+/* A lista aberta do select usa fundo opaco do sistema; sem isso o texto claro some. */
+.glass-input option {
+  background-color: #0f172a;
+  color: #e0e7ff;
+}
+
 .glass-button {
   background: rgba(59, 130, 246, 0.2);
   backdrop-filter: blur(10px);

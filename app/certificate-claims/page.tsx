@@ -78,7 +78,7 @@ export default function Claims() {
       <textarea
         minLength={10}
         maxLength={1000}
-        className="block w-full border p-2"
+        className="glass-input mt-1 block w-full"
         value={reason[key] || ""}
         onChange={(e) => setReason({ ...reason, [key]: e.target.value })}
       />
@@ -98,7 +98,7 @@ export default function Claims() {
     ));
 
   return (
-    <main className="mx-auto max-w-4xl p-8">
+    <main className="mx-auto max-w-4xl break-words p-4 sm:p-8">
       <h1 className="text-2xl font-bold">Vínculos de certificados</h1>
       <p>
         Confirme documentos ou registros de participação. Nome igual não
@@ -107,7 +107,7 @@ export default function Claims() {
       </p>
       <label>
         Estado{" "}
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <select className="glass-input max-w-full" value={status} onChange={(e) => setStatus(e.target.value)}>
           {["PENDING", "APPROVED", "REJECTED", "REVOKED"].map((s) => (
             <option key={s}>{s}</option>
           ))}
@@ -115,7 +115,7 @@ export default function Claims() {
       </label>{" "}
       <label>
         Origem{" "}
-        <select value={source} onChange={(e) => setSource(e.target.value)}>
+        <select className="glass-input max-w-full" value={source} onChange={(e) => setSource(e.target.value)}>
           <option value="">Todas</option>
           {Object.entries(SOURCES).map(([value, label]) => (
             <option key={value} value={value}>
