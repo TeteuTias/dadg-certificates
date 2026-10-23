@@ -47,19 +47,6 @@ export default function Page({ params }: { params: Promise<{ search: string }> }
             return;
         }
 
-        const timeout = window.setTimeout(() => {
-            setPage(1);
-            setActiveQuery(searchQuery.trim());
-        }, 300);
-
-        return () => window.clearTimeout(timeout);
-    }, [searchQuery, isReady]);
-
-    useEffect(() => {
-        if (!isReady) {
-            return;
-        }
-
         const fetchData = async () => {
             if (page === 1) {
                 setLoading(true);
@@ -115,16 +102,26 @@ export default function Page({ params }: { params: Promise<{ search: string }> }
         <main className="certificates-container" style={PoppinsFontLib.style}>
             <h1 className="certificates-title">Todos os Certificados</h1>
             <div className="search-section">
-                <div className="search-input-wrapper">
+                {/* A busca só roda ao confirmar com Enter, não a cada pausa na digitação. */}
+                <form
+                    role="search"
+                    className="search-input-wrapper"
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        setPage(1);
+                        setActiveQuery(searchQuery.trim());
+                    }}
+                >
                     <input
                         type="text"
-                        placeholder="Pesquisar..."
+                        placeholder="Pesquisar e tecle Enter..."
+                        enterKeyHint="search"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="glass-input"
                         style={{ width: "100%" }}
                     />
-                </div>
+                </form>
                 <h2 className="search-results-count">
                     <span>{resultsLabel}</span>
                 </h2>

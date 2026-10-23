@@ -333,17 +333,15 @@ export default function PresencaPage() {
                     <div className="scanner-header">
                         <QrCode size={22} className="scanner-icon" />
                         <h2>Leitor de QR Code</h2>
-                        <div className="scanner-mode-toggle" style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
+                        <div className="scanner-mode-toggle">
                             <button 
                                 onClick={() => { setScanMode("checkin"); resetScanner(); }}
-                                className={`glass-button ${scanMode === "checkin" ? "glass-button-primary" : ""}`}
-                                style={{ padding: "5px 10px", fontSize: "12px" }}>
+                                className={`glass-button ${scanMode === "checkin" ? "glass-button-primary" : ""}`}>
                                 Check-in (Entrada)
                             </button>
                             <button 
                                 onClick={() => { setScanMode("checkout"); resetScanner(); }}
-                                className={`glass-button ${scanMode === "checkout" ? "glass-button-primary" : ""}`}
-                                style={{ padding: "5px 10px", fontSize: "12px" }}>
+                                className={`glass-button ${scanMode === "checkout" ? "glass-button-primary" : ""}`}>
                                 Check-out (Saída)
                             </button>
                         </div>
