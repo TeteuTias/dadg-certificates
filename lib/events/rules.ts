@@ -14,11 +14,13 @@ export function verifiedEmail(
   const email = user[process.env.STUDENT_AUTH0_EMAIL_CLAIM || "email"];
   const verified =
     user[process.env.STUDENT_AUTH0_EMAIL_VERIFIED_CLAIM || "email_verified"];
-  if (
-    (requireVerified && verified !== true) ||
-    typeof email !== "string" ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  )
+  if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw new EventError(
+      "EMAIL_MISSING",
+      428,
+      "Não foi possível ler o e-mail da sua conta. Entre novamente.",
+    );
+  if (requireVerified && verified !== true)
     throw new EventError(
       "EMAIL_VERIFICATION_REQUIRED",
       428,

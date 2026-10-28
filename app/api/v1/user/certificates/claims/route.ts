@@ -7,8 +7,11 @@ import { EventError } from "@/lib/events/rules";
 import { normalizeEmail } from "@/lib/certificates/matching";
 export const POST = withRouteAccess(async (request: NextRequest) => {
   try {
-    const { profile } = await eventIdentity(request);
-    const body = await request.json();
+    // Sem envio de e-mail de verificação: o administrador revisa cada pedido.
+    const { profile } = await eventIdentity(request, true, false);
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object")
+      return Response.json({ error: "Requisição inválida." }, { status: 400 });
     if (
       !/^[a-f0-9]{24}$/i.test(body.certificateId) ||
       typeof body.message !== "string" ||
@@ -62,7 +65,7 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
         { status: 429 },
       );
     const id = `${profile._id}:${certificate._id}`;
-    await CertificateClaim.updateOne(
+    const saved = await CertificateClaim.updateOne(
       { _id: id },
       {
         $setOnInsert: {
@@ -76,6 +79,11 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
       },
       { upsert: true },
     );
+    if (!saved.upsertedCount)
+      return Response.json(
+        { error: "Já existe uma solicitação para este certificado." },
+        { status: 409 },
+      );
     return Response.json(
       { success: true },
       { headers: { "Cache-Control": "private, no-store" } },

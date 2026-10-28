@@ -12,6 +12,7 @@ import {
   canSelfCancel,
   verifiedEmail,
 } from "../lib/events/rules";
+import { isRateLimitedRoute } from "../lib/security/route-access";
 import { safeBlogHtml } from "../lib/blog-html";
 import { templateFormat } from "../lib/certificates/file-validation";
 test("busca literal e todos os IDs exigem publicação", () => {
@@ -53,15 +54,18 @@ test("DTO não expõe CPF/email/identidade e preserva renderização", () => {
   );
   assert.deepEqual(result.verse, { showVerse: true });
 });
-test("nome não concede titularidade, CPF e e-mail verificado são necessários", () => {
+test("nome não concede titularidade, CPF e e-mail da conta são necessários", () => {
   const cert = { ownerCpf: "529.982.247-25", ownerEmail: "ana@example.com" };
-  assert.equal(canAutoLink(cert, "52998224725", "ana@example.com", true), true);
+  assert.equal(canAutoLink(cert, "52998224725", "ana@example.com"), true);
+  assert.equal(canAutoLink(cert, "52998224725", " Ana@Example.com "), true);
   assert.equal(
-    canAutoLink(cert, "52998224725", "ana@example.com", false),
-    false,
+    canAutoLink({ ownerCpf: cert.ownerCpf, ownerEmail: " ANA@example.com " }, "52998224725", "ana@example.com"),
+    true,
   );
+  assert.equal(canAutoLink(cert, "52998224725", "outra@example.com"), false);
+  assert.equal(canAutoLink(cert, "52998224725", ""), false);
   assert.equal(
-    canAutoLink(cert, "52998224725", "outra@example.com", true),
+    canAutoLink({ ownerCpf: cert.ownerCpf, ownerEmail: "" }, "52998224725", ""),
     false,
   );
   assert.equal(
@@ -69,10 +73,16 @@ test("nome não concede titularidade, CPF e e-mail verificado são necessários"
       { ownerCpf: "11111111111", ownerEmail: "a@a.com" },
       "11111111111",
       "a@a.com",
-      true,
     ),
     false,
   );
+});
+test("limite de taxa vale para consulta pública e para os POST do vínculo", () => {
+  assert.equal(isRateLimitedRoute("GET", "/api/v1/certificates/abc/scan"), true);
+  assert.equal(isRateLimitedRoute("POST", "/api/v1/user/certificates/link"), true);
+  assert.equal(isRateLimitedRoute("POST", "/api/v1/user/certificates/claims"), true);
+  assert.equal(isRateLimitedRoute("GET", "/api/v1/user/certificates"), false);
+  assert.equal(isRateLimitedRoute("POST", "/api/v1/events/123/registration"), false);
 });
 test("janela de inscrição, conflito e cancelamento preservam regras", () => {
   const now = new Date("2026-10-01");
@@ -112,6 +122,16 @@ test("email não verificado bloqueia inscrição", () => {
     "a@b.com",
   );
   assert.throws(() => verifiedEmail({ email: "", email_verified: false }, false));
+});
+test("e-mail ausente tem erro próprio, distinto de e-mail não confirmado", () => {
+  assert.throws(
+    () => verifiedEmail({ email_verified: true }),
+    (e: unknown) => (e as { code?: string }).code === "EMAIL_MISSING",
+  );
+  assert.throws(
+    () => verifiedEmail({ email: "a@b.com", email_verified: false }),
+    (e: unknown) => (e as { code?: string }).code === "EMAIL_VERIFICATION_REQUIRED",
+  );
 });
 test("HTML remove script, handlers e URLs executáveis", () => {
   const html = safeBlogHtml(

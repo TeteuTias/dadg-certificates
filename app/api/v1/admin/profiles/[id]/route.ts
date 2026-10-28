@@ -1,5 +1,6 @@
 import { withRouteAccess } from "@/lib/security/route-access";
 import { ObjectId } from "bson";
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import PrivacyAcceptanceModel from "@/lib/models/PrivacyAcceptanceModel";
@@ -209,15 +210,19 @@ async function PATCHHandler(request: NextRequest, { params }: Context) {
         { headers },
       );
 
-    // Mesma trava da edição pelo aluno: nome ou CPF novo devolve à revisão os vínculos por CPF e nome.
-    if (fields.includes("name") || fields.includes("cpf"))
-      await returnNameCpfLinksToReview(profile._id);
+    // Mesma trava da edição pelo aluno: nome ou CPF novo devolve os vínculos à revisão,
+    // na mesma transação da gravação do perfil.
+    const session = await mongoose.startSession();
     try {
-      await UserProfileModel.updateOne(
-        { _id: profile._id },
-        { $set: update },
-        { runValidators: true },
-      );
+      await session.withTransaction(async () => {
+        await UserProfileModel.updateOne(
+          { _id: profile._id },
+          { $set: update },
+          { runValidators: true, session },
+        );
+        if (fields.includes("name") || fields.includes("cpf"))
+          await returnNameCpfLinksToReview(profile._id, fields.includes("cpf"), session);
+      });
     } catch (error) {
       if (isDuplicateKeyError(error)) {
         return NextResponse.json(
@@ -230,6 +235,8 @@ async function PATCHHandler(request: NextRequest, { params }: Context) {
         );
       }
       throw error;
+    } finally {
+      await session.endSession();
     }
     await ProfileAuditModel.create({
       profileId: profile._id,

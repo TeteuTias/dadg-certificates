@@ -1,11 +1,15 @@
-import { isValidCpf } from "@/lib/profile/validation";
-import { normalizeEmail, normalizeName as normalizedName } from "./matching";
+import { certificateCpf, normalizeEmail, normalizeName as normalizedName } from "./matching";
 
 /**
  * Contagem da qualidade do acervo para o vínculo automático. Recebe os
  * certificados um a um e devolve só agregados: nenhum CPF, e-mail ou nome
  * sai daqui. Espelha `canAutoLink`, a regra por CPF e nome e a busca de
- * `/api/v1/user/certificates/link`.
+ * `/api/v1/user/certificates/link`, usando as mesmas funções de `matching.ts`.
+ *
+ * Desde 28/10/2026 a rota acha o CPF em qualquer formato (inclusive número e
+ * zeros perdidos) e compara e-mails normalizados: `cpfValidoEmFormatoQueABuscaNaoAcha`
+ * fica zerado e `aptosEEncontraveisPelaBusca` igual a `aptosPelaRegra`. Os campos
+ * continuam no resultado para comparação com as leituras anteriores, feitas com a regra antiga.
  */
 export type AcervoDoc = {
   ownerCpf?: unknown;
@@ -55,46 +59,38 @@ export function createAcervoAudit() {
     if (doc.isReady === true) count.liberados++;
     if (doc.profileId) count.jaVinculados++;
 
-    const anyRaw = typeof doc.ownerCpf === "string" ? doc.ownerCpf : "";
-    const anyCpf = anyRaw.replace(/\D/g, "");
+    // Mesma leitura de CPF e e-mail da rota (`certificateCpf`, `normalizeEmail`).
+    const cpf = certificateCpf(doc.ownerCpf);
     const anyEmail = normalizeEmail(doc.ownerEmail);
-    if (anyCpf.length === 11 && isValidCpf(anyCpf)) {
-      const anyFormatted = anyCpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-      if (anyRaw === anyCpf || anyRaw === anyFormatted) {
-        const entry = searchableByCpf.get(anyCpf) ?? { names: new Set<string>(), emails: new Set<string>() };
-        const name = normalizedName(doc.ownerName);
-        if (name) entry.names.add(name);
-        if (anyEmail) entry.emails.add(anyEmail);
-        searchableByCpf.set(anyCpf, entry);
-      }
-      if (anyEmail) validCpfsByEmail.set(anyEmail, (validCpfsByEmail.get(anyEmail) ?? new Set<string>()).add(anyCpf));
+    const name = normalizedName(doc.ownerName);
+    // Conferência da regra por nome: a rota olha o acervo inteiro do CPF, liberado ou não.
+    if (cpf) {
+      const entry = searchableByCpf.get(cpf) ?? { names: new Set<string>(), emails: new Set<string>() };
+      if (name) entry.names.add(name);
+      if (anyEmail) entry.emails.add(anyEmail);
+      searchableByCpf.set(cpf, entry);
+      if (anyEmail) validCpfsByEmail.set(anyEmail, (validCpfsByEmail.get(anyEmail) ?? new Set<string>()).add(cpf));
     }
 
     // O vínculo automático só considera certificado liberado e sem dono.
     if (doc.isReady !== true || doc.profileId) return;
     count.semDonoLiberados++;
 
+    const rawDigits =
+      typeof doc.ownerCpf === "number" && Number.isSafeInteger(doc.ownerCpf) ? String(doc.ownerCpf)
+      : typeof doc.ownerCpf === "string" ? doc.ownerCpf.replace(/\D/g, "")
+      : "";
     if (typeof doc.ownerCpf === "number") hipoteses.cpfGravadoComoNumero++;
-    const looseDigits =
-      typeof doc.ownerCpf === "number" ? String(Math.trunc(doc.ownerCpf)) : anyCpf;
-    if ((looseDigits.length === 9 || looseDigits.length === 10) && isValidCpf(looseDigits.padStart(11, "0")))
-      hipoteses.cpfRecuperavelComZerosAEsquerda++;
+    if (cpf && (rawDigits.length === 9 || rawDigits.length === 10)) hipoteses.cpfRecuperavelComZerosAEsquerda++;
 
-    const rawCpf = anyRaw;
-    const cpf = anyCpf;
-    let cpfOk = false;
-    let cpfSearchable = false;
-    if (!cpf) count.cpfAusenteOuIlegivel++;
-    else if (cpf.length !== 11) count.cpfSemOnzeDigitos++;
-    else if (!isValidCpf(cpf)) count.cpfDigitoVerificadorInvalido++;
-    else {
-      cpfOk = true;
+    const cpfOk = cpf !== "";
+    if (cpfOk) {
       count.cpfValido++;
-      const formatted = cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-      cpfSearchable = rawCpf === cpf || rawCpf === formatted;
-      if (!cpfSearchable) count.cpfValidoEmFormatoQueABuscaNaoAcha++;
-      else nameRuleCandidates.set(cpf, (nameRuleCandidates.get(cpf) ?? 0) + 1);
-    }
+      // A rota exige nome completo idêntico ao do perfil: certificado sem nome de duas palavras nunca entra.
+      if (name.split(" ").length >= 2) nameRuleCandidates.set(cpf, (nameRuleCandidates.get(cpf) ?? 0) + 1);
+    } else if (!rawDigits) count.cpfAusenteOuIlegivel++;
+    else if (rawDigits.length !== 11) count.cpfSemOnzeDigitos++;
+    else count.cpfDigitoVerificadorInvalido++;
 
     const rawEmail = typeof doc.ownerEmail === "string" ? doc.ownerEmail : "";
     const email = rawEmail.trim().toLowerCase();
@@ -114,11 +110,10 @@ export function createAcervoAudit() {
 
     if (!cpfOk || !emailOk) return;
     count.aptosPelaRegra++;
-    if (cpfSearchable && rawEmail === rawEmail.trim()) count.aptosEEncontraveisPelaBusca++;
+    count.aptosEEncontraveisPelaBusca++;
 
     const entry = byCpf.get(cpf) ?? { emails: new Set<string>(), names: new Set<string>(), certificates: 0 };
     entry.emails.add(email);
-    const name = normalizedName(doc.ownerName);
     if (name) entry.names.add(name);
     entry.certificates++;
     byCpf.set(cpf, entry);

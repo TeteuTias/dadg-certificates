@@ -1,5 +1,5 @@
 import type { JWTPayload } from "jose";
-import type { FilterQuery, Types } from "mongoose";
+import mongoose, { type FilterQuery, type Types } from "mongoose";
 import PrivacyAcceptanceModel from "@/lib/models/PrivacyAcceptanceModel";
 import ProfileAuditModel from "@/lib/models/ProfileAuditModel";
 import UserProfileModel, { type UserProfileDocument } from "@/lib/models/UserProfileModel";
@@ -127,25 +127,34 @@ export async function saveOwnProfile(args: {
     : ["name", "cpf", "period"];
   for (const field of academicFields) if (data[field] !== undefined && data[field] !== existing?.[field]) changedFields.push(field);
 
-  // Antes de gravar: trocar nome ou CPF devolve à revisão os vínculos feitos por CPF e nome.
-  if (existing && (existing.cpfLookup !== lookup || normalizeName(existing.name) !== normalizeName(data.name)))
-    await returnNameCpfLinksToReview(existing._id);
+  const cpfChanged = !!existing && existing.cpfLookup !== lookup;
+  const identityChanged = cpfChanged || (!!existing && normalizeName(existing.name) !== normalizeName(data.name));
 
   try {
     if (existing) {
-      await UserProfileModel.updateOne(
-        { _id: existing._id },
-        {
-          $set: {
-            name: data.name,
-            period: data.period,
-            cpfLookup: lookup,
-            ...extras,
-            ...(existing.cpfLookup === lookup ? {} : { cpfEncrypted: encryptCpf(data.cpf) }),
-          },
-        },
-        { runValidators: true },
-      );
+      // Perfil e devolução dos vínculos na mesma transação: CPF recusado ou falha
+      // no meio não deixam identidade nova com vínculos da antiga, nem o contrário.
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await UserProfileModel.updateOne(
+            { _id: existing._id },
+            {
+              $set: {
+                name: data.name,
+                period: data.period,
+                cpfLookup: lookup,
+                ...extras,
+                ...(existing.cpfLookup === lookup ? {} : { cpfEncrypted: encryptCpf(data.cpf) }),
+              },
+            },
+            { runValidators: true, session },
+          );
+          if (identityChanged) await returnNameCpfLinksToReview(existing._id, cpfChanged, session);
+        });
+      } finally {
+        await session.endSession();
+      }
     } else {
       await UserProfileModel.create({
         ...identity,
