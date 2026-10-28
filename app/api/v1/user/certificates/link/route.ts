@@ -63,20 +63,26 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
       return consistent;
     };
 
-    let stale = false;
+    // Avaliação em memória; a gravação é uma transação só, com operações em lote.
+    // Uma transação por certificado custava várias idas e voltas ao banco cada e
+    // estourava o tempo do site para quem tem muitos certificados.
+    const matches: Array<{ certificate: (typeof candidates)[number]; byEmail: boolean }> = [];
     for (const certificate of candidates) {
-      if (stale) break;
       const byEmail = canAutoLink(certificate, cpf, email);
       const byName =
         !byEmail &&
         canLinkByNameAndCpf(certificate, cpf, profile.name) &&
         (await cpfConsistent());
-      if (!byEmail && !byName) continue;
+      if (byEmail || byName) matches.push({ certificate, byEmail });
+    }
+
+    if (matches.length) {
       const session = await mongoose.startSession();
-      let attached = false;
+      // Só conta depois do commit: uma tentativa abortada não pode aparecer como vínculo feito.
+      let written = 0;
       try {
         await session.withTransaction(async () => {
-          attached = false;
+          written = 0;
           // Cerca no perfil (mesmo padrão de lib/selective-processes/reports/service.ts):
           // uma escrita real, condicionada à identidade avaliada, conflita com a troca de
           // nome ou CPF em andamento. Uma leitura dentro da transação não bloquearia nada.
@@ -85,49 +91,61 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
             { $inc: { __v: 1 } },
             { session, timestamps: false },
           );
-          if (fenced.matchedCount !== 1) {
-            stale = true;
-            return;
-          }
-          const claimId = `${profile._id}:${certificate._id}`;
-          const existing =
-            await CertificateClaim.findById(claimId).session(session);
-          if (existing) return; // Every manual decision or pending review takes precedence.
+          if (fenced.matchedCount !== 1) return;
 
-          const result = await Certificate.updateOne(
-            { _id: certificate._id, isReady: true, profileId: null },
+          // Qualquer solicitação ou decisão anterior (manual ou revisão pendente) tem precedência.
+          const claimId = (id: unknown) => `${profile._id}:${id}`;
+          const decided = new Set(
+            (
+              await CertificateClaim.find({ _id: { $in: matches.map((m) => claimId(m.certificate._id)) } })
+                .select("_id")
+                .session(session)
+                .lean()
+            ).map((claim) => String(claim._id)),
+          );
+          const open = matches.filter((m) => !decided.has(claimId(m.certificate._id)));
+          if (!open.length) return;
+
+          await Certificate.updateMany(
+            { _id: { $in: open.map((m) => m.certificate._id) }, isReady: true, profileId: null },
             { $set: { profileId: profile._id } },
             { session },
           );
-          if (result.modifiedCount) {
-            attached = true;
-            await CertificateClaim.create(
-              [
+          // Só os que este vínculo realmente pegou (outro podia ter vinculado antes).
+          const attached = new Set(
+            (
+              await Certificate.find({ _id: { $in: open.map((m) => m.certificate._id) }, profileId: profile._id })
+                .select("_id")
+                .session(session)
+                .lean()
+            ).map((certificate) => String(certificate._id)),
+          );
+          const now = new Date();
+          const claims = open
+            .filter((m) => attached.has(String(m.certificate._id)))
+            .map(({ certificate, byEmail }) => ({
+              _id: claimId(certificate._id),
+              certificateId: certificate._id,
+              profileId: profile._id,
+              status: "APPROVED",
+              source: byEmail ? "automatic" : "automatic-name-cpf",
+              reason: byEmail
+                ? "CPF válido e e-mail da conta correspondentes"
+                : "CPF válido e nome completo correspondentes; e-mail do certificado diferente do da conta",
+              reviewedAt: now,
+              history: [
                 {
-                  _id: claimId,
-                  certificateId: certificate._id,
-                  profileId: profile._id,
                   status: "APPROVED",
-                  source: byEmail ? "automatic" : "automatic-name-cpf",
-                  reason: byEmail
-                    ? "CPF válido e e-mail da conta correspondentes"
-                    : "CPF válido e nome completo correspondentes; e-mail do certificado diferente do da conta",
-                  reviewedAt: new Date(),
-                  history: [
-                    {
-                      status: "APPROVED",
-                      reason: byEmail ? "CPF e e-mail" : "CPF e nome completo",
-                      actor: "automatic",
-                      at: new Date(),
-                    },
-                  ],
+                  reason: byEmail ? "CPF e e-mail" : "CPF e nome completo",
+                  actor: "automatic",
+                  at: now,
                 },
               ],
-              { session },
-            );
-          }
+            }));
+          if (claims.length) await CertificateClaim.insertMany(claims, { session });
+          written = claims.length;
         });
-        if (attached) linked++;
+        linked = written;
       } finally {
         await session.endSession();
       }
