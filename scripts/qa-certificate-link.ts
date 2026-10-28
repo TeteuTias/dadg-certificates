@@ -118,17 +118,17 @@ async function main() {
 
     // A02, vínculo primeiro: o /link para depois da cerca; a troca de CPF espera e devolve o vínculo novo.
     const late = await insertCertificate({ ownerCpf: Number(CPF_A), ownerEmail: "conta@x.com", ownerName: "Ana Maria Souza" });
-    const originalCreate = CertificateClaim.create.bind(CertificateClaim);
+    const originalCreate = CertificateClaim.insertMany.bind(CertificateClaim);
     const first = barrier();
     let paused = false;
-    CertificateClaim.create = (async (...args: unknown[]) => {
+    CertificateClaim.insertMany = (async (...args: unknown[]) => {
       if (!paused) {
         paused = true;
         first.reached();
         await first.released;
       }
       return (originalCreate as (...a: unknown[]) => Promise<unknown>)(...args);
-    }) as typeof CertificateClaim.create;
+    }) as typeof CertificateClaim.insertMany;
     const linking = link();
     await first.arrived;
     const changing = save("Ana Maria Souza", CPF_C);
@@ -136,7 +136,7 @@ async function main() {
     first.release();
     assert.equal((await linking).linked, 1);
     await changing;
-    CertificateClaim.create = originalCreate as typeof CertificateClaim.create;
+    CertificateClaim.insertMany = originalCreate as typeof CertificateClaim.insertMany;
     assert.equal(await ownerOf(late), undefined, "vínculo feito com o CPF antigo voltou para revisão");
     assert.equal((await claimOf(late))?.status, "PENDING");
     assert.equal(await ownerOf(numeric), undefined);

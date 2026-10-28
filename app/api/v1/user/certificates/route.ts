@@ -14,7 +14,7 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
         Math.floor(Number(request.nextUrl.searchParams.get("page")) || 1),
       ),
     );
-    const [data, claims] = await Promise.all([
+    const [data, claims, total] = await Promise.all([
       Certificate.find({ profileId: profile._id, isReady: true })
         .select("_id eventName ownerName certificateHours")
         .sort({ _id: -1 })
@@ -26,11 +26,14 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
         .sort({ createdAt: -1 })
         .limit(100)
         .lean(),
+      // Mesmo filtro da lista: o total confere com o que o aluno pode abrir.
+      Certificate.countDocuments({ profileId: profile._id, isReady: true }),
     ]);
     return Response.json(
       {
         data: data.slice(0, 50),
         hasMore: data.length > 50,
+        total,
         claims,
         automaticEnabled: process.env.CERTIFICATE_AUTO_LINK_ENABLED === "true",
       },

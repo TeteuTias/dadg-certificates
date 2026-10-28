@@ -49,8 +49,9 @@ test("CPF com nomes diferentes ou e-mail usado por outro CPF não vincula por no
   assert.equal(cpfIsConsistent(same, [{ ownerCpf: "111.444.777-35" }], CPF), false);
 });
 
-function linkRoute(certificates: Json[], profileUnchanged = true) {
+function linkRoute(certificates: Json[], profileUnchanged = true, existingClaims: string[] = []) {
   const created: Json[] = [];
+  const batches: number[] = [];
   const linked: unknown[] = [];
   const nativeFilters: Json[] = [];
   const fences: Json[] = [];
@@ -70,8 +71,13 @@ function linkRoute(certificates: Json[], profileUnchanged = true) {
     },
     "@/lib/certificates/Claim": {
       CertificateClaim: {
-        findById: () => ({ session: async () => null }),
-        create: async (docs: Json[]) => {
+        // Decisões anteriores: uma consulta só, por todos os ids candidatos.
+        find: (filter: Json) => {
+          const ids = ((filter._id as Json).$in as string[]).filter((id) => existingClaims.includes(id));
+          const chain = { select: () => chain, session: () => chain, lean: async () => ids.map((_id) => ({ _id })) };
+          return chain;
+        },
+        insertMany: async (docs: Json[]) => {
           created.push(...docs);
         },
       },
@@ -90,14 +96,21 @@ function linkRoute(certificates: Json[], profileUnchanged = true) {
       },
       // Busca por e-mail (conferência de outro CPF usando o mesmo e-mail).
       find: (filter: Json) => {
-        if (!filter.ownerEmail) throw new Error("busca por CPF não pode passar pelo cast do Mongoose");
-        const rows = certificates.filter((c) => new RegExp(String((filter.ownerEmail as Json).$regex), "i").test(String(c.ownerEmail)));
-        const chain = { select: () => chain, lean: async () => rows };
+        // Dentro da transação: quais destes ids ficaram com este perfil.
+        const rows = filter.profileId
+          ? linked.map((_id) => ({ _id }))
+          : filter.ownerEmail
+            ? certificates.filter((c) => new RegExp(String((filter.ownerEmail as Json).$regex), "i").test(String(c.ownerEmail)))
+            : (() => {
+                throw new Error("busca por CPF não pode passar pelo cast do Mongoose");
+              })();
+        const chain = { select: () => chain, session: () => chain, lean: async () => rows };
         return chain;
       },
-      updateOne: async (filter: Json) => {
-        linked.push(filter._id);
-        return { modifiedCount: 1 };
+      updateMany: async (filter: Json) => {
+        batches.push(1);
+        linked.push(...((filter._id as Json).$in as unknown[]));
+        return { modifiedCount: linked.length };
       },
     },
     "@/lib/models/UserProfileModel": {
@@ -112,7 +125,7 @@ function linkRoute(certificates: Json[], profileUnchanged = true) {
     "@/lib/certificates/public-contract": publicContract,
     "@/lib/events/rules": { EventError: class extends Error {} },
   });
-  return { post: () => route.POST({}), created, linked, nativeFilters, fences };
+  return { post: () => route.POST({}), created, linked, nativeFilters, fences, batches };
 }
 
 async function withAutoLink(run: () => Promise<void>) {
@@ -139,6 +152,20 @@ test("rota vincula por e-mail e, com e-mail diferente, por CPF e nome com origem
     assert.equal(body.linked, 2);
     assert.deepEqual(linked, ["a", "b"]);
     assert.deepEqual(created.map((c) => c.source), ["automatic", "automatic-name-cpf"]);
+  }));
+
+test("rota grava todos os vínculos numa operação só e respeita decisões anteriores", () =>
+  withAutoLink(async () => {
+    const { post, created, linked, fences, batches } = linkRoute(
+      [cert("a", { ownerEmail: "conta@x.com" }), cert("b", { ownerEmail: "conta@x.com" }), cert("c", { ownerEmail: "conta@x.com" })],
+      true,
+      ["perfil:b"],
+    );
+    assert.equal((await (await post()).json()).linked, 2);
+    assert.equal(fences.length, 1, "uma cerca para o lote inteiro");
+    assert.equal(batches.length, 1, "um updateMany para o lote inteiro");
+    assert.deepEqual(linked, ["a", "c"], "certificado com decisão anterior fica de fora");
+    assert.deepEqual(created.map((c) => c._id), ["perfil:a", "perfil:c"]);
   }));
 
 test("rota acha CPF gravado como número e busca pelo driver nativo com o ramo numérico intacto", () =>
