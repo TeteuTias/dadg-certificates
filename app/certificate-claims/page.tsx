@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 const SOURCES: Record<string, string> = {
   manual: "Pedido do aluno",
-  automatic: "Automático: CPF e e-mail verificado",
+  automatic: "Automático: CPF e e-mail",
   "automatic-name-cpf": "Automático: CPF e nome completo (e-mail diferente)",
 };
 const LABELS: Record<string, string> = {

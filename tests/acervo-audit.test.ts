@@ -26,7 +26,7 @@ test("auditoria do acervo classifica CPF, e-mail e o que a busca encontra", () =
   assert.equal(r.jaVinculados, 1);
   assert.equal(r.semDonoLiberados, 9);
   assert.equal(r.cpfValido, 4);
-  assert.equal(r.cpfValidoEmFormatoQueABuscaNaoAcha, 1);
+  assert.equal(r.cpfValidoEmFormatoQueABuscaNaoAcha, 0, "a rota acha CPF com espaços");
   assert.equal(r.cpfDigitoVerificadorInvalido, 2, "dígito errado e CPF repetido");
   assert.equal(r.cpfSemOnzeDigitos, 1);
   assert.equal(r.cpfAusenteOuIlegivel, 2, "vazio e cifrado");
@@ -35,7 +35,7 @@ test("auditoria do acervo classifica CPF, e-mail e o que a busca encontra", () =
   assert.equal(r.emailInvalido, 1);
   assert.equal(r.emailAusente, 1);
   assert.equal(r.aptosPelaRegra, 4);
-  assert.equal(r.aptosEEncontraveisPelaBusca, 2);
+  assert.equal(r.aptosEEncontraveisPelaBusca, 4, "espaços no CPF ou no e-mail não escondem o certificado");
   assert.deepEqual(r.conflitosEntreAptos, {
     cpfsDistintos: 2,
     cpfsComVariosEmails: 0,
@@ -85,4 +85,22 @@ test("auditoria do acervo mede o teto da regra por CPF e nome e as hipóteses de
     emailInvalidoSemPontoNoDominio: 1,
     emailInvalidoOutro: 1,
   });
+});
+
+test("auditoria do acervo lê o CPF como a rota: número, zeros perdidos e separadores contam na conferência", () => {
+  const audit = createAcervoAudit();
+  [
+    // Mesmo CPF com separador fora do padrão e outro nome: a rota vê o conflito, a auditoria também.
+    ready({ ownerCpf: "529.982.247-25", ownerEmail: "ana@x.com", ownerName: "Ana Souza" }),
+    ready({ ownerCpf: "529 982 247 25", ownerEmail: "ana@x.com", ownerName: "Carlos Lima" }),
+    // CPF gravado como número e com zero perdido: válido, apto e sem conflito.
+    ready({ ownerCpf: 1234567890, ownerEmail: " Bia@X.com ", ownerName: "Bia Lima" }),
+  ].forEach(audit.add);
+  const r = audit.result();
+  assert.equal(r.cpfValido, 3);
+  assert.equal(r.aptosPelaRegra, 3);
+  assert.equal(r.aptosEEncontraveisPelaBusca, 3);
+  assert.equal(r.hipoteses.cpfGravadoComoNumero, 1);
+  assert.equal(r.hipoteses.cpfRecuperavelComZerosAEsquerda, 1);
+  assert.deepEqual(r.regraCpfENome, { cpfsSemConflito: 1, certificadosAlcancaveis: 1 });
 });

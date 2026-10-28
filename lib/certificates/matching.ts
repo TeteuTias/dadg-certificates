@@ -16,7 +16,11 @@ export function certificateCpf(value: unknown) {
   return cpf.length === 11 && isValidCpf(cpf) ? cpf : "";
 }
 
-/** Filtro que acha o CPF do perfil em qualquer forma em que o acervo o guardou. */
+/**
+ * Filtro que acha o CPF do perfil em qualquer forma em que o acervo o guardou.
+ * Use só com o driver nativo (`Model.collection.find`): o cast do Mongoose
+ * transforma o ramo numérico em texto, porque `ownerCpf` é String no schema.
+ */
 export function cpfSearchFilter(cpf: string) {
   const core = cpf.replace(/^0+/, "");
   const zeros = cpf.length - core.length;
@@ -43,17 +47,10 @@ export function canAutoLink(
   certificate: { ownerCpf?: unknown; ownerEmail?: unknown },
   cpf: string,
   email: string,
-  verified: boolean,
 ) {
   const sourceCpf = certificateCpf(certificate.ownerCpf);
-  return (
-    verified &&
-    sourceCpf !== "" &&
-    sourceCpf === cpf &&
-    String(certificate.ownerEmail || "")
-      .trim()
-      .toLowerCase() === email.trim().toLowerCase()
-  );
+  const target = normalizeEmail(email);
+  return sourceCpf !== "" && sourceCpf === cpf && target !== "" && normalizeEmail(certificate.ownerEmail) === target;
 }
 
 /**

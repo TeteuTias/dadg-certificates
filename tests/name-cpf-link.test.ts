@@ -49,9 +49,11 @@ test("CPF com nomes diferentes ou e-mail usado por outro CPF não vincula por no
   assert.equal(cpfIsConsistent(same, [{ ownerCpf: "111.444.777-35" }], CPF), false);
 });
 
-function linkRoute(certificates: Json[]) {
+function linkRoute(certificates: Json[], profileUnchanged = true) {
   const created: Json[] = [];
   const linked: unknown[] = [];
+  const nativeFilters: Json[] = [];
+  const fences: Json[] = [];
   const route = loadIsolated("app/api/v1/user/certificates/link/route.ts", {
     mongoose: {
       startSession: async () => ({
@@ -62,7 +64,7 @@ function linkRoute(certificates: Json[]) {
     "@/lib/security/route-access": { withRouteAccess: (fn: unknown) => fn },
     "@/lib/events/identity": {
       eventIdentity: async () => ({
-        profile: { _id: "perfil", name: "Ana Souza", cpfEncrypted: {} },
+        profile: { _id: "perfil", name: "Ana Souza", cpfLookup: "lookup", cpfEncrypted: {} },
         email: "conta@x.com",
       }),
     },
@@ -75,12 +77,22 @@ function linkRoute(certificates: Json[]) {
       },
     },
     "@/lib/models/CertificateModel": {
+      // Busca por CPF: só pelo driver nativo, que não converte o ramo numérico do filtro.
+      collection: {
+        find: (filter: Json) => {
+          nativeFilters.push(filter);
+          const rows = certificates.filter(
+            (c) => (filter.isReady ? c.isReady && !c.profileId : true) && matching.certificateCpf(c.ownerCpf) === CPF,
+          );
+          const cursor = { sort: () => cursor, toArray: async () => rows };
+          return cursor;
+        },
+      },
+      // Busca por e-mail (conferência de outro CPF usando o mesmo e-mail).
       find: (filter: Json) => {
-        // Candidatos: liberados e sem dono; demais consultas: todo o acervo do CPF ou dos e-mails.
-        const rows = filter.ownerEmail
-          ? certificates.filter((c) => new RegExp(String((filter.ownerEmail as Json).$regex), "i").test(String(c.ownerEmail)))
-          : certificates.filter((c) => (filter.isReady ? c.isReady && !c.profileId : true) && String(c.ownerCpf).replace(/\D/g, "") === CPF);
-        const chain = { limit: () => chain, select: () => chain, lean: async () => rows };
+        if (!filter.ownerEmail) throw new Error("busca por CPF não pode passar pelo cast do Mongoose");
+        const rows = certificates.filter((c) => new RegExp(String((filter.ownerEmail as Json).$regex), "i").test(String(c.ownerEmail)));
+        const chain = { select: () => chain, lean: async () => rows };
         return chain;
       },
       updateOne: async (filter: Json) => {
@@ -88,12 +100,19 @@ function linkRoute(certificates: Json[]) {
         return { modifiedCount: 1 };
       },
     },
+    "@/lib/models/UserProfileModel": {
+      // Cerca: escrita condicionada à identidade avaliada.
+      updateOne: async (filter: Json, update: Json) => {
+        fences.push({ filter, update });
+        return { matchedCount: profileUnchanged ? 1 : 0 };
+      },
+    },
     "@/lib/profile/crypto": { decryptCpf: () => CPF },
     "@/lib/certificates/matching": matching,
     "@/lib/certificates/public-contract": publicContract,
     "@/lib/events/rules": { EventError: class extends Error {} },
   });
-  return { post: () => route.POST({}), created, linked };
+  return { post: () => route.POST({}), created, linked, nativeFilters, fences };
 }
 
 async function withAutoLink(run: () => Promise<void>) {
@@ -122,6 +141,34 @@ test("rota vincula por e-mail e, com e-mail diferente, por CPF e nome com origem
     assert.deepEqual(created.map((c) => c.source), ["automatic", "automatic-name-cpf"]);
   }));
 
+test("rota acha CPF gravado como número e busca pelo driver nativo com o ramo numérico intacto", () =>
+  withAutoLink(async () => {
+    const { post, linked, nativeFilters, fences } = linkRoute([
+      cert("n", { ownerCpf: Number(CPF), ownerEmail: "conta@x.com" }),
+    ]);
+    assert.equal((await (await post()).json()).linked, 1);
+    assert.deepEqual(linked, ["n"]);
+    const numeric = (nativeFilters[0].$or as Json[]).find((branch) => typeof branch.ownerCpf === "number");
+    assert.equal(numeric?.ownerCpf, Number(CPF));
+    // Cerca no perfil com a identidade avaliada, sem mexer no updatedAt.
+    assert.deepEqual(fences[0], {
+      filter: { _id: "perfil", cpfLookup: "lookup", name: "Ana Souza" },
+      update: { $inc: { __v: 1 } },
+    });
+  }));
+
+test("rota para quando nome ou CPF do perfil mudaram no meio do processo", () =>
+  withAutoLink(async () => {
+    const { post, created, linked, fences } = linkRoute(
+      [cert("a", { ownerEmail: "conta@x.com" }), cert("b", { ownerEmail: "conta@x.com" })],
+      false,
+    );
+    assert.equal((await (await post()).json()).linked, 0);
+    assert.deepEqual(created, []);
+    assert.deepEqual(linked, []);
+    assert.equal(fences.length, 1, "não tenta os certificados seguintes");
+  }));
+
 test("rota não vincula por nome quando o acervo do CPF tem conflito", () =>
   withAutoLink(async () => {
     const emailOfOtherCpf = linkRoute([
@@ -142,6 +189,7 @@ test("rota não vincula por nome quando o acervo do CPF tem conflito", () =>
 
 test("pedido manual guarda o e-mail informado como evidência e recusa e-mail inválido", async () => {
   const upserts: Json[] = [];
+  let existingClaim = false;
   const route = loadIsolated("app/api/v1/user/certificates/claims/route.ts", {
     "next/server": {},
     "@/lib/security/route-access": { withRouteAccess: (fn: unknown) => fn },
@@ -151,6 +199,7 @@ test("pedido manual guarda o e-mail informado como evidência e recusa e-mail in
         countDocuments: async () => 0,
         updateOne: async (_filter: Json, update: Json) => {
           upserts.push(update.$setOnInsert as Json);
+          return { upsertedCount: existingClaim ? 0 : 1 };
         },
       },
     },
@@ -168,6 +217,11 @@ test("pedido manual guarda o e-mail informado como evidência e recusa e-mail in
   assert.equal(upserts[0].evidenceEmail, "antigo@y.com");
   assert.equal((await post({})).status, 200);
   assert.equal("evidenceEmail" in upserts[1], false);
+
+  // Pedido repetido não finge sucesso, e corpo que não é JSON é erro do cliente.
+  existingClaim = true;
+  assert.equal((await post({})).status, 409);
+  assert.equal((await route.POST({ json: async () => { throw new SyntaxError("x"); } })).status, 400);
 });
 
 test("troca de nome ou CPF devolve à revisão só os vínculos por CPF e nome não revisados", async () => {
@@ -176,32 +230,44 @@ test("troca de nome ou CPF devolve à revisão só os vínculos por CPF e nome n
     { certificateId: "b", status: "APPROVED", history: [] as Json[], save: async () => undefined },
   ];
   let filterSeen: Json = {};
+  const sessionsSeen: unknown[] = [];
+  const session = { id: "sessão da gravação do perfil" };
   const review = loadIsolated("lib/certificates/review.ts", {
-    mongoose: {
-      startSession: async () => ({
-        withTransaction: async (run: () => Promise<void>) => run(),
-        endSession: async () => undefined,
-      }),
-    },
     "./Claim": {
       CertificateClaim: {
-        exists: async (filter: Json) => {
+        find: (filter: Json) => {
           filterSeen = filter;
-          return true;
+          return {
+            session: async (s: unknown) => {
+              sessionsSeen.push(s);
+              return claims;
+            },
+          };
         },
-        find: () => ({ session: async () => claims }),
       },
     },
     "@/lib/models/CertificateModel": {
-      updateOne: async (filter: Json) => {
+      updateOne: async (filter: Json, _update: Json, options: Json) => {
         unset.push(filter);
+        sessionsSeen.push(options.session);
         return { modifiedCount: 1 };
       },
     },
   });
-  assert.equal(await review.returnNameCpfLinksToReview("perfil"), 1);
+  assert.equal(await review.returnNameCpfLinksToReview("perfil", false, session), 1);
+  // Tudo na sessão recebida: a devolução faz parte da transação que grava o perfil.
+  assert.deepEqual(sessionsSeen, [session, session]);
   assert.deepEqual(filterSeen, { profileId: "perfil", source: "automatic-name-cpf", status: "APPROVED", reviewedBy: null });
   assert.deepEqual(unset, [{ _id: "b", profileId: "perfil" }]);
   assert.equal(claims[0].status, "PENDING");
   assert.equal(claims[0].history.length, 1);
+
+  // CPF trocado: os vínculos por CPF e e-mail também voltam para revisão.
+  await review.returnNameCpfLinksToReview("perfil", true, session);
+  assert.deepEqual(filterSeen, {
+    profileId: "perfil",
+    source: { $in: ["automatic", "automatic-name-cpf"] },
+    status: "APPROVED",
+    reviewedBy: null,
+  });
 });
