@@ -4,6 +4,9 @@ const SOURCES: Record<string, string> = {
   manual: "Pedido do aluno",
   automatic: "Automático: CPF e e-mail",
   "automatic-name-cpf": "Automático: CPF e nome completo (e-mail diferente)",
+  "automatic-email-name": "Automático: sem CPF, nome completo e e-mail do aluno",
+  "automatic-name": "Automático: sem CPF nem e-mail, nome ligado só ao CPF do aluno",
+  "automatic-suggestion": "Sugestão automática: confere o nome",
 };
 const LABELS: Record<string, string> = {
   APPROVED: "Aprovar",

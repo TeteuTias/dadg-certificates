@@ -1,5 +1,5 @@
 import { withRouteAccess } from "@/lib/security/route-access";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import GateKeeper from "@/lib/security/gatekeeper";
 import {
@@ -7,7 +7,9 @@ import {
   ProfileCryptoConfigurationError,
 } from "@/lib/profile/crypto";
 import { getProfileEvents } from "@/lib/profile/events";
+import { linkCertificatesForProfile } from "@/lib/certificates/auto-link";
 import {
+  findProfile,
   identityFromToken,
   ProfileRequestError,
   saveOwnProfile,
@@ -82,6 +84,17 @@ async function PUTHandler(request: NextRequest) {
       privacyAccepted: input.privacyAccepted === true,
       noticeVersion: typeof input.noticeVersion === "string" ? input.noticeVersion : undefined,
     });
+    // Vínculo automático dos certificados ao criar a conta ou mudar CPF, nome, RA ou
+    // e-mail de contato. Roda depois da resposta; uma falha não desfaz o perfil salvo.
+    if (process.env.CERTIFICATE_AUTO_LINK_ENABLED === "true")
+      after(async () => {
+        try {
+          const saved = await findProfile(identity);
+          if (saved) await linkCertificatesForProfile(saved, user[process.env.STUDENT_AUTH0_EMAIL_CLAIM || "email"]);
+        } catch (error) {
+          console.error("[profile/auto-link]", error);
+        }
+      });
     return json({ success: true, profile, summary: {
       displayName: profile.name,
       complete: true,

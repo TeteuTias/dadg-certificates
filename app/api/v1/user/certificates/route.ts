@@ -14,8 +14,16 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
         Math.floor(Number(request.nextUrl.searchParams.get("page")) || 1),
       ),
     );
+    // Dono pelo certificado ou por vínculo aprovado (trabalho em conjunto tem vários donos).
+    const approved = await CertificateClaim.find({ profileId: profile._id, status: "APPROVED" })
+      .select("certificateId")
+      .lean();
+    const mine = {
+      isReady: true,
+      $or: [{ profileId: profile._id }, { _id: { $in: approved.map((c) => c.certificateId) } }],
+    };
     const [data, claims, total] = await Promise.all([
-      Certificate.find({ profileId: profile._id, isReady: true })
+      Certificate.find(mine)
         .select("_id eventName ownerName certificateHours")
         .sort({ _id: -1 })
         .skip((page - 1) * 50)
@@ -27,7 +35,7 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
         .limit(100)
         .lean(),
       // Mesmo filtro da lista: o total confere com o que o aluno pode abrir.
-      Certificate.countDocuments({ profileId: profile._id, isReady: true }),
+      Certificate.countDocuments(mine),
     ]);
     return Response.json(
       {

@@ -4,7 +4,9 @@
  * Uso: APPROVED_TEMP_DB_TEST=yes npx tsx scripts/qa-certificate-link.ts
  *
  * Cobre os achados A01 (perfil e devolução atômicos), A02 (corrida entre troca de
- * identidade e vínculo, nas duas ordens) e A03 (CPF gravado como número BSON).
+ * identidade e vínculo, nas duas ordens) e A03 (CPF gravado como número BSON),
+ * e as regras do vínculo completo: colunas trocadas, e-mail institucional antigo
+ * e do RA, nome ligado só ao CPF do aluno e trabalho em conjunto com dois donos.
  */
 import assert from "node:assert/strict";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
@@ -46,7 +48,7 @@ async function main() {
     const profile = await Profile.create({
       ...identity, name: "Ana Souza", period: 1, cpfEncrypted: encryptCpf(CPF_A), cpfLookup: cpfLookup(CPF_A),
     });
-    await Profile.create({
+    const other = await Profile.create({
       authIssuer: identity.authIssuer, authSubject: "auth0|outra-conta", name: "Bia Lima", period: 1,
       cpfEncrypted: encryptCpf(CPF_B), cpfLookup: cpfLookup(CPF_B),
     });
@@ -55,8 +57,9 @@ async function main() {
       acceptedAt: new Date(), ...identity, source: "profile-web",
     });
     Keeper.prototype.validate = async () => ({ authorized: true }) as never;
+    let session = { sub: identity.authSubject, email: "conta@x.com" };
     Keeper.prototype.identifyStudent = async () =>
-      ({ sub: identity.authSubject, iss: identity.authIssuer, email: "conta@x.com", email_verified: false }) as never;
+      ({ sub: session.sub, iss: identity.authIssuer, email: session.email, email_verified: false }) as never;
 
     const { POST: autoLink } = await import("../app/api/v1/user/certificates/link/route");
     const link = async () =>
@@ -163,6 +166,70 @@ async function main() {
     assert.equal(await ownerOf(afterChange), undefined);
     assert.equal(await claimOf(afterChange), null);
     console.log("PASS A02: troca de nome antes da cerca impede o vínculo com a identidade antiga");
+
+    // Vínculo completo: aluno novo com RA e acervo sujo (colunas trocadas, CPF inválido, só nome).
+    const CPF_D = "12345678062";
+    assert.ok(isValidCpf(CPF_D));
+    const carlosIdentity = { authIssuer: identity.authIssuer, authSubject: "auth0|carlos" };
+    const carlos = await Profile.create({
+      ...carlosIdentity, name: "Carlos Pereira Rocha", period: 1, registrationNumber: "2426520099",
+      cpfEncrypted: encryptCpf(CPF_D), cpfLookup: cpfLookup(CPF_D),
+    });
+    await Privacy.create({
+      profileId: carlos._id, noticeVersion: PROFILE_PRIVACY_NOTICE_VERSION, noticeHash: PROFILE_PRIVACY_NOTICE_HASH,
+      acceptedAt: new Date(), ...carlosIdentity, source: "profile-web",
+    });
+    session = { sub: carlosIdentity.authSubject, email: "carlos@x.com" };
+    const carlosName = { ownerName: "Carlos Pereira Rocha" };
+    const swapped = await insertCertificate({ ...carlosName, ownerCpf: "carlos@x.com", ownerEmail: CPF_D });
+    const oldInstitutional = await insertCertificate({ ...carlosName, ownerCpf: "13", ownerEmail: "carlos.rocha@aluno.imepac.edu.br" });
+    const raEmail = await insertCertificate({ ...carlosName, ownerEmail: " 2426520099@aluno.imepac.edu.br " });
+    const nameOnly = await insertCertificate({ ownerName: "CARLOS PEREIRA DA ROCHA" });
+    const joint = await insertCertificate({ ownerName: "Bia Lima e Carlos Pereira Rocha", profileId: other._id });
+    const notReady = await insertCertificate({ ...carlosName, ownerCpf: CPF_D, ownerEmail: "carlos@x.com", isReady: false });
+    const carlosClaim = (id: unknown) => CertificateClaim.findById(`${carlos._id}:${id}`).lean();
+
+    const result = (await link()) as { linked: number; review: number };
+    assert.deepEqual(result, { linked: 5, review: 0 });
+    assert.equal((await carlosClaim(swapped))?.source, "automatic");
+    assert.equal((await carlosClaim(oldInstitutional))?.source, "automatic-email-name");
+    assert.equal((await carlosClaim(raEmail))?.source, "automatic-email-name");
+    assert.equal((await carlosClaim(nameOnly))?.source, "automatic-name");
+    assert.equal((await carlosClaim(joint))?.source, "automatic-name");
+    for (const id of [swapped, oldInstitutional, raEmail, nameOnly]) assert.equal(String(await ownerOf(id)), String(carlos._id));
+    assert.equal(String(await ownerOf(joint)), String(other._id), "trabalho em conjunto mantém o outro dono");
+    assert.equal(await ownerOf(notReady), undefined);
+    assert.deepEqual(await link(), { linked: 0, review: 0 }, "segunda rodada não refaz nada");
+    console.log("PASS vínculo completo: colunas trocadas, e-mail antigo, RA, só nome e dupla");
+
+    // Homônimo: o nome passa a aparecer com outro CPF; o próximo certificado só com nome vai para revisão.
+    const stranger = await insertCertificate({ ...carlosName, ownerCpf: CPF_B, ownerEmail: "bia@x.com" });
+    const ambiguous = await insertCertificate({ ownerName: "Carlos Pereira Rocha", eventName: "Outro evento" });
+    assert.deepEqual(await link(), { linked: 0, review: 1 });
+    assert.equal(await ownerOf(stranger), undefined, "CPF de outra pessoa com o mesmo nome não entra");
+    assert.equal(await carlosClaim(stranger), null);
+    assert.equal(await ownerOf(ambiguous), undefined);
+    assert.equal((await carlosClaim(ambiguous))?.status, "PENDING");
+    assert.equal((await carlosClaim(ambiguous))?.source, "automatic-suggestion");
+    console.log("PASS homônimo: nome com dois CPFs vai para revisão e o certificado alheio fica de fora");
+
+    // Lista e total do aluno incluem o trabalho em conjunto; o outro dono continua vendo.
+    const { GET: listMine } = await import("../app/api/v1/user/certificates/route");
+    const list = async () =>
+      (await (await listMine(new NextRequest("https://test.invalid/api/v1/user/certificates"), undefined)).json()) as {
+        total: number; data: Array<{ _id: string }>;
+      };
+    const carlosList = await list();
+    assert.equal(carlosList.total, 5);
+    assert.ok(carlosList.data.some((c) => c._id === String(joint)));
+    const biaIdentity = { authIssuer: identity.authIssuer, authSubject: "auth0|outra-conta" };
+    await Privacy.create({
+      profileId: other._id, noticeVersion: PROFILE_PRIVACY_NOTICE_VERSION, noticeHash: PROFILE_PRIVACY_NOTICE_HASH,
+      acceptedAt: new Date(), ...biaIdentity, source: "profile-web",
+    });
+    session = { sub: biaIdentity.authSubject, email: "bia@x.com" };
+    assert.ok((await list()).data.some((c) => c._id === String(joint)));
+    console.log("PASS lista: trabalho em conjunto aparece para as duas contas e entra no total");
   } finally {
     await mongoose.disconnect();
     await repl.stop();

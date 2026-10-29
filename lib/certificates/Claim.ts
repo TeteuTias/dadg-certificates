@@ -1,4 +1,7 @@
 import mongoose, { Schema } from "mongoose";
+// Regras em lib/certificates/auto-link.ts. automatic-suggestion: o vínculo
+// achou o nome do aluno sem prova suficiente e deixou para o administrador.
+export const CLAIM_SOURCES = ["manual", "automatic", "automatic-name-cpf", "automatic-email-name", "automatic-name", "automatic-suggestion"];
 const schema = new Schema(
   {
     _id: String,
@@ -9,8 +12,7 @@ const schema = new Schema(
       enum: ["PENDING", "APPROVED", "REJECTED", "REVOKED"],
       required: true,
     },
-    // automatic: CPF e e-mail da conta; automatic-name-cpf: CPF e nome completo, e-mail diferente.
-    source: { type: String, enum: ["manual", "automatic", "automatic-name-cpf"] },
+    source: { type: String, enum: CLAIM_SOURCES },
     message: String,
     evidenceEmail: String,
     reason: String,
