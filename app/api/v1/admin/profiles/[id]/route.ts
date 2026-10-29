@@ -18,7 +18,7 @@ import {
   PROFILE_PRIVACY_NOTICE_VERSION,
 } from "@/lib/profile/privacy-notice";
 import { isDuplicateKeyError } from "@/lib/profile/service";
-import { returnNameCpfLinksToReview } from "@/lib/certificates/review";
+import { returnAutomaticLinksToReview } from "@/lib/certificates/review";
 import {
   formatCpf,
   academicFields,
@@ -210,7 +210,7 @@ async function PATCHHandler(request: NextRequest, { params }: Context) {
         { headers },
       );
 
-    // Mesma trava da edição pelo aluno: nome ou CPF novo devolve os vínculos à revisão,
+    // Mesma trava da edição pelo aluno: CPF, nome, RA ou e-mail de contato novo devolve os vínculos à revisão,
     // na mesma transação da gravação do perfil.
     const session = await mongoose.startSession();
     try {
@@ -220,8 +220,15 @@ async function PATCHHandler(request: NextRequest, { params }: Context) {
           { $set: update },
           { runValidators: true, session },
         );
-        if (fields.includes("name") || fields.includes("cpf"))
-          await returnNameCpfLinksToReview(profile._id, fields.includes("cpf"), session);
+        await returnAutomaticLinksToReview(
+          profile._id,
+          {
+            cpf: fields.includes("cpf"),
+            name: fields.includes("name"),
+            contact: fields.includes("registrationNumber") || fields.includes("contactEmail"),
+          },
+          session,
+        );
       });
     } catch (error) {
       if (isDuplicateKeyError(error)) {

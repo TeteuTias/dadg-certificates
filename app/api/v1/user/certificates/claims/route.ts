@@ -4,7 +4,7 @@ import { eventIdentity } from "@/lib/events/identity";
 import { CertificateClaim } from "@/lib/certificates/Claim";
 import Certificate from "@/lib/models/CertificateModel";
 import { EventError } from "@/lib/events/rules";
-import { normalizeEmail } from "@/lib/certificates/matching";
+import { normalizeEmail, ownerNames } from "@/lib/certificates/matching";
 export const POST = withRouteAccess(async (request: NextRequest) => {
   try {
     // Sem envio de e-mail de verificação: o administrador revisa cada pedido.
@@ -39,14 +39,15 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
       _id: body.certificateId,
       isReady: true,
     })
-      .select("profileId")
+      .select("profileId ownerName")
       .lean();
     if (!certificate)
       return Response.json(
         { error: "Certificado não encontrado." },
         { status: 404 },
       );
-    if (certificate.profileId)
+    // Trabalho em conjunto pode ter mais de um dono; o administrador revisa o pedido.
+    if (certificate.profileId && !ownerNames(certificate.ownerName).joint)
       return Response.json(
         {
           error:
@@ -58,6 +59,8 @@ export const POST = withRouteAccess(async (request: NextRequest) => {
       (await CertificateClaim.countDocuments({
         profileId: profile._id,
         status: "PENDING",
+        // Sugestões do vínculo automático não ocupam o limite de pedidos do aluno.
+        source: "manual",
       })) >= 20
     )
       return Response.json(

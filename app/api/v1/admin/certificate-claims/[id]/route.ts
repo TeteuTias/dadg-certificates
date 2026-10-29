@@ -5,6 +5,7 @@ import GateKeeper from "@/lib/security/gatekeeper";
 import { connectToDatabase } from "@/lib/mongodb";
 import { CertificateClaim } from "@/lib/certificates/Claim";
 import Certificate from "@/lib/models/CertificateModel";
+import { ownerNames } from "@/lib/certificates/matching";
 export const PATCH = withRouteAccess(
   async (
     request: NextRequest,
@@ -44,8 +45,15 @@ export const PATCH = withRouteAccess(
             { $set: { profileId: claim.profileId } },
             { session },
           );
-          if (!result.modifiedCount)
-            throw new Error("Certificado indisponível ou já vinculado.");
+          if (!result.modifiedCount) {
+            // Trabalho em conjunto: o certificado já tem outro dono e ganha mais um pelo vínculo.
+            const certificate = await Certificate.findOne({ _id: claim.certificateId, isReady: true })
+              .select("ownerName")
+              .session(session)
+              .lean();
+            if (!certificate || !ownerNames(certificate.ownerName).joint)
+              throw new Error("Certificado indisponível ou já vinculado.");
+          }
         }
         if (body.status === "REVOKED") {
           await Certificate.updateOne(

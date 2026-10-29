@@ -6,7 +6,7 @@ import UserProfileModel, { type UserProfileDocument } from "@/lib/models/UserPro
 import { cpfLookup, decryptCpf, encryptCpf } from "./crypto";
 import { signAttendanceToken } from "@/lib/events/attendance-token";
 import { normalizeName } from "@/lib/certificates/matching";
-import { returnNameCpfLinksToReview } from "@/lib/certificates/review";
+import { returnAutomaticLinksToReview } from "@/lib/certificates/review";
 import {
   PROFILE_PRIVACY_NOTICE_HASH,
   PROFILE_PRIVACY_NOTICE_VERSION,
@@ -127,8 +127,11 @@ export async function saveOwnProfile(args: {
     : ["name", "cpf", "period"];
   for (const field of academicFields) if (data[field] !== undefined && data[field] !== existing?.[field]) changedFields.push(field);
 
-  const cpfChanged = !!existing && existing.cpfLookup !== lookup;
-  const identityChanged = cpfChanged || (!!existing && normalizeName(existing.name) !== normalizeName(data.name));
+  const changed = {
+    cpf: !!existing && existing.cpfLookup !== lookup,
+    name: !!existing && normalizeName(existing.name) !== normalizeName(data.name),
+    contact: !!existing && (changedFields.includes("registrationNumber") || changedFields.includes("contactEmail")),
+  };
 
   try {
     if (existing) {
@@ -150,7 +153,7 @@ export async function saveOwnProfile(args: {
             },
             { runValidators: true, session },
           );
-          if (identityChanged) await returnNameCpfLinksToReview(existing._id, cpfChanged, session);
+          await returnAutomaticLinksToReview(existing._id, changed, session);
         });
       } finally {
         await session.endSession();
