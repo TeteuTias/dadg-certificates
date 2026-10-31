@@ -1,7 +1,15 @@
 import mongoose, { Schema } from "mongoose";
 // Regras em lib/certificates/auto-link.ts. automatic-suggestion: o vínculo
 // achou o nome do aluno sem prova suficiente e deixou para o administrador.
-export const CLAIM_SOURCES = ["manual", "automatic", "automatic-name-cpf", "automatic-email-name", "automatic-name", "automatic-suggestion"];
+export const CLAIM_SOURCES = [
+  "manual",
+  "automatic",
+  "automatic-name-cpf",
+  "automatic-email-name",
+  "automatic-name",
+  "automatic-name-unknown-email",
+  "automatic-suggestion",
+];
 const schema = new Schema(
   {
     _id: String,
@@ -18,6 +26,14 @@ const schema = new Schema(
     reason: String,
     reviewedBy: String,
     reviewedAt: Date,
+    // Pedido do aluno para tirar um certificado da conta ("não é meu"). Aberto enquanto
+    // tem requestedAt e não tem resolvedAt; o vínculo continua aprovado até o administrador decidir.
+    removal: {
+      message: String,
+      requestedAt: Date,
+      resolvedAt: Date,
+      decision: { type: String, enum: ["REMOVED", "KEPT"] },
+    },
     history: [{ status: String, reason: String, actor: String, at: Date }],
   },
   {

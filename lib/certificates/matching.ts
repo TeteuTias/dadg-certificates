@@ -79,6 +79,26 @@ export function nameKey(value: unknown) {
 }
 
 /**
+ * Duas chaves de `nameKey` que podem ser da mesma pessoa quando uma é a outra
+ * abreviada: ambas com nome e sobrenome, mesmo primeiro nome e as palavras da
+ * menor aparecendo, na ordem, na maior ("Ana Souza" e "Ana Maria Souza").
+ * Só serve para conferir o acervo de um CPF já conhecido; nunca vincula sozinho.
+ */
+export function abbreviatedNameMatch(a: string, b: string) {
+  const x = a.split(" ").filter(Boolean);
+  const y = b.split(" ").filter(Boolean);
+  if (x.length < 2 || y.length < 2 || x[0] !== y[0]) return false;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  let at = 0;
+  for (const token of short) {
+    while (at < long.length && long[at] !== token) at += 1;
+    if (at === long.length) return false;
+    at += 1;
+  }
+  return true;
+}
+
+/**
  * Pessoas citadas no nome do certificado. Trabalho em conjunto vem como
  * "Ana Souza e Bia Lima" (ou com vírgula, ponto e vírgula, barra, &): cada
  * parte com nome e sobrenome conta como um dono. O nome inteiro também vale,

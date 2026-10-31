@@ -13,7 +13,14 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
   const source = request.nextUrl.searchParams.get("source");
   if (source && !CLAIM_SOURCES.includes(source))
     return Response.json({ error: "Origem inválida" }, { status: 400 });
-  const claims = await CertificateClaim.find(source ? { status, source } : { status })
+  // Pedidos de remoção abertos: vínculos aprovados que o aluno disse não serem dele.
+  const removalOnly = request.nextUrl.searchParams.get("removal") === "pending";
+  const filter = removalOnly
+    ? { status: "APPROVED", "removal.requestedAt": { $exists: true }, "removal.resolvedAt": { $exists: false } }
+    : source
+      ? { status, source }
+      : { status };
+  const claims = await CertificateClaim.find(filter)
     .sort({ createdAt: 1 })
     .limit(100)
     .lean();
