@@ -42,6 +42,9 @@ const REASONS: Record<LinkSource, string> = {
 /** A partir de quantas pessoas diferentes um e-mail deixa de provar o dono (e-mail de preenchimento). */
 const FILLER_EMAIL_PEOPLE = 3;
 
+/** Maioria que vence uma linha fora do padrão (dado trocado na planilha): 3 ou mais e 80%. */
+const mostly = (part: number, total: number) => part >= 3 && part / total >= 0.8;
+
 /** Sugestão automática que ainda não passou por nenhuma decisão humana. */
 const isOpenSuggestion = (claim: { status?: string | null; source?: string | null; reviewedBy?: string | null }) =>
   claim.status === "PENDING" && claim.source === "automatic-suggestion" && !claim.reviewedBy;
@@ -67,13 +70,20 @@ export function evaluateLinks(
   const rows = docs.map((doc) => ({ doc, ev: certificateEvidence(doc) }));
   const withMyCpf = rows.filter(({ ev }) => ev.cpfs.includes(ctx.cpf));
 
-  const cpfsByEmail = new Map<string, Set<string>>();
+  // Certificados de cada CPF em cada e-mail. O e-mail é de outro CPF quando aparece com outro CPF e o do
+  // aluno não é a maioria: uma linha só com outro CPF é e-mail trocado na planilha, não outro dono.
+  const cpfsByEmail = new Map<string, Map<string, number>>();
   for (const { ev } of rows)
     for (const email of ev.emails) {
-      if (!cpfsByEmail.has(email)) cpfsByEmail.set(email, new Set());
-      for (const cpf of ev.cpfs) cpfsByEmail.get(email)!.add(cpf);
+      const counts = cpfsByEmail.get(email) ?? cpfsByEmail.set(email, new Map()).get(email)!;
+      for (const cpf of ev.cpfs) counts.set(cpf, (counts.get(cpf) ?? 0) + 1);
     }
-  const emailOfOtherCpf = (email: string) => [...(cpfsByEmail.get(email) ?? [])].some((cpf) => cpf !== ctx.cpf);
+  const emailOfOtherCpf = (email: string) => {
+    const counts = [...(cpfsByEmail.get(email) ?? new Map<string, number>())];
+    const total = counts.reduce((sum, [, n]) => sum + n, 0);
+    const mine = counts.find(([cpf]) => cpf === ctx.cpf)?.[1] ?? 0;
+    return mine < total && !mostly(mine, total);
+  };
   // Pessoas (grupos de nomes que são o mesmo nome abreviado) que aparecem com cada e-mail. Um e-mail
   // de preenchimento ("11111@gmail.com") vem com 3 ou mais pessoas e CPF inválido: não diz de quem é
   // o certificado, vale como e-mail ausente. Já o e-mail de 1 ou 2 outras pessoas é de outro dono.
@@ -91,12 +101,14 @@ export function evaluateLinks(
     (peopleByEmail.get(email) ?? []).some((names) => !names.some((name) => abbreviatedNameMatch(name, key)));
 
   // Acervo do CPF sem sinal de dado trocado: os nomes dos certificados são o do perfil (ou ele
-  // abreviado) e nenhum e-mail dele aparece com outro CPF. Um nome fora do padrão não derruba o
-  // CPF se a maioria (3 ou mais, 80%) confere: é o CPF digitado errado numa linha da planilha.
+  // abreviado) e nenhum e-mail dele é de outro CPF. Um nome ou e-mail fora do padrão não derruba o
+  // CPF se a maioria (3 ou mais, 80%) confere: é dado digitado errado numa linha da planilha.
   const named = withMyCpf.filter(({ ev }) => !ev.joint && ev.keys[0]);
   const matching = named.filter(({ ev }) => abbreviatedNameMatch(ev.keys[0], key)).length;
-  const namesConsistent = matching === named.length || (matching >= 3 && matching / named.length >= 0.8);
-  const emailsConsistent = !withMyCpf.some(({ ev }) => ev.emails.some(emailOfOtherCpf));
+  const namesConsistent = matching === named.length || mostly(matching, named.length);
+  const withEmail = withMyCpf.filter(({ ev }) => ev.emails.length);
+  const cleanEmail = withEmail.filter(({ ev }) => !ev.emails.some(emailOfOtherCpf)).length;
+  const emailsConsistent = cleanEmail === withEmail.length || mostly(cleanEmail, withEmail.length);
   const cpfConsistent = namesConsistent && emailsConsistent;
   // CPFs com que o nome aparece sozinho no acervo (certificado em conjunto não diz de quem é o CPF).
   const cpfsOfName = new Set(
@@ -107,11 +119,12 @@ export function evaluateLinks(
   const knownEmail = (ev: { emails: string[] }) => ev.emails.some((email) => ctx.emails.has(email));
 
   // E-mails comprovados: os de certificados com o CPF do aluno que já são dele ou
-  // que a regra A aprova. O e-mail de um certificado com CPF só não prova nada.
+  // que a regra A aprova. O e-mail de um certificado com CPF só não prova nada, nem o de outro CPF
+  // que veio trocado numa linha com o CPF do aluno.
   const emails = new Set(ctx.emails);
   for (const { doc, ev } of withMyCpf)
     if (String(doc.profileId ?? "") === ctx.profileId || knownEmail(ev) || (nameOf(ev) && cpfConsistent))
-      for (const email of ev.emails) emails.add(email);
+      for (const email of ev.emails) if (!emailOfOtherCpf(email)) emails.add(email);
 
   // Por que o certificado só com o nome do aluno não foi aprovado.
   const nameReviewReason = () => {
