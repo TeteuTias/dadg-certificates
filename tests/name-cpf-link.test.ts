@@ -152,6 +152,23 @@ test("nome abreviado em um certificado do CPF não trava os certificados só com
   });
 });
 
+test("e-mails trocados numa linha da planilha não travam o acervo do CPF; o e-mail trocado não vira do aluno", () => {
+  // Caso real: a linha de outra aluna veio com o e-mail dele e a dele com o e-mail dela.
+  const mine = ["a", "b", "c", "d"].map((id) => doc(id, { ownerCpf: CPF, ownerEmail: "velho@q.com" }));
+  const swappedMine = doc("t", { ownerCpf: CPF, ownerEmail: "bia@z.com" });
+  const bia = (id: string, email: string) => doc(id, { isReady: false, ownerCpf: OTHER_CPF, ownerEmail: email, ownerName: "Bia Lima" });
+  const theirs = ["p", "q", "r", "s"].map((id) => bia(id, "bia@z.com"));
+  const nameOnly = doc("n", { ownerCpf: "", ownerEmail: "" });
+  const herEmail = doc("u", { ownerCpf: "", ownerEmail: "bia@z.com" });
+  const docs = [...mine, swappedMine, ...theirs, bia("x", "velho@q.com"), nameOnly, herEmail];
+  assert.deepEqual(summary(evaluateLinks(docs, ctx())), {
+    approve: { a: "automatic-name-cpf", b: "automatic-name-cpf", c: "automatic-name-cpf", d: "automatic-name-cpf", t: "automatic-name-cpf", n: "automatic-name" },
+    review: [],
+  });
+  // Duas linhas de outro CPF com o e-mail do aluno já não são engano de uma linha: nada vincula pelo nome.
+  assert.deepEqual(summary(evaluateLinks([...docs, bia("y", "velho@q.com")], ctx())), { approve: {}, review: ["n"] });
+});
+
 test("nome do perfil que não bate com o acervo do CPF nunca vincula: perfil com nome e CPF trocados", () => {
   // Quem digita o próprio nome mas o CPF de outra pessoa: o acervo daquele CPF tem outro nome.
   const theirs = [1, 2, 3, 4].map((n) => doc(`t${n}`, { profileId: "outro", ownerCpf: CPF, ownerEmail: `t${n}@z.com`, ownerName: "Bia Lima" }));
