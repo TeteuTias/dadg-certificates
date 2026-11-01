@@ -6,13 +6,17 @@ const SOURCES: Record<string, string> = {
   "automatic-name-cpf": "Automático: CPF e nome completo (e-mail diferente)",
   "automatic-email-name": "Automático: sem CPF, nome completo e e-mail do aluno",
   "automatic-name": "Automático: sem CPF nem e-mail, nome ligado só ao CPF do aluno",
+  "automatic-name-unknown-email": "Automático: sem CPF, e-mail desconhecido, nome ligado só ao CPF do aluno",
   "automatic-suggestion": "Sugestão automática: confere o nome",
 };
 const LABELS: Record<string, string> = {
   APPROVED: "Aprovar",
   REJECTED: "Rejeitar",
   REVOKED: "Revogar vínculo",
+  KEEP: "Manter vínculo",
 };
+// Opção do filtro de estado que lista os pedidos de remoção feitos pelos alunos.
+const REMOVAL = "REMOVAL";
 type Claim = {
   _id: string;
   profileId: string;
@@ -21,6 +25,7 @@ type Claim = {
   evidenceEmailMatches?: boolean | null;
   source?: string;
   reason?: string;
+  removal?: { message?: string; requestedAt?: string };
   profile?: { name: string; registrationNumber?: string };
   certificate?: {
     ownerName: string;
@@ -38,7 +43,9 @@ export default function Claims() {
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
     const r = await fetch(
-      `/api/v1/admin/certificate-claims?status=${status}${source ? `&source=${source}` : ""}`,
+      status === REMOVAL
+        ? "/api/v1/admin/certificate-claims?removal=pending"
+        : `/api/v1/admin/certificate-claims?status=${status}${source ? `&source=${source}` : ""}`,
     );
     if (!r.ok) throw new Error("Falha ao carregar solicitações");
     setItems((await r.json()).data);
@@ -71,7 +78,13 @@ export default function Claims() {
   }
 
   const decisions =
-    status === "PENDING" ? ["APPROVED", "REJECTED"] : status === "APPROVED" ? ["REVOKED"] : [];
+    status === REMOVAL
+      ? ["REVOKED", "KEEP"]
+      : status === "PENDING"
+        ? ["APPROVED", "REJECTED"]
+        : status === "APPROVED"
+          ? ["REVOKED"]
+          : [];
   const groups = new Map<string, Claim[]>();
   for (const c of items) groups.set(c.profileId, [...(groups.get(c.profileId) || []), c]);
 
@@ -114,6 +127,7 @@ export default function Claims() {
           {["PENDING", "APPROVED", "REJECTED", "REVOKED"].map((s) => (
             <option key={s}>{s}</option>
           ))}
+          <option value={REMOVAL}>Pedidos de remoção</option>
         </select>
       </label>{" "}
       <label>
@@ -150,6 +164,12 @@ export default function Claims() {
                   {c.evidenceEmailMatches
                     ? "confere com o do certificado"
                     : "diferente do certificado"}
+                </p>
+              )}
+              {c.removal?.requestedAt && (
+                <p>
+                  O aluno diz que este certificado não é dele
+                  {c.removal.message ? `: ${c.removal.message}` : "."}
                 </p>
               )}
               {c.message && <p>Solicitação: {c.message}</p>}

@@ -14,7 +14,7 @@ export const PATCH = withRouteAccess(
     const body = await request.json().catch(() => null);
     if (
       !body ||
-      !["APPROVED", "REJECTED", "REVOKED"].includes(body.status) ||
+      !["APPROVED", "REJECTED", "REVOKED", "KEEP"].includes(body.status) ||
       typeof body.reason !== "string" ||
       body.reason.trim().length < 10 ||
       body.reason.length > 1000
@@ -34,6 +34,20 @@ export const PATCH = withRouteAccess(
           (await params).id,
         ).session(session);
         if (!claim) throw new Error("Solicitação não encontrada.");
+        const removalOpen = Boolean(claim.removal?.requestedAt && !claim.removal.resolvedAt);
+        // KEEP é só a resposta a um pedido de remoção do aluno: o vínculo fica como está.
+        if (body.status === "KEEP") {
+          if (claim.status !== "APPROVED" || !removalOpen)
+            throw new Error("Não há pedido de remoção aberto. Atualize a lista.");
+          claim.removal!.resolvedAt = new Date();
+          claim.removal!.decision = "KEPT";
+          // Decisão humana: a troca de dados do perfil não devolve este vínculo à revisão automática.
+          claim.reviewedBy = actor.sub;
+          claim.reviewedAt = new Date();
+          claim.history.push({ status: "APPROVED", reason: `Vínculo mantido: ${body.reason.trim()}`, actor: actor.sub, at: new Date() });
+          await claim.save({ session });
+          return;
+        }
         if (
           (body.status === "REVOKED" && claim.status !== "APPROVED") ||
           (body.status !== "REVOKED" && claim.status !== "PENDING")
@@ -61,6 +75,10 @@ export const PATCH = withRouteAccess(
             { $unset: { profileId: 1 } },
             { session },
           );
+          if (removalOpen) {
+            claim.removal!.resolvedAt = new Date();
+            claim.removal!.decision = "REMOVED";
+          }
         }
         claim.history.push({
           status: body.status,

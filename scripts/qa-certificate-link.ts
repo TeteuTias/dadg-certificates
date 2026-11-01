@@ -230,6 +230,77 @@ async function main() {
     session = { sub: biaIdentity.authSubject, email: "bia@x.com" };
     assert.ok((await list()).data.some((c) => c._id === String(joint)));
     console.log("PASS lista: trabalho em conjunto aparece para as duas contas e entra no total");
+
+    // Acervo corrigido: o homônimo some e a sugestão pendente é reavaliada como vínculo, na mesma transação.
+    session = { sub: carlosIdentity.authSubject, email: "carlos@x.com" };
+    await Certificate.collection.deleteOne({ _id: stranger });
+    const unknownEmail = await insertCertificate({ ...carlosName, ownerEmail: "carlos.novo@x.com", eventName: "Evento do e-mail novo" });
+    const refused = await insertCertificate({ ownerName: "Carlos Pereira Rocha", eventName: "Recusado antes" });
+    await CertificateClaim.create({
+      _id: `${carlos._id}:${refused}`, certificateId: refused, profileId: carlos._id, status: "REJECTED",
+      source: "automatic-suggestion", reviewedBy: "admin", history: [{ status: "REJECTED", actor: "admin", at: new Date() }],
+    });
+    assert.deepEqual(await link(), { linked: 2, review: 0 });
+    const upgraded = await carlosClaim(ambiguous);
+    assert.equal(upgraded?.status, "APPROVED");
+    assert.equal(upgraded?.source, "automatic-name");
+    assert.equal(upgraded?.history.length, 2, "a história guarda a sugestão e a reavaliação");
+    assert.match(String(upgraded?.history.at(-1)?.reason), /^Reavaliado: /);
+    assert.equal(String(await ownerOf(ambiguous)), String(carlos._id));
+    assert.equal((await carlosClaim(unknownEmail))?.source, "automatic-name-unknown-email");
+    assert.equal(String(await ownerOf(unknownEmail)), String(carlos._id));
+    assert.equal((await carlosClaim(refused))?.status, "REJECTED", "decisão do administrador não é refeita");
+    assert.equal(await ownerOf(refused), undefined);
+    assert.deepEqual(await link(), { linked: 0, review: 0 }, "segunda rodada não refaz nada");
+    console.log("PASS reavaliação: sugestão pendente vira vínculo; e-mail desconhecido vincula; recusa do admin fica");
+
+    // Pedido de remoção: o aluno diz que o certificado não é dele; o administrador remove ou mantém.
+    Keeper.prototype.identifyAdmin = async () => ({ sub: "auth0|admin" }) as never;
+    const { POST: requestRemoval } = await import("../app/api/v1/user/certificates/removal/route");
+    const { PATCH: decide } = await import("../app/api/v1/admin/certificate-claims/[id]/route");
+    const removal = (certificateId: unknown, message?: string) =>
+      requestRemoval(
+        new NextRequest("https://test.invalid/api/v1/user/certificates/removal", {
+          method: "POST", body: JSON.stringify({ certificateId: String(certificateId), message }),
+        }),
+        undefined,
+      );
+    const adminDecision = (certificateId: unknown, status: string, reason: string) =>
+      decide(
+        new NextRequest("https://test.invalid/api/v1/admin/certificate-claims/x", {
+          method: "PATCH", body: JSON.stringify({ status, reason }),
+        }),
+        { params: Promise.resolve({ id: `${carlos._id}:${certificateId}` }) },
+      );
+    session = { sub: carlosIdentity.authSubject, email: "carlos@x.com" };
+
+    // Remover: sai da conta e o vínculo automático não traz de volta.
+    assert.equal((await removal(raEmail, "Não participei deste evento.")).status, 200);
+    assert.equal(String(await ownerOf(raEmail)), String(carlos._id), "o certificado fica na conta até o administrador decidir");
+    assert.equal((await removal(raEmail)).status, 409, "pedido repetido");
+    const open = (await carlosClaim(raEmail))?.removal;
+    assert.ok(open?.requestedAt && !open.resolvedAt);
+    assert.equal((await adminDecision(raEmail, "REVOKED", "Confirmado: não é do aluno.")).status, 200);
+    const removed = await carlosClaim(raEmail);
+    assert.equal(removed?.status, "REVOKED");
+    assert.equal(removed?.removal?.decision, "REMOVED");
+    assert.equal(await ownerOf(raEmail), undefined);
+    assert.deepEqual(await link(), { linked: 0, review: 0 }, "o vínculo automático não refaz a decisão do administrador");
+    assert.equal(await ownerOf(raEmail), undefined);
+
+    // Manter: o vínculo segue e vira decisão humana (não volta para revisão automática).
+    assert.equal((await removal(unknownEmail)).status, 200);
+    assert.equal((await adminDecision(unknownEmail, "KEEP", "Conferido: o certificado é dele.")).status, 200);
+    const kept = await carlosClaim(unknownEmail);
+    assert.equal(kept?.status, "APPROVED");
+    assert.equal(kept?.removal?.decision, "KEPT");
+    assert.equal(kept?.reviewedBy, "auth0|admin");
+    assert.equal(String(await ownerOf(unknownEmail)), String(carlos._id));
+    assert.equal((await adminDecision(unknownEmail, "KEEP", "Conferido de novo, sem pedido.")).status, 409, "sem pedido aberto não há o que manter");
+
+    // Certificado de outra pessoa não entra no pedido.
+    assert.equal((await removal(refused)).status, 404);
+    console.log("PASS remoção: pedido do aluno, administrador remove ou mantém, e o vínculo automático respeita");
   } finally {
     await mongoose.disconnect();
     await repl.stop();

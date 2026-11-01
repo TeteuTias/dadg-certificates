@@ -6,8 +6,8 @@ const REASON = "Dados do perfil alterados depois do vínculo automático; aguard
 
 /** Quais origens de vínculo dependem de cada dado do perfil. */
 const DEPENDS_ON = {
-  cpf: ["automatic", "automatic-name-cpf", "automatic-email-name", "automatic-name"],
-  name: ["automatic-name-cpf", "automatic-email-name", "automatic-name"],
+  cpf: ["automatic", "automatic-name-cpf", "automatic-email-name", "automatic-name", "automatic-name-unknown-email"],
+  name: ["automatic-name-cpf", "automatic-email-name", "automatic-name", "automatic-name-unknown-email"],
   // RA e e-mail de contato viram e-mails do aluno na regra sem CPF.
   contact: ["automatic-email-name"],
 };

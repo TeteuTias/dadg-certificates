@@ -30,7 +30,7 @@ export const GET = withRouteAccess(async (request: NextRequest) => {
         .limit(51)
         .lean(),
       CertificateClaim.find({ profileId: profile._id })
-        .select("_id certificateId status reason message createdAt")
+        .select("_id certificateId status reason message createdAt removal")
         .sort({ createdAt: -1 })
         .limit(100)
         .lean(),
