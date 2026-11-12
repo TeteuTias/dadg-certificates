@@ -68,93 +68,102 @@ async function PUTHandler(request: Request) {
         templateVersePath: templateVersePath || "",
         eventType: eventType,
         maxParticipants: maxParticipants,
+
         styleContainer:
-            templateForm === "default" ?
-                {
-                    width: "90%",
-                    top: "-30px",
-                    left: "55px",
-                    textAlign: "center" as const,
-                    color: "#02425A"
-                } :
-                {
-                    "width": "100%",
-                    "top": "100px",
-                    "left": "55px",
-                    textAlign: "center" as const,
-                    "color": "#00000"
-                }
-        ,
+            templateForm === "CIEPS" ? {
+                width: "90%",
+                top: "-130px",
+                left: "55px",
+                textAlign: "start" as const,
+                color: "black"
+            } : templateForm === "CLAM" ? {
+                width: "100%",
+                top: "100px",
+                left: "55px",
+                textAlign: "center" as const,
+                color: "#00000"
+            } : {
+                width: "90%",
+                top: "-30px",
+                left: "55px",
+                textAlign: "center" as const,
+                color: "#02425A"
+            },
+
         styleFrontTopperText:
-            templateForm === "default" ?
-                {
-                    lineHeight: 1.6,
-                    fontSize: "45.0px",
-                    fontWeight: "400",
-                    color: "#02425A"
-                } :
-                {
-                    "lineHeight": 1.6,
-                    "fontSize": "40.5px",
-                    "fontWeight": "400",
-                    "color": "black",
-                    textAlign: "center" as const,
-                }
-        ,
+            templateForm === "CIEPS" ? {
+                lineHeight: 1.6,
+                fontSize: "45.0px",
+                fontWeight: "400",
+                color: "black",
+                textAlign: "start" as const,
+                width: "100%"
+            } : templateForm === "CLAM" ? {
+                lineHeight: 1.6,
+                fontSize: "40.5px",
+                fontWeight: "400",
+                color: "black",
+                textAlign: "center" as const,
+            } : {
+                lineHeight: 1.6,
+                fontSize: "45.0px",
+                fontWeight: "400",
+                color: "#02425A"
+            },
+
         styleFrontBottomText:
-            templateForm === "default" ?
-                {
-                    lineHeight: 1.6,
-                    fontSize: "45.0px",
-                    fontWeight: "400",
-                    color: "#02325A"
-                } :
-                {
-                    "lineHeight": 1.6,
-                    "fontSize": "40.5px",
-                    "fontWeight": "400",
-                    "color": "black",
-                    textAlign: "center" as const,
-                }
-        ,
+            templateForm === "CIEPS" ? {
+                lineHeight: 1.6,
+                fontSize: "45.0px",
+                fontWeight: "400",
+                color: "black"
+            } : templateForm === "CLAM" ? {
+                lineHeight: 1.6,
+                fontSize: "40.5px",
+                fontWeight: "400",
+                color: "black",
+                textAlign: "center" as const,
+            } : {
+                lineHeight: 1.6,
+                fontSize: "45.0px",
+                fontWeight: "400",
+                color: "#02325A"
+            },
+
         styleNameText:
-            templateForm == "default" ?
-                {
-                    fontSize: "55.5px",
-                    fontWeight: "800",
-                    lineHeight: 1.5,
-                    color: "#02425A"
-                } : {
-                    "fontSize": "55.5px",
-                    "fontWeight": "800",
-                    "lineHeight": 1.5,
-                    "color": "black"
-                },
-        styleContainerVerse: templateForm == "default" ?
-            {
+            templateForm === "CIEPS" ? {
+                fontSize: "60.5px",
+                fontWeight: "800",
+                lineHeight: 1.5,
+                color: "#A32D2D",
+                textAlign: "center" as const
+            } : templateForm === "CLAM" ? {
+                fontSize: "55.5px",
+                fontWeight: "800",
+                lineHeight: 1.5,
+                color: "black"
+            } : {
+                fontSize: "55.5px",
+                fontWeight: "800",
+                lineHeight: 1.5,
+                color: "#02425A"
+            },
+
+        styleContainerVerse:
+            templateForm === "CIEPS" ? {
+                containerStyle: { border: "1.5px solid", width: "50%", color: "black" },
+                rowsStyle: { textAlign: "start" as const, backgroundColor: "", padding: "25px", fontSize: "20px", border: "1.5px solid" },
+                headerStyle: { fontSize: "25px", border: "1.5px solid", padding: "30px" }
+            } : templateForm === "CLAM" ? {
+                containerStyle: { border: "1.5px solid", width: "90%", color: "black" },
+                rowsStyle: { backgroundColor: "", padding: "25px", fontSize: "15px", border: "1.5px solid" },
+                headerStyle: { fontSize: "25px", border: "1.5px solid", padding: "30px" }
+            } : {
                 containerStyle: { border: "1.5px solid", width: "50%", color: "#02425A" },
                 rowsStyle: { textAlign: "center" as const, backgroundColor: "", padding: "25px", fontSize: "20px", border: "1.5px solid" },
                 headerStyle: { fontSize: "25px", border: "1.5px solid", padding: "30px" }
-            }
-            : {
-                "containerStyle": {
-                    "border": "1.5px solid",
-                    "width": "90%",
-                    "color": "black"
-                },
-                "rowsStyle": {
-                    "backgroundColor": "",
-                    "padding": "25px",
-                    "fontSize": "15px",
-                    "border": "1.5px solid"
-                },
-                "headerStyle": {
-                    "fontSize": "25px",
-                    "border": "1.5px solid",
-                    "padding": "30px"
-                }
-            }
-        ,
+            },
+
         registrationCount: 0,
         documentVersion: "3.0",
         useStatementFormat: false,
