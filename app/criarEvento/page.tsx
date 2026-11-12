@@ -12,7 +12,8 @@ import {
     Sparkles,
     Users,
     Wand2,
-    CheckCircle2 // <-- Novo ícone para o estado ativado
+    CheckCircle2,
+    GraduationCap // <-- Ícone importado para o CIEPS
 } from "lucide-react";
 import React, { useState } from "react";
 import "./page.css";
@@ -71,8 +72,9 @@ const CreateEventCertificateForm: React.FC = () => {
     const [certificateHours, setCertificateHours] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // --- NOVO ESTADO: Controla a animação e o status do botão CLAM ---
+    // Estados para formatações
     const [isClamFormatActive, setIsClamFormatActive] = useState(false);
+    const [isCiepsFormatActive, setIsCiepsFormatActive] = useState(false);
 
     const [modalOpenProps, setModalOpenProps] = useState<ModalState>({
         title: "Atencao",
@@ -105,12 +107,18 @@ const CreateEventCertificateForm: React.FC = () => {
         setPrice("");
         setIsPaid(false);
         setCertificateHours("");
-        setIsClamFormatActive(false); // Reseta o botão do CLAM
+        setIsClamFormatActive(false);
+        setIsCiepsFormatActive(false);
     };
 
-    // --- NOVA LÓGICA: Liga/Desliga a formatação com atualização de estado ---
     const toggleClamFormat = () => {
         setIsClamFormatActive((prev) => !prev);
+        if (!isClamFormatActive) setIsCiepsFormatActive(false); // Garante que só um fique ativo
+    };
+
+    const toggleCiepsFormat = () => {
+        setIsCiepsFormatActive((prev) => !prev);
+        if (!isCiepsFormatActive) setIsClamFormatActive(false); // Garante que só um fique ativo
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -130,7 +138,11 @@ const CreateEventCertificateForm: React.FC = () => {
             formData.append("registrationStartDate", registrationStartDate);
             formData.append("registrationEndDate", registrationEndDate);
             formData.append("timeLine", JSON.stringify(timeLine));
-            formData.append("templateForm", isClamFormatActive ? "CLAM" : "default")
+            
+            // Define o form baseado nos botões
+            const formType = isClamFormatActive ? "CLAM" : isCiepsFormatActive ? "CIEPS" : "default";
+            formData.append("templateForm", formType);
+            
             formData.append("certificateHours", certificateHours.trim());
             if (isPaid && price !== "") {
                 formData.append("price", price.toString());
@@ -237,56 +249,104 @@ const CreateEventCertificateForm: React.FC = () => {
                             placeholder="Explique rapidamente o objetivo do evento e o que o participante vai receber."
                         />
 
-                        {/* --- SESSÃO ATUALIZADA: BOTÃO CLAM COM ANIMAÇÃO --- */}
-                        <div 
-                            className="glass-card" 
-                            style={{ 
-                                marginTop: "1rem", 
-                                padding: "1.25rem", 
-                                display: "flex", 
-                                alignItems: "center", 
-                                gap: "1.5rem",
-                                flexWrap: "wrap",
-                                transition: "all 0.3s ease-in-out",
-                                borderColor: isClamFormatActive ? "rgba(46, 204, 113, 0.4)" : "var(--border-color)",
-                                backgroundColor: isClamFormatActive ? "rgba(46, 204, 113, 0.05)" : "transparent"
-                            }}
-                        >
-                            <button
-                                type="button"
-                                onClick={toggleClamFormat}
-                                className="glass-button"
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "0.5rem",
-                                    whiteSpace: "nowrap",
-                                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                    transform: isClamFormatActive ? "scale(1.02)" : "scale(1)",
-                                    backgroundColor: isClamFormatActive ? "rgba(46, 204, 113, 0.15)" : "",
-                                    borderColor: isClamFormatActive ? "rgba(46, 204, 113, 0.6)" : "",
-                                    color: isClamFormatActive ? "#27ae60" : "inherit",
-                                    boxShadow: isClamFormatActive ? "0 4px 12px rgba(46, 204, 113, 0.2)" : "none"
+                        {/* Botões de Formatação CLAM e CIEPS */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginTop: "1rem" }}>
+                            
+                            {/* Botão CLAM */}
+                            <div 
+                                className="glass-card" 
+                                style={{ 
+                                    padding: "1.25rem", 
+                                    display: "flex", 
+                                    alignItems: "center", 
+                                    gap: "1.5rem",
+                                    flexWrap: "wrap",
+                                    transition: "all 0.3s ease-in-out",
+                                    borderColor: isClamFormatActive ? "rgba(46, 204, 113, 0.4)" : "var(--border-color)",
+                                    backgroundColor: isClamFormatActive ? "rgba(46, 204, 113, 0.05)" : "transparent"
                                 }}
                             >
-                                <div style={{ 
-                                    transition: "transform 0.4s ease-in-out", 
-                                    transform: isClamFormatActive ? "rotate(360deg)" : "rotate(0deg)",
-                                    display: "flex"
-                                }}>
-                                    {isClamFormatActive ? <CheckCircle2 size={16} /> : <Wand2 size={16} />}
+                                <button
+                                    type="button"
+                                    onClick={toggleClamFormat}
+                                    className="glass-button"
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.5rem",
+                                        whiteSpace: "nowrap",
+                                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                        transform: isClamFormatActive ? "scale(1.02)" : "scale(1)",
+                                        backgroundColor: isClamFormatActive ? "rgba(46, 204, 113, 0.15)" : "",
+                                        borderColor: isClamFormatActive ? "rgba(46, 204, 113, 0.6)" : "",
+                                        color: isClamFormatActive ? "#27ae60" : "inherit",
+                                        boxShadow: isClamFormatActive ? "0 4px 12px rgba(46, 204, 113, 0.2)" : "none"
+                                    }}
+                                >
+                                    <div style={{ 
+                                        transition: "transform 0.4s ease-in-out", 
+                                        transform: isClamFormatActive ? "rotate(360deg)" : "rotate(0deg)",
+                                        display: "flex"
+                                    }}>
+                                        {isClamFormatActive ? <CheckCircle2 size={16} /> : <Wand2 size={16} />}
+                                    </div>
+                                    {isClamFormatActive ? "Formatação CLAM Ativada" : "Usar formatação CLAM"}
+                                </button>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-color, inherit)", opacity: 0.85 }}>
+                                        <strong>Facilite seu trabalho:</strong> Ajusta automaticamente o texto para o padrão CLAM.
+                                    </p>
                                 </div>
-                                
-                                {isClamFormatActive ? "Formatação CLAM Ativada" : "Usar formatação CLAM"}
-                            </button>
-                            <div style={{ flex: 1 }}>
-                                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-color, inherit)", opacity: 0.85 }}>
-                                    <strong>Facilite seu trabalho:</strong> Este botão ajusta automaticamente o texto acima, 
-                                    deixando-o no tamanho e formato padrão que a equipe do CLAM mais gosta e aprova.
-                                </p>
                             </div>
+
+                            {/* Botão CIEPS */}
+                            <div 
+                                className="glass-card" 
+                                style={{ 
+                                    padding: "1.25rem", 
+                                    display: "flex", 
+                                    alignItems: "center", 
+                                    gap: "1.5rem",
+                                    flexWrap: "wrap",
+                                    transition: "all 0.3s ease-in-out",
+                                    borderColor: isCiepsFormatActive ? "rgba(59, 130, 246, 0.4)" : "var(--border-color)",
+                                    backgroundColor: isCiepsFormatActive ? "rgba(59, 130, 246, 0.05)" : "transparent"
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={toggleCiepsFormat}
+                                    className="glass-button"
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.5rem",
+                                        whiteSpace: "nowrap",
+                                        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                        transform: isCiepsFormatActive ? "scale(1.02)" : "scale(1)",
+                                        backgroundColor: isCiepsFormatActive ? "rgba(59, 130, 246, 0.15)" : "",
+                                        borderColor: isCiepsFormatActive ? "rgba(59, 130, 246, 0.6)" : "",
+                                        color: isCiepsFormatActive ? "#2563eb" : "inherit",
+                                        boxShadow: isCiepsFormatActive ? "0 4px 12px rgba(59, 130, 246, 0.2)" : "none"
+                                    }}
+                                >
+                                    <div style={{ 
+                                        transition: "transform 0.4s ease-in-out", 
+                                        transform: isCiepsFormatActive ? "rotate(360deg)" : "rotate(0deg)",
+                                        display: "flex"
+                                    }}>
+                                        {isCiepsFormatActive ? <CheckCircle2 size={16} /> : <GraduationCap size={16} />}
+                                    </div>
+                                    {isCiepsFormatActive ? "Formatação CIEPS Ativada" : "Usar formatação CIEPS 2026"}
+                                </button>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-color, inherit)", opacity: 0.85 }}>
+                                        <strong>Padrão Institucional:</strong> Aplica a formatação atualizada e homologada para o CIEPS 2026.
+                                    </p>
+                                </div>
+                            </div>
+                            
                         </div>
-                        {/* --- FIM DA SESSÃO --- */}
 
                     </FormSection>
                     <FormSection
@@ -405,7 +465,6 @@ const CreateEventCertificateForm: React.FC = () => {
     );
 };
 
-// ... O restante dos componentes continuam inalterados (FeatureCard, FormSection, FieldGroup, ToggleCard)
 const FeatureCard: React.FC<{
     icon: React.ReactNode;
     title: string;
