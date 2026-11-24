@@ -23,7 +23,7 @@
     "mercadopago": "^3.6.0",
     "mongodb": "^6.13.1",
     "mongoose": "^8.24.4",
-    "next": "^16.4.3",
+    "next": "^16.4.6",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
