@@ -9,6 +9,8 @@ import {
   planSessionCookies,
   safeReturnTo,
   splitCookieValue,
+  endSessionParameters,
+  isPrefetch,
 } from "../lib/auth/helpers";
 import { verifyStudentTokenDetailed } from "../lib/security/verifyToken";
 
@@ -114,4 +116,20 @@ test("Bearer do aluno: issuer sem barra e JWKS pelo jwks_uri da descoberta", asy
 
   // Descoberta cacheada: só uma busca do .well-known para as três verificações.
   assert.equal(requested.filter((url) => url.endsWith("/.well-known/openid-configuration")).length, 1);
+});
+
+test("logout volta pela /entrar/logout do site com state=certificados", () => {
+  assert.deepEqual(endSessionParameters("idt"), {
+    id_token_hint: "idt",
+    post_logout_redirect_uri: "https://www.dadg.com.br/entrar/logout",
+    state: "certificados",
+  });
+  assert.equal("id_token_hint" in endSessionParameters(undefined), false);
+});
+
+test("pré-carregamento do link de sair não desloga", () => {
+  assert.equal(isPrefetch(new Headers({ "next-router-prefetch": "1" })), true);
+  assert.equal(isPrefetch(new Headers({ purpose: "prefetch" })), true);
+  assert.equal(isPrefetch(new Headers({ "sec-purpose": "prefetch;prerender" })), true);
+  assert.equal(isPrefetch(new Headers({ accept: "text/html" })), false);
 });

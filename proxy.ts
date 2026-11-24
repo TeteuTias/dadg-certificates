@@ -44,7 +44,7 @@ export async function proxy(request: NextRequest) {
       request.nextUrl.pathname !== "/presenca" &&
       (await keeper.identifyStaff())?.role === "operator";
     const destination = isOperator ? "/presenca" : access.status === 403 ? "/not-allowed" : "/auth/login";
-    const response = NextResponse.redirect(new URL(destination, request.nextUrl.origin));
+    const response = NextResponse.redirect(new URL(destination, process.env.APP_BASE_URL || request.nextUrl.origin)); // atrás do Caddy a origem da requisição é interna
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   }

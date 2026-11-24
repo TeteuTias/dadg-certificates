@@ -9,6 +9,18 @@ export function oidcScope(audience: string): string {
   return `openid profile email offline_access urn:zitadel:iam:org:project:id:${audience}:aud urn:zitadel:iam:org:projects:roles`;
 }
 
+/** Única volta de logout aceita pelo servidor de login; a /entrar/logout lê o state e manda de volta para cá. */
+export const LOGOUT_RETURN_URI = "https://www.dadg.com.br/entrar/logout";
+
+export function endSessionParameters(idToken?: string): Record<string, string> {
+  return { ...(idToken ? { id_token_hint: idToken } : {}), post_logout_redirect_uri: LOGOUT_RETURN_URI, state: "certificados" };
+}
+
+/** Pré-carregamento (Link do Next, prerender do navegador): não pode deslogar. */
+export function isPrefetch(headers: Headers): boolean {
+  return headers.has("next-router-prefetch") || headers.get("purpose") === "prefetch" || /prefetch/i.test(headers.get("sec-purpose") ?? "");
+}
+
 /** Só caminho relativo do próprio site; qualquer outra coisa vira "/". */
 export function safeReturnTo(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/";

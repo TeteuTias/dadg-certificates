@@ -3,7 +3,7 @@ import { decodeJwt } from "jose";
 import * as client from "openid-client";
 import { NextResponse, type NextRequest } from "next/server";
 import { adminSessionUser } from "@/lib/security/adminSession";
-import { authorizationParameters, oidcScope, safeReturnTo, TX_COOKIE } from "./helpers";
+import { authorizationParameters, endSessionParameters, isPrefetch, oidcScope, safeReturnTo, TX_COOKIE } from "./helpers";
 import { clearSession, cookieOptions, getSession, seal, SESSION_MAX_AGE, unseal, writeSession } from "./session";
 
 type LoginTransaction = { code_verifier: string; state: string; nonce: string; returnTo: string };
@@ -132,11 +132,7 @@ async function logout(request: NextRequest) {
         .tokenRevocation(config, session.refresh_token, { token_type_hint: "refresh_token" })
         .catch((error) => logAuthError("revocation", error));
     }
-    target = client.buildEndSessionUrl(config, {
-      ...(session?.id_token ? { id_token_hint: session.id_token } : {}),
-      post_logout_redirect_uri: `${appBaseUrl}/`,
-      state: client.randomState(),
-    });
+    target = client.buildEndSessionUrl(config, endSessionParameters(session?.id_token));
   } catch (error) {
     logAuthError("logout", error);
   }
@@ -170,7 +166,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   try {
     if (pathname === "/auth/login") return await login(request);
     if (pathname === "/auth/callback") return await callback(request);
-    if (pathname === "/auth/logout") return await logout(request);
+    if (pathname === "/auth/logout") return isPrefetch(request.headers) ? new NextResponse(null, { status: 204 }) : await logout(request);
   } catch (error) {
     return failure(pathname.slice("/auth/".length), error);
   }

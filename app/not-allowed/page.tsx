@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ShieldX } from "lucide-react";
 
 export default function NotAllowedPage() {
@@ -11,12 +10,13 @@ export default function NotAllowedPage() {
           Esta conta não está na lista administrativa do DADG.
         </p>
         <div className="mt-7 flex justify-center gap-3">
-          <Link
+          {/* <a> comum: o Link do Next pré-carrega a rota e deslogaria sozinho. */}
+          <a
             href="/auth/logout"
             className="rounded-xl bg-blue-600 px-5 py-3 font-bold"
           >
             Sair desta conta
-          </Link>
+          </a>
         </div>
       </section>
     </main>
