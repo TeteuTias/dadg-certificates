@@ -247,9 +247,7 @@ async function PATCHHandler(request: NextRequest, { params }: Context) {
     }
     await ProfileAuditModel.create({
       profileId: profile._id,
-      actorIssuer: process.env.AUTH0_DOMAIN
-        ? `https://${process.env.AUTH0_DOMAIN}/`
-        : "admin-auth0",
+      actorIssuer: process.env.OIDC_ISSUER?.trim() || "admin-oidc",
       actorSubject: actor.sub,
       action: "profile.admin_updated",
       changedFields: fields,

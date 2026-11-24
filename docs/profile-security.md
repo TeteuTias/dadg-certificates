@@ -1,32 +1,22 @@
 # Perfis DADG: configuração e manutenção segura
 
-O backend é o único projeto que recebe as chaves do CPF. O site principal nunca deve receber essas variáveis. A autenticação dos alunos reutiliza `AUTH0_DOMAIN` e `AUTH0_AUDIENCE`; configure também a claim autenticada de e-mail em `STUDENT_AUTH0_EMAIL_CLAIM` (o padrão é `email`). O administrativo exige `DADG_ADMIN_ROLE_NAME` com o nome exato da role criada no Auth0. O ID interno da role não é usado na autorização: a Post-Login Action publica os nomes das roles na claim assinada `https://dadg.com.br/roles` do ID token.
+O backend é o único projeto que recebe as chaves do CPF. O site principal nunca deve receber essas variáveis. O login usa o servidor próprio (Zitadel, OIDC padrão) com `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_AUDIENCE` (ID do projeto no Zitadel), `SESSION_SECRET` (64 caracteres hexadecimais) e `APP_BASE_URL`. A autenticação dos alunos (Bearer enviado pelo site) usa `OIDC_ISSUER` e `OIDC_AUDIENCE`; configure também a claim autenticada de e-mail em `STUDENT_AUTH0_EMAIL_CLAIM` (o padrão é `email`). O administrativo exige `DADG_ADMIN_ROLE_NAME` com o nome exato do papel criado no projeto do Zitadel.
 
-No tenant Auth0, selecione a API JWT própria e use o mesmo Identifier em `AUTH0_AUDIENCE` no site e no backend. `AUTH0_DOMAIN` identifica o issuer do tenant e pode ser informado como domínio ou URL HTTPS; o backend o normaliza com a barra final. Garanta por Action/claim que o access token contenha o e-mail autenticado no nome configurado por `STUDENT_AUTH0_EMAIL_CLAIM`. Sem domínio, audience, nome da role administrativa ou claim válida, o sistema falha fechado.
+`OIDC_ISSUER` é comparado EXATAMENTE com o `iss` dos tokens (sem barra no fim). As chaves públicas vêm do `jwks_uri` da descoberta (`/.well-known/openid-configuration`). Garanta que o access token contenha o e-mail autenticado no nome configurado por `STUDENT_AUTH0_EMAIL_CLAIM`. Sem issuer, audience, nome do papel administrativo ou claim válida, o sistema falha fechado.
 
-## Autorização administrativa por role
+## Autorização administrativa por papel
 
-Crie a role administrativa no Auth0 e grave o nome exato somente na configuração do backend:
+Crie o papel administrativo no projeto do Zitadel e grave o nome exato somente na configuração do backend:
 
 ```dotenv
 DADG_ADMIN_ROLE_NAME=Administrador
 ```
 
-O valor diferencia maiúsculas e minúsculas e deve corresponder exatamente ao nome cadastrado no Auth0. Em **Actions > Flows > Login**, crie uma Post-Login Action com o código abaixo e adicione-a ao fluxo. A role e o Client ID não são segredos; a claim é confiável porque integra o ID token assinado pelo Auth0.
+O valor diferencia maiúsculas e minúsculas e deve corresponder exatamente à chave do papel no Zitadel. O login pede o escopo `urn:zitadel:iam:org:projects:roles`; os papéis chegam na claim `urn:zitadel:iam:org:project:roles` (objeto cujas chaves são os nomes) do ID token, do userinfo ou do access token JWT, e a sessão guarda só a lista de nomes.
 
-```javascript
-exports.onExecutePostLogin = async (event, api) => {
-  const roles = Array.isArray(event.authorization?.roles)
-    ? event.authorization.roles
-    : [];
+Depois de atribuir ou remover um papel, encerre a sessão e entre novamente para obter um token atualizado.
 
-  api.idToken.setCustomClaim("https://dadg.com.br/roles", roles);
-};
-```
-
-Não publique a role no access token do aluno: as rotas administrativas aceitam apenas a sessão por cookie do aplicativo administrativo e verificam a claim do ID token. Depois de atribuir ou remover uma role, encerre a sessão e entre novamente para obter um token atualizado.
-
-Como o site e o administrativo compartilham o mesmo cliente Auth0, mantenha um `AUTH0_SECRET` independente em cada deploy. Os projetos também usam nomes de cookie distintos (`dadg_site_session` e `dadg_admin_session`), evitando colisão entre `localhost:3001` e `localhost:3000`. Alterar o nome do cookie encerra somente as sessões antigas; não remove usuários nem roles do Auth0.
+A sessão do painel fica no cookie cifrado `dadg_admin_session` (dividido em `dadg_admin_session.0`, `.1`, ...), cifrado com `SESSION_SECRET`. Mantenha um `SESSION_SECRET` independente em cada deploy. Trocar o segredo encerra as sessões abertas; não remove usuários nem papéis do Zitadel.
 
 ## Chaves locais
 

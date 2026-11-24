@@ -1,7 +1,7 @@
-import { auth0 } from "./auth0";
+import { getSession } from "./auth/session";
 
 export async function getUserId() {
-    const session = await auth0.getSession()
+    const session = await getSession()
 
     return session?.user?.sub.replace("auth0|", "");
 }

@@ -12,7 +12,6 @@
     "profile:maintenance": "tsx scripts/profile-maintenance.ts"
   },
   "dependencies": {
-    "@auth0/nextjs-auth0": "^4.31.0",
     "@aws-sdk/client-s3": "^3.1144.0",
     "@aws-sdk/s3-request-presigner": "^3.1144.0",
     "exceljs": "4.4.0",
@@ -24,6 +23,7 @@
     "mongodb": "^6.13.1",
     "mongoose": "^8.24.4",
     "next": "^16.4.6",
+    "openid-client": "^6.9.1",
     "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

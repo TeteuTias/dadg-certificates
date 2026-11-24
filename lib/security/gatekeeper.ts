@@ -1,7 +1,7 @@
-import type { User } from "@auth0/nextjs-auth0/types";
+import type { User } from "../auth/types";
 import type { JWTPayload } from "jose";
 import type { NextRequest } from "next/server";
-import { auth0 } from "../auth0";
+import { getSession } from "../auth/session";
 import { isAdmin, isOperator, staffRole, type StaffRole } from "./isAdmin";
 import { API_ROUTE_MAP, type RouteConfig } from "./route-policies";
 import {
@@ -76,7 +76,7 @@ export default class GateKeeper {
       }
 
       try {
-        const session = await auth0.getSession(this.request);
+        const session = await getSession(this.request);
         return session?.user ? { kind: "admin", user: session.user } : null;
       } catch {
         return null;

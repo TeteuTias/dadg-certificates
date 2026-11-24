@@ -90,6 +90,6 @@ test("guarda da rota recusa antes de executar a mutação", async () => {
 });
 
 test("server action administrativa nega antes de consultar certificados",async()=>{let touched=false;
- const action=loadIsolated("lib/models/src/certificatesHandler/get/GetUserCertificateByEventId.ts",{"@/lib/auth0":{auth0:{getSession:async()=>null}},"@/lib/security/isAdmin":{isAdmin:()=>false},"@/lib/mongodb":{connectToDatabase:async()=>{touched=true;}},"@/lib/models/CertificateModel":{}});
+ const action=loadIsolated("lib/models/src/certificatesHandler/get/GetUserCertificateByEventId.ts",{"@/lib/auth/session":{getSession:async()=>null},"@/lib/security/isAdmin":{isAdmin:()=>false},"@/lib/mongodb":{connectToDatabase:async()=>{touched=true;}},"@/lib/models/CertificateModel":{}});
  await assert.rejects(action.default(id),/FORBIDDEN/);assert.equal(touched,false);
 });

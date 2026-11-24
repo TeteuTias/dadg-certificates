@@ -1,6 +1,7 @@
-import type { User } from "@auth0/nextjs-auth0/types";
+import type { User } from "@/lib/auth/types";
 
-export const ADMIN_ROLES_CLAIM = "https://dadg.com.br/roles";
+/** Claim do Zitadel: objeto cujas CHAVES são os nomes dos papéis, ex.: {"Administrador": {...}}. */
+export const ADMIN_ROLES_CLAIM = "urn:zitadel:iam:org:project:roles";
 
 export type StaffRole = "admin" | "operator";
 
@@ -8,6 +9,10 @@ function normalizeRoleName(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.normalize("NFKC").trim();
   return normalized || null;
+}
+
+export function roleNamesFromClaim(value: unknown): string[] {
+  return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
 }
 
 export function configuredAdminRoleName(): string | null {
@@ -21,11 +26,9 @@ export function configuredOperatorRoleName(): string | null {
 
 function hasRole(user: User | null, requiredRole: string | null): boolean {
   if (!user?.sub || !requiredRole) return false;
-  const roles = user[ADMIN_ROLES_CLAIM];
-  return (
-    Array.isArray(roles) &&
-    roles.some((role) => normalizeRoleName(role) === requiredRole)
-  );
+  // Na sessão os papéis já vêm em `roles`; em claims crus, do objeto do Zitadel.
+  const roles: unknown[] = Array.isArray(user.roles) ? user.roles : roleNamesFromClaim(user[ADMIN_ROLES_CLAIM]);
+  return roles.some((role) => normalizeRoleName(role) === requiredRole);
 }
 
 export function isAdmin(user: User | null): boolean {

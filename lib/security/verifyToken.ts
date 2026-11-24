@@ -26,31 +26,46 @@ export type StudentTokenResult =
   | { payload: JWTPayload; failure?: never; expected?: never }
   | { payload: null; failure: StudentTokenFailure; expected?: { issuer: string; audience: string } };
 
+type RemoteJwks = ReturnType<typeof createRemoteJWKSet>;
 let cachedIssuer = "";
-let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let cachedJwks: Promise<RemoteJwks> | null = null;
 
+/** issuer = OIDC_ISSUER exatamente como está: o `iss` do Zitadel não tem barra no fim. */
 export function getStudentAuthConfiguration() {
-  const rawIssuer = process.env.AUTH0_DOMAIN?.trim();
-  const audience = process.env.AUTH0_AUDIENCE?.trim();
-  if (!rawIssuer || !audience) {
-    throw new AuthConfigurationError("AUTH0_DOMAIN and AUTH0_AUDIENCE are required");
+  const issuer = process.env.OIDC_ISSUER?.trim();
+  const audience = process.env.OIDC_AUDIENCE?.trim();
+  if (!issuer || !audience) {
+    throw new AuthConfigurationError("OIDC_ISSUER and OIDC_AUDIENCE are required");
   }
-
-  let issuer: string;
   try {
-    const parsed = new URL(rawIssuer.startsWith("http") ? rawIssuer : `https://${rawIssuer}`);
-    parsed.pathname = parsed.pathname.replace(/\/?$/, "/");
-    issuer = parsed.toString();
+    new URL(issuer);
   } catch {
-    throw new AuthConfigurationError("AUTH0_DOMAIN is invalid");
+    throw new AuthConfigurationError("OIDC_ISSUER is invalid");
   }
+  return { issuer, audience };
+}
 
+/** Chaves pelo `jwks_uri` da descoberta (no Zitadel é /oauth/v2/keys), cacheadas por issuer. */
+export function studentJwks(issuer: string): Promise<RemoteJwks> {
   if (!cachedJwks || cachedIssuer !== issuer) {
     cachedIssuer = issuer;
-    cachedJwks = createRemoteJWKSet(new URL(".well-known/jwks.json", issuer));
+    const promise = fetch(`${issuer}/.well-known/openid-configuration`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(5000),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(`discovery fetch failed: HTTP ${response.status}`);
+      const metadata = (await response.json()) as { issuer?: unknown; jwks_uri?: unknown };
+      if (metadata.issuer !== issuer || typeof metadata.jwks_uri !== "string") {
+        throw new Error("discovery fetch returned unexpected issuer or jwks_uri");
+      }
+      return createRemoteJWKSet(new URL(metadata.jwks_uri));
+    });
+    promise.catch(() => {
+      if (cachedJwks === promise) cachedJwks = null;
+    });
+    cachedJwks = promise;
   }
-
-  return { issuer, audience, jwks: cachedJwks };
+  return cachedJwks;
 }
 
 export function studentJwtVerifyOptions(issuer: string, audience: string): JWTVerifyOptions {
@@ -91,8 +106,9 @@ export async function verifyStudentTokenDetailed(
   const token = authorization.slice("Bearer ".length).trim();
   if (!token) return { payload: null, failure: "no_credential" };
 
-  const { issuer, audience, jwks } = getStudentAuthConfiguration();
+  const { issuer, audience } = getStudentAuthConfiguration();
   try {
+    const jwks = await studentJwks(issuer);
     const { payload } = await jwtVerify(token, jwks, studentJwtVerifyOptions(issuer, audience));
     if (!payload.sub) return { payload: null, failure: "invalid_claims", expected: { issuer, audience } };
     return { payload };

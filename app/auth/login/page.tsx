@@ -1,7 +1,7 @@
-import { auth0 } from "@/lib/auth0"
+import { getSession } from "@/lib/auth/session"
 
 export default async function Home() {
-  const session = await auth0.getSession()
+  const session = await getSession()
 
   if (!session) {
     return (

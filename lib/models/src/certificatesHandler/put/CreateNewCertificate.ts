@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { auth0 } from "@/lib/auth0";
+import { getSession } from "@/lib/auth/session";
 import { getUserId } from "@/lib/getUserId";
 import type { ICertificate } from "@/lib/models/CertificateModel";
 import CertificateModel from "@/lib/models/CertificateModel";
@@ -10,13 +10,13 @@ export default async function CreateNewCertificate(props: Omit<ICertificate, "_i
   await connectToDatabase();
   const data = await new CertificateModel({ ...props }).save();
   const userId = await getUserId();
-  const user = await auth0.getSession();
+  const user = await getSession();
 
   await CreateNewModificationHistory({
     modifiedElementId: new ObjectId(data._id),
     modifiedUserId: new ObjectId(userId),
     modifiedDocumentType: "certificate",
-    userName: `${user?.user.nickname}`,
+    userName: `${user?.user.name}`,
     modificationDate: new Date(),
     description: `Certificado ${data._id} criado. Campos registrados: evento, carga horária, template e textos do certificado. Dados pessoais do titular foram omitidos da auditoria.`,
     httpMethods: "put",

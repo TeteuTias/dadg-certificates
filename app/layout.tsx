@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
-import { auth0 } from "@/lib/auth0";
+import { getSession } from "@/lib/auth/session";
 import { staffRole } from "@/lib/security/isAdmin";
 
 const geistSans = Geist({
@@ -34,7 +34,7 @@ export default async function RootLayout({
 }>) {
   // O cabeçalho mostra só o que o papel da sessão pode acessar; a autorização
   // de cada rota continua sendo aplicada no proxy e nos handlers.
-  const session = await auth0.getSession().catch(() => null);
+  const session = await getSession().catch(() => null);
   const role = staffRole(session?.user ?? null);
 
   return (

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { auth0 } from "./lib/auth0"
+import { middleware as authMiddleware } from "./lib/auth/oidc"
 import GateKeeper from "./lib/security/gatekeeper"
 
 
@@ -9,8 +9,8 @@ import GateKeeper from "./lib/security/gatekeeper"
  * @abstract Nova autenticação, fazendo a autenticação dentro de cada roat
  */
 export async function proxy(request: NextRequest) {
-  const authRes = await auth0.middleware(request);
-  // Regra de bypass para as rotas do próprio Auth0
+  const authRes = await authMiddleware(request);
+  // /auth/login, /auth/callback e /auth/logout são respondidas pelo módulo de login
   if (request.nextUrl.pathname.startsWith("/auth")) {
     return authRes;
   }

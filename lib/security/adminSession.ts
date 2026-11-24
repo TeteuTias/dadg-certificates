@@ -1,23 +1,26 @@
-import { filterDefaultIdTokenClaims } from "@auth0/nextjs-auth0/server";
-import type { User } from "@auth0/nextjs-auth0/types";
-import { ADMIN_ROLES_CLAIM } from "./isAdmin";
+import type { Session } from "@/lib/auth/types";
+import { ADMIN_ROLES_CLAIM, roleNamesFromClaim } from "./isAdmin";
+
+type Claims = Record<string, unknown> | undefined | null;
 
 /**
- * Mantém o conjunto mínimo padrão do SDK e a única claim personalizada usada
- * para autorização administrativa. O SDK Auth0 v4 remove claims personalizadas
- * da sessão quando `beforeSessionSaved` não é configurado.
+ * Monta o usuário guardado na sessão só com os campos usados pelo painel.
+ * `sources` em ordem de prioridade (id_token, userinfo, access token); os papéis
+ * são a união das chaves do claim do Zitadel em todas as fontes.
  */
-export function adminSessionUser(user: User): User {
-  const filteredUser = filterDefaultIdTokenClaims(user) as User;
-  const roles = user[ADMIN_ROLES_CLAIM];
-
-  if (!Array.isArray(roles)) return filteredUser;
-
-  const safeRoles = roles.filter((role): role is string => typeof role === "string");
-  if (safeRoles.length === 0) return filteredUser;
-
+export function adminSessionUser(...sources: Claims[]): Session["user"] {
+  const pick = (key: string) => sources.find((claims) => claims?.[key] !== undefined)?.[key];
+  const sub = pick("sub");
+  if (typeof sub !== "string" || !sub) throw new Error("sub ausente");
+  const email = pick("email");
+  const emailVerified = pick("email_verified");
+  const name = pick("name");
+  const roles = [...new Set(sources.flatMap((claims) => roleNamesFromClaim(claims?.[ADMIN_ROLES_CLAIM])))];
   return {
-    ...filteredUser,
-    [ADMIN_ROLES_CLAIM]: safeRoles,
+    sub,
+    ...(typeof email === "string" ? { email } : {}),
+    ...(typeof emailVerified === "boolean" ? { email_verified: emailVerified } : {}),
+    ...(typeof name === "string" ? { name } : {}),
+    roles,
   };
 }

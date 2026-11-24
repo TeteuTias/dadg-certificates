@@ -21,11 +21,11 @@ test("matriz separa aluno e administrador", () => {
   assert.equal(authorizePrincipal("student", null, false).status, 401);
 });
 
-test("administrador exige role configurada e claim assinada no ID token", () => {
+test("administrador exige role configurada no claim de papéis do Zitadel", () => {
   const previousRoleName = process.env.DADG_ADMIN_ROLE_NAME;
   const adminUser = {
     sub: "auth0|admin",
-    [ADMIN_ROLES_CLAIM]: ["Administrador"],
+    [ADMIN_ROLES_CLAIM]: { Administrador: { "123": "dadg.com.br" } },
   };
 
   try {
@@ -34,30 +34,42 @@ test("administrador exige role configurada e claim assinada no ID token", () => 
 
     process.env.DADG_ADMIN_ROLE_NAME = "Administrador";
     assert.equal(isAdmin(adminUser), true);
-    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: ["Administrador "] }), true);
-    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: [" administrador "] }), false);
-    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: ["  ", 123] }), false);
-    assert.equal(isAdmin({ sub: "auth0|student", [ADMIN_ROLES_CLAIM]: ["student"] }), false);
+    assert.equal(isAdmin({ sub: "auth0|admin", roles: ["Administrador"] }), true);
+    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: { "Administrador ": {} } }), true);
+    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: { " administrador ": {} } }), false);
+    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: { "  ": {}, "123": {} } }), false);
+    assert.equal(isAdmin({ sub: "auth0|student", [ADMIN_ROLES_CLAIM]: { student: {} } }), false);
     assert.equal(isAdmin({ sub: "auth0|admin" }), false);
-    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: "dadg-admin" }), false);
+    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: "Administrador" }), false);
+    // Formato antigo (lista) não vale como claim do Zitadel.
+    assert.equal(isAdmin({ sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: ["Administrador"] }), false);
+    assert.equal(isAdmin({ sub: "auth0|admin", "https://dadg.com.br/roles": ["Administrador"] }), false);
   } finally {
     if (previousRoleName === undefined) delete process.env.DADG_ADMIN_ROLE_NAME;
     else process.env.DADG_ADMIN_ROLE_NAME = previousRoleName;
   }
 });
 
-test("sessão administrativa preserva somente a claim personalizada de roles", () => {
-  const user = adminSessionUser({
-    sub: "auth0|admin",
-    name: "Admin DADG",
-    email: "admin@example.test",
-    [ADMIN_ROLES_CLAIM]: ["Administrador"],
-    "https://example.test/unrelated": "must-not-be-persisted",
-  });
+test("sessão administrativa guarda só os campos usados e os papéis como lista", () => {
+  const user = adminSessionUser(
+    {
+      sub: "auth0|admin",
+      [ADMIN_ROLES_CLAIM]: { Administrador: {} },
+      "https://example.test/unrelated": "must-not-be-persisted",
+    },
+    { sub: "auth0|admin", name: "Admin DADG", email: "admin@example.test", email_verified: true },
+    { sub: "auth0|admin", [ADMIN_ROLES_CLAIM]: { "Operador de Presença": {}, Administrador: {} } },
+  );
 
-  assert.deepEqual(user[ADMIN_ROLES_CLAIM], ["Administrador"]);
-  assert.equal(user.sub, "auth0|admin");
   assert.equal(user["https://example.test/unrelated"], undefined);
+  assert.deepEqual(user, {
+    sub: "auth0|admin",
+    email: "admin@example.test",
+    email_verified: true,
+    name: "Admin DADG",
+    roles: ["Administrador", "Operador de Presença"],
+  });
+  assert.throws(() => adminSessionUser({ name: "sem sub" }));
 });
 
 test("aceite é vigente apenas com versão e hash atuais", () => {
@@ -94,8 +106,8 @@ test("matriz do operador: presença sim, administração não", () => {
 test("operador exige role própria configurada; administrador prevalece", () => {
   const previousAdmin = process.env.DADG_ADMIN_ROLE_NAME;
   const previousOperator = process.env.DADG_OPERATOR_ROLE_NAME;
-  const operatorUser = { sub: "auth0|op", [ADMIN_ROLES_CLAIM]: ["Operador de Presença"] };
-  const both = { sub: "auth0|both", [ADMIN_ROLES_CLAIM]: ["Administrador", "Operador de Presença"] };
+  const operatorUser = { sub: "auth0|op", roles: ["Operador de Presença"] };
+  const both = { sub: "auth0|both", [ADMIN_ROLES_CLAIM]: { Administrador: {}, "Operador de Presença": {} } };
   try {
     process.env.DADG_ADMIN_ROLE_NAME = "Administrador";
     delete process.env.DADG_OPERATOR_ROLE_NAME;
@@ -107,7 +119,7 @@ test("operador exige role própria configurada; administrador prevalece", () => 
     assert.equal(isAdmin(operatorUser), false);
     assert.equal(staffRole(operatorUser), "operator");
     assert.equal(staffRole(both), "admin");
-    assert.equal(staffRole({ sub: "auth0|x", [ADMIN_ROLES_CLAIM]: ["Outra"] }), null);
+    assert.equal(staffRole({ sub: "auth0|x", [ADMIN_ROLES_CLAIM]: { Outra: {} } }), null);
     assert.equal(staffRole(null), null);
   } finally {
     if (previousAdmin === undefined) delete process.env.DADG_ADMIN_ROLE_NAME;
@@ -170,31 +182,34 @@ test("resumo do perfil e estado CLAM exigem token de aluno", () => {
 
 test("issuer e audience divergentes são rejeitados", async () => {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
-  const issuer = "https://alunos.example.auth0.com/";
-  const audience = "https://api.dadg.example/student";
+  const issuer = "https://login.example.test";
+  const audience = "123456789";
   const token = await new SignJWT({ sub: "auth0|student" }).setProtectedHeader({ alg: "RS256" }).setIssuedAt().setExpirationTime("5m").setIssuer(issuer).setAudience(audience).sign(privateKey);
   await assert.doesNotReject(jwtVerify(token, publicKey, studentJwtVerifyOptions(issuer, audience)));
-  await assert.rejects(jwtVerify(token, publicKey, studentJwtVerifyOptions("https://wrong.example/", audience)));
+  await assert.rejects(jwtVerify(token, publicKey, studentJwtVerifyOptions(`${issuer}/`, audience)));
   await assert.rejects(jwtVerify(token, publicKey, studentJwtVerifyOptions(issuer, "wrong-audience")));
 });
 
-test("configuração do aluno reutiliza AUTH0_DOMAIN e AUTH0_AUDIENCE", () => {
-  const previousDomain = process.env.AUTH0_DOMAIN;
-  const previousAudience = process.env.AUTH0_AUDIENCE;
+test("configuração do aluno usa OIDC_ISSUER exato e OIDC_AUDIENCE", () => {
+  const previousIssuer = process.env.OIDC_ISSUER;
+  const previousAudience = process.env.OIDC_AUDIENCE;
 
   try {
-    process.env.AUTH0_DOMAIN = "alunos.example.auth0.com";
-    process.env.AUTH0_AUDIENCE = "https://api.dadg.example";
+    process.env.OIDC_ISSUER = "https://login.example.test";
+    process.env.OIDC_AUDIENCE = "123456789";
     const configuration = getStudentAuthConfiguration();
-    assert.equal(configuration.issuer, "https://alunos.example.auth0.com/");
-    assert.equal(configuration.audience, "https://api.dadg.example");
+    assert.equal(configuration.issuer, "https://login.example.test");
+    assert.equal(configuration.audience, "123456789");
 
-    delete process.env.AUTH0_AUDIENCE;
+    process.env.OIDC_ISSUER = "login.example.test";
+    assert.throws(() => getStudentAuthConfiguration(), AuthConfigurationError);
+    process.env.OIDC_ISSUER = "https://login.example.test";
+    delete process.env.OIDC_AUDIENCE;
     assert.throws(() => getStudentAuthConfiguration(), AuthConfigurationError);
   } finally {
-    if (previousDomain === undefined) delete process.env.AUTH0_DOMAIN;
-    else process.env.AUTH0_DOMAIN = previousDomain;
-    if (previousAudience === undefined) delete process.env.AUTH0_AUDIENCE;
-    else process.env.AUTH0_AUDIENCE = previousAudience;
+    if (previousIssuer === undefined) delete process.env.OIDC_ISSUER;
+    else process.env.OIDC_ISSUER = previousIssuer;
+    if (previousAudience === undefined) delete process.env.OIDC_AUDIENCE;
+    else process.env.OIDC_AUDIENCE = previousAudience;
   }
 });
