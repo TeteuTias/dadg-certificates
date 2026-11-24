@@ -30,9 +30,14 @@ export type AccessDecision = {
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-function requestOrigin(request: NextRequest): string | null {
+/**
+ * Origem declarada pelo navegador. O Referer só serve de alternativa em métodos que alteram dados:
+ * numa navegação GET ele é só o site de onde a pessoa veio (ex.: link do site do DADG), não uma chamada entre sites.
+ */
+function requestOrigin(request: NextRequest, aceitaReferer: boolean): string | null {
   const origin = request.headers.get("origin");
   if (origin) return origin.replace(/\/$/, "");
+  if (!aceitaReferer) return null;
   const referer = request.headers.get("referer");
   if (!referer) return null;
   try {
@@ -110,7 +115,7 @@ export default class GateKeeper {
         };
       }
 
-      const origin = requestOrigin(this.request);
+      const origin = requestOrigin(this.request, !SAFE_METHODS.has(this.method));
       const declaredOrigins = policy.allowedOrigins?.map((value) => value.replace(/\/$/, "")) || [];
       const sameOrigin = origin === this.request.nextUrl.origin.replace(/\/$/, "");
       const declaredOrigin = origin ? declaredOrigins.includes(origin) : false;
