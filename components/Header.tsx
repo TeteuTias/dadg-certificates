@@ -308,6 +308,10 @@ export default function Header({ role = "admin" }: { role?: "admin" | "operator"
               Avisos
             </Link>
 
+            <Link href="/ouvidoria" className="header-link" onClick={closeNavigation}>
+              Ouvidoria
+            </Link>
+
             <Link href="/usuarios" className="header-link" onClick={closeNavigation}>
               <UsersRound size={16} /> Usuários
             </Link>

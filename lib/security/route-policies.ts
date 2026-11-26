@@ -98,6 +98,9 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   admin("^/api/v1/admin/events/[0-9a-fA-F]{24}/template$", "GET"),
   admin("^/api/v1/admin/certificate-claims$", "GET"),
   admin("^/api/v1/admin/certificate-claims/[^/]+$", "PATCH"),
+  admin("^/api/v1/admin/ouvidoria$", "GET"),
+  admin("^/api/v1/admin/ouvidoria/[0-9a-fA-F]{24}$", "PATCH"),
+  admin("^/api/v1/admin/ouvidoria/[0-9a-fA-F]{24}/anexo$", "GET"),
   admin("^/api/v1/events/[0-9a-fA-F]{24}/certificates$"),
   admin("^/api/v1/events/[0-9a-fA-F]{24}/payments/[0-9a-fA-F]{24}/reconcile$", "POST"),
   admin("^/api/v1/events/[0-9a-fA-F]{24}/registration/[0-9a-fA-F]{24}/cancel$", "POST"),
@@ -184,7 +187,7 @@ export const API_ROUTE_MAP: RouteConfig[] = [
   operator("^/presenca$"),
   operator("^/todosEventos/[0-9a-fA-F]{24}/presenca$"),
   admin("^/$"),
-  admin("^/(certificate-claims|createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
+  admin("^/(certificate-claims|ouvidoria|createCertificate|criarEvento|historicoDeModificacoes|Avisos|todosCertificados|todosEventos|Silvio|configuracoes|usuarios)(/.*)?$"),
   admin("^/teste$"),
   admin("^/Silvio\\.png$"),
 ];
